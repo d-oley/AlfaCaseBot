@@ -1,0 +1,95 @@
+﻿/* global.css: глобальные правила интерфейса для всех страниц. */
+:root {
+  --bg-main: #f3f7ff;
+  --bg-accent: #dce9ff;
+  --text-main: #0f1f3d;
+  --text-muted: #3c4f73;
+  --card-bg: #ffffff;
+  --primary: #f13f2d;
+  --primary-hover: #d63423;
+  --secondary-bg: #ebf0ff;
+  --border: #ccd8f5;
+  --container-inline: clamp(12px, 3vw, 24px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text-main);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: clamp(14px, 1.7vw, 16px);
+  line-height: 1.45;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+.container {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding-left: var(--container-inline);
+  padding-right: var(--container-inline);
+}
+
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: clamp(9px, 1.8vw, 10px) clamp(12px, 2.2vw, 16px);
+  font-size: clamp(0.88rem, 1.9vw, 0.95rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  color: var(--text-main);
+  background-color: var(--secondary-bg);
+}
+
+.btn-ghost {
+  color: var(--text-main);
+  background-color: #fff;
+  border: 1px solid var(--border);
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: clamp(12px, 2vw, 16px);
+}
+
+

@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: alfacasebot-frontend:latest
+    container_name: alfacasebot-frontend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
