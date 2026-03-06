@@ -54,7 +54,7 @@ export default {
   border-radius: 12px;
   padding: 12px;
   text-align: center;
-  background: #f8faff;
+  background: var(--surface-muted);
 }
 
 .avatar {

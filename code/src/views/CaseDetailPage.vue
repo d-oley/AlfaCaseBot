@@ -1,10 +1,36 @@
-﻿<template>
+<template>
   <div class="container case-detail-page">
     <section v-if="caseItem" class="card detail-card">
-      <h1>{{ caseItem.title }}</h1>
+      <div class="title-row">
+        <h1>{{ caseItem.title }}</h1>
+        <button
+          class="favorite-star"
+          :class="{ active: isFavorite }"
+          type="button"
+          :aria-label="isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'"
+          @click="toggleFavorite"
+        >
+          ★
+        </button>
+      </div>
       <p class="score">Решено на {{ caseItem.solvedScore }} / 10</p>
+      <div class="tags">
+        <span class="tag difficulty-tag">Сложность: {{ caseItem.difficulty || 'Не указана' }}</span>
+        <span v-for="tag in caseItem.tags" :key="tag" class="tag">{{ tag }}</span>
+      </div>
       <p class="description">{{ caseItem.fullDescription }}</p>
-      <button class="btn btn-primary" type="button" @click="goToChat">Решать</button>
+      <div class="actions">
+        <button class="btn btn-primary" type="button" @click="goToChat">Решать</button>
+        <a
+          v-if="caseItem.pdfUrl"
+          class="btn btn-secondary"
+          :href="caseItem.pdfUrl"
+          target="_blank"
+          rel="noopener"
+        >
+          Полные условия (PDF)
+        </a>
+      </div>
     </section>
     <section v-else class="card detail-card">
       <h1>Кейс не найден</h1>
@@ -16,8 +42,8 @@
 </template>
 
 <script>
-// CaseDetailPage.vue: страница с описанием конкретного кейса и переходом в чат решения.
-import { getCaseById } from '@/store/appState'
+// CaseDetailPage.vue: страница с описанием кейса, избранным и переходом в чат решения.
+import { getCaseById, isCaseFavorite, toggleCaseFavorite } from '@/store/appState'
 
 export default {
   name: 'CaseDetailPage',
@@ -28,10 +54,16 @@ export default {
     caseItem() {
       return getCaseById(this.caseId)
     },
+    isFavorite() {
+      return isCaseFavorite(this.caseId)
+    },
   },
   methods: {
     goToChat() {
       this.$router.push(`/case/${this.caseId}/chat`)
+    },
+    toggleFavorite() {
+      toggleCaseFavorite(this.caseId)
     },
   },
 }
@@ -42,8 +74,29 @@ export default {
   padding: 24px;
 }
 
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
 h1 {
   margin: 0 0 12px;
+}
+
+.favorite-star {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 2rem;
+  line-height: 1;
+  color: #b8b8b8;
+  padding: 0;
+}
+
+.favorite-star.active {
+  color: #f3c01c;
 }
 
 .score {
@@ -55,5 +108,30 @@ h1 {
 .description {
   margin: 0 0 20px;
   line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.tag {
+  font-size: 0.82rem;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+.difficulty-tag {
+  border: 1px solid var(--border);
+  font-weight: 700;
 }
 </style>

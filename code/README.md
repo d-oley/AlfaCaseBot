@@ -17,13 +17,13 @@
 npm install
 ```
 
-### 2) Запустить dev-сервер
+### 2) Запустить dev-сервер (в папке code)
 ```bash
 npm run serve
 ```
 
 После запуска открыть:
-- `http://localhost:8080`
+- `http://localhost:8081`
 
 ---
 
@@ -48,10 +48,13 @@ npm run lint
 
 ## Настройка URL backend API
 
-По умолчанию фронтенд обращается к:
-- `http://localhost:8080`
+По умолчанию dev-сервер фронта:
+- запускается на `http://localhost:8081`
+- проксирует запросы `/auth/*` на backend `http://localhost:8080`
 
-Если делаем другой адрес, задаем переменную окружения `VUE_APP_API_BASE_URL`.
+Если backend запущен на другом адресе, задайте:
+- `VUE_APP_BACKEND_PROXY_TARGET` (для локальной разработки через proxy)
+- или `VUE_APP_API_BASE_URL` (для прямого обращения без proxy)
 
 Пример для **Windows PowerShell**:
 ```powershell
@@ -61,7 +64,7 @@ npm run serve
 
 ---
 
-## Запуск через Docker (gpt inspired инструкция (^人^))
+## Запуск через Docker
 
 ### Вариант 1: через `docker build` + `docker run`
 
@@ -78,7 +81,7 @@ docker run --rm -p 8080:80 alfacasebot-frontend
 Открыть в браузере:
 - `http://localhost:8080`
 
-### Вариант 2: через Docker Compose (рекомендуется)
+### Вариант 2: через Docker Compose
 
 Запуск:
 ```bash
@@ -90,13 +93,4 @@ docker compose up --build -d
 docker compose down
 ```
 
----
 
-## Структура Docker-файлов
-
-- `Dockerfile` — multi-stage сборка (Node -> Nginx)
-- `nginx.conf` — конфигурация Nginx для SPA
-- `docker-compose.yml` — удобный запуск контейнера
-- `.dockerignore` — исключения из docker-контекста
-
----

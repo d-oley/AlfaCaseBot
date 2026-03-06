@@ -30,6 +30,28 @@
           {{ tag }}
         </button>
       </div>
+
+      <h3>Фильтр по сложности</h3>
+      <div class="tag-list">
+        <button
+          class="tag-btn"
+          :class="{ active: selectedDifficulty === 'Все' }"
+          type="button"
+          @click="selectedDifficulty = 'Все'"
+        >
+          Все
+        </button>
+        <button
+          v-for="difficulty in allDifficulties"
+          :key="difficulty"
+          class="tag-btn"
+          :class="{ active: selectedDifficulty === difficulty }"
+          type="button"
+          @click="selectedDifficulty = difficulty"
+        >
+          {{ difficulty }}
+        </button>
+      </div>
     </div>
 
     <div class="cases-grid">
@@ -43,6 +65,7 @@
         <h4>{{ item.title }}</h4>
         <p>{{ item.description }}</p>
         <div class="tags">
+          <span class="difficulty-tag">Сложность: {{ item.difficulty || 'Не указана' }}</span>
           <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
         </div>
       </button>
@@ -68,6 +91,7 @@ export default {
   data() {
     return {
       selectedTag: 'Все',
+      selectedDifficulty: 'Все',
     }
   },
   computed: {
@@ -77,11 +101,16 @@ export default {
     allTags() {
       return [...new Set(this.cases.flatMap((item) => item.tags))].sort()
     },
+    allDifficulties() {
+      return [...new Set(this.cases.map((item) => item.difficulty).filter(Boolean))]
+    },
     filteredCases() {
-      if (this.selectedTag === 'Все') {
-        return this.cases
-      }
-      return this.cases.filter((item) => item.tags.includes(this.selectedTag))
+      return this.cases.filter((item) => {
+        const isTagMatch = this.selectedTag === 'Все' || item.tags.includes(this.selectedTag)
+        const isDifficultyMatch =
+          this.selectedDifficulty === 'Все' || item.difficulty === this.selectedDifficulty
+        return isTagMatch && isDifficultyMatch
+      })
     },
   },
 }
@@ -103,11 +132,15 @@ export default {
   margin: 0 0 10px;
 }
 
+.filters h3:not(:first-child) {
+  margin-top: 14px;
+}
+
 .recommended-case {
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  background: #f8faff;
+  background: var(--surface-muted);
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
@@ -129,7 +162,8 @@ export default {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 6px 10px;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text-main);
   cursor: pointer;
 }
 
@@ -175,6 +209,11 @@ export default {
   font-size: 0.8rem;
   padding: 4px 8px;
   border-radius: 999px;
-  background: #ecf1ff;
+  background: var(--surface-subtle);
+}
+
+.difficulty-tag {
+  border: 1px solid var(--border);
+  font-weight: 700;
 }
 </style>

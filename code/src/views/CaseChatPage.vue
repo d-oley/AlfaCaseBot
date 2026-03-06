@@ -3,8 +3,8 @@
     <section class="card chat-card">
       <header class="chat-header">
         <h1>Чат по кейсу: {{ caseTitle }}</h1>
-        <button class="btn btn-secondary" type="button" @click="isConditionModalOpen = true">
-          Просмотр условия
+        <button class="btn btn-secondary" type="button" @click="openConditions">
+          {{ casePdfUrl ? 'Полные условия (PDF)' : 'Просмотр условия' }}
         </button>
       </header>
 
@@ -57,8 +57,18 @@ export default {
     caseDescription() {
       return this.caseItem ? this.caseItem.fullDescription : 'Условие кейса недоступно.'
     },
+    casePdfUrl() {
+      return this.caseItem?.pdfUrl || ''
+    },
   },
   methods: {
+    openConditions() {
+      if (this.casePdfUrl) {
+        window.open(this.casePdfUrl, '_blank', 'noopener')
+        return
+      }
+      this.isConditionModalOpen = true
+    },
     sendMessage() {
       if (!this.draft) {
         return
@@ -104,7 +114,7 @@ export default {
   padding: 12px;
   display: grid;
   gap: 8px;
-  background: #fbfdff;
+  background: var(--chat-bg);
   align-content: start;
 }
 
@@ -113,13 +123,13 @@ export default {
   max-width: min(80%, 560px);
   padding: 10px 12px;
   border-radius: 12px;
-  background: #ebf0ff;
+  background: var(--surface-bot-message);
   justify-self: start;
 }
 
 .message.user {
   justify-self: end;
-  background: #ffe5e1;
+  background: var(--surface-user-message);
 }
 
 .message p {
@@ -140,13 +150,15 @@ export default {
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
+  color: var(--text-main);
+  background: var(--input-bg);
   min-width: 0;
 }
 
 .condition-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 14, 31, 0.45);
+  background: var(--overlay-bg);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -176,6 +188,7 @@ export default {
   border: none;
   border-radius: 8px;
   background: var(--secondary-bg);
+  color: var(--text-main);
   cursor: pointer;
   font-size: 1.1rem;
 }

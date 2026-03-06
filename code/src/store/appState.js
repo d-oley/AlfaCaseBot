@@ -23,72 +23,84 @@ const roleOptions = [
   'Другое',
 ]
 
-// Каталог кейсов (пока локально)
-// теги, как и бизнес-кейсы ждем, но уже можно, я думаю, попробовать подключиться к бд и подтягивать оттуда
-// чтобы было по-человечески
+// Каталог кейсов (локально, с привязкой к PDF полных условий).
 const cases = [
   {
     id: 1,
-    title: 'Кейс 1',
-    description: 'Оптимизируйте воронку регистрации в мобильном приложении банка.',
+    title: 'VK Мессенджер x Альфа: продукты для СМБ',
+    description: 'Разработайте стратегию развития B2B-продуктов VK Мессенджера для малого и среднего бизнеса.',
     fullDescription:
-      'Проанализируйте текущую воронку регистрации, найдите узкие места и предложите план улучшений с оценкой влияния на конверсию.',
-    tags: ['Аналитика', 'Продукт', 'UX'],
-    solvedScore: 8.4,
+      'Проведите анализ потребностей и сегментов СМБ, оцените рынок продуктов на базе мессенджеров, предложите метрики и план роста с приоритизацией фич.',
+    tags: ['Стратегия', 'SMB', 'Продукт', 'Мессенджеры'],
+    difficulty: 'Средний',
+    solvedScore: 8.1,
+    pdfUrl: '/cases/vk-messenger-smb.pdf',
   },
   {
     id: 2,
-    title: 'Кейс 2',
-    description: 'Подберите стратегию роста аудитории молодежного продукта.',
+    title: 'CL Cup IT: Персонализация сайта Альфа-Банка',
+    description: 'Сформируйте гипотезы для роста конверсии сайта через персонализацию контента.',
     fullDescription:
-      'Сформируйте гипотезы роста, предложите каналы привлечения и опишите метрики успеха для каждого этапа эксперимента.',
-    tags: ['Маркетинг', 'Growth'],
-    solvedScore: 7.9,
+      'Нужно изучить рынок персонализации, подобрать инструменты и обосновать гипотезы, которые улучшат пользовательский опыт и конверсию на alfabank.ru.',
+    tags: ['UX', 'Персонализация', 'CRO', 'Веб-аналитика'],
+    difficulty: 'Сложный',
+    solvedScore: 8.5,
+    pdfUrl: '/cases/cl-cup-ux.pdf',
   },
   {
     id: 3,
-    title: 'Кейс 3',
-    description: 'Снизьте отток пользователей после первого месяца.',
+    title: 'CL Cup Data Science: Расширяя круг',
+    description: 'Разработайте ML-алгоритм для привлечения родственников текущих клиентов Альфа-Банка.',
     fullDescription:
-      'Оцените причины churn, предложите сегментацию и разработайте меры удержания с расчетом ожидаемого эффекта.',
-    tags: ['Retention', 'Аналитика'],
-    solvedScore: 8.1,
+      'Требуется проанализировать данные, выбрать подход к look-alike моделированию, предложить модель и план развития решения на ближайший год.',
+    tags: ['Data Science', 'ML', 'Look-alike', 'CRM'],
+    difficulty: 'Сложный',
+    solvedScore: 8.9,
+    pdfUrl: '/cases/cl-cup-ml.pdf',
   },
   {
     id: 4,
-    title: 'Кейс 4',
-    description: 'Разработайте продуктовую концепцию для школьной аудитории.',
+    title: 'Gum Cup: Отраслевой банк первого клика',
+    description: 'Соберите отраслевое решение для российского малого и микробизнеса.',
     fullDescription:
-      'Соберите ценностное предложение, определите JTBD и опишите MVP с логикой запуска и проверкой гипотез.',
-    tags: ['Продукт', 'Исследования'],
-    solvedScore: 7.5,
+      'Нужно предложить продуктовые бандлы банковских и нефинансовых сервисов под выбранные отрасли, провести конкурентный анализ и обосновать стратегию запуска.',
+    tags: ['Финтех', 'SMB', 'Продуктовые бандлы', 'Go-to-Market'],
+    difficulty: 'Сложный',
+    solvedScore: 8.4,
+    pdfUrl: '/cases/gum-cup-main.pdf',
   },
   {
     id: 5,
-    title: 'Кейс 5',
-    description: 'Подготовьте roadmap для функции персональных рекомендаций.',
+    title: 'Gum Cup: Дополнительное задание финала',
+    description: 'Подготовьте клиентское предложение по отраслевому решению на основе обратной связи.',
     fullDescription:
-      'Опишите этапы внедрения рекомендаций: сбор данных, ранжирование контента, контроль качества и метрики эффективности.',
-    tags: ['AI', 'Продукт', 'Roadmap'],
-    solvedScore: 8.8,
+      'Доработайте решение и представьте его в выбранном формате (лендинг, презентация, PDF, ролик), четко раскрыв ценность, уникальность и преимущества.',
+    tags: ['Презентация', 'Коммуникация ценности', 'Go-to-Market'],
+    difficulty: 'Средний',
+    solvedScore: 8.0,
+    pdfUrl: '/cases/gum-cup-final-extra.pdf',
   },
   {
     id: 6,
-    title: 'Кейс 6',
-    description: 'Улучшите клиентский путь в онлайн-чате поддержки.',
+    title: 'Alfa People: Отборочный этап',
+    description: 'Предложите развитие приложения для работы с кандидатами Alfa People.',
     fullDescription:
-      'Разберите текущий сценарий поддержки, выделите критичные точки и предложите формат сервисных улучшений.',
-    tags: ['Сервис', 'UX'],
-    solvedScore: 7.2,
+      'Кейс сфокусирован на росте вовлеченности аудитории в HR-продукте: нужны продуктовые гипотезы, метрики и логика приоритизации улучшений.',
+    tags: ['HR Tech', 'Вовлеченность', 'Продукт', 'Кандидатский опыт'],
+    difficulty: 'Средний',
+    solvedScore: 7.8,
+    pdfUrl: '/cases/alfa-people-qual.pdf',
   },
   {
     id: 7,
-    title: 'Кейс 7',
-    description: 'Постройте систему оценки качества решений для кейс-тренажера.',
+    title: 'Alfa People: Финал',
+    description: 'Финальная доработка решения по развитию Alfa People и защита на презентации.',
     fullDescription:
-      'Определите критерии оценки, весовую схему, набор метрик и формат обратной связи для пользователя.',
-    tags: ['ML', 'Аналитика', 'Метрики'],
-    solvedScore: 8.6,
+      'На финальном этапе нужно довести продуктовую концепцию до защищаемого формата, усилить аргументацию и представить план внедрения.',
+    tags: ['HR Tech', 'Финал', 'Продуктовая стратегия', 'Презентация'],
+    difficulty: 'Сложный',
+    solvedScore: 8.7,
+    pdfUrl: '/cases/alfa-people-final.pdf',
   },
 ]
 
@@ -99,6 +111,7 @@ const getDefaultUser = () => ({
   login: '',
   birthDate: '',
   role: '',
+  city: '',
   creationDate: '',
   avatarUrl: '',
   rank: 57,
@@ -109,17 +122,18 @@ export const appState = reactive({
   isAuthenticated: false,
   user: getDefaultUser(),
   topUsers: [
-    { id: 1, login: 'PukiKaki', points: 985, avatarUrl: '' },
+    { id: 1, login: 'PupiKapi', points: 985, avatarUrl: '' },
     { id: 2, login: 'AlphaSamets', points: 912, avatarUrl: '' },
     { id: 3, login: 'Theresnohope', points: 874, avatarUrl: '' },
   ],
   cases,
-  recommendedCaseId: 5,
+  recommendedCaseId: 3,
   userSolvedCases: [
     { caseId: 1, score: 8.4 },
     { caseId: 3, score: 8.1 },
     { caseId: 5, score: 8.8 },
   ],
+  userFavoriteCaseIds: [2, 5],
   noPhotoImage,
 })
 
@@ -134,6 +148,7 @@ export const registerUser = (payload) => {
     login: payload.login || payload.username || '',
     birthDate: payload.birthDate || '',
     role: payload.role || '',
+    city: payload.city || '',
     creationDate: payload.creationDate || '',
   }
 }
@@ -148,6 +163,7 @@ export const loginUser = (payload) => {
     email: payload.email || appState.user.email,
     login: payload.login || payload.username || appState.user.login || 'Пользователь',
     role: payload.role || appState.user.role || 'Студент',
+    city: payload.city || appState.user.city,
     birthDate: payload.birthDate || appState.user.birthDate,
     creationDate: payload.creationDate || appState.user.creationDate,
   }
@@ -173,6 +189,7 @@ export const updateUserProfile = (payload) => {
     email: payload.email ?? appState.user.email,
     birthDate: payload.birthDate ?? appState.user.birthDate,
     role: payload.role ?? appState.user.role,
+    city: payload.city ?? appState.user.city,
   }
 }
 
@@ -181,6 +198,7 @@ export const deleteUserProfile = () => {
   appState.isAuthenticated = false
   appState.user = getDefaultUser()
   appState.userSolvedCases = []
+  appState.userFavoriteCaseIds = []
 }
 
 // Поиск кейса по id
@@ -206,3 +224,23 @@ export const getSolvedCasesForUser = () =>
     .filter(Boolean)
 
 export const getRoleOptions = () => roleOptions
+
+export const isCaseFavorite = (caseId) => {
+  const numericId = Number(caseId)
+  return appState.userFavoriteCaseIds.includes(numericId)
+}
+
+export const toggleCaseFavorite = (caseId) => {
+  const numericId = Number(caseId)
+  if (isCaseFavorite(numericId)) {
+    appState.userFavoriteCaseIds = appState.userFavoriteCaseIds.filter((id) => id !== numericId)
+    return false
+  }
+  appState.userFavoriteCaseIds = [...appState.userFavoriteCaseIds, numericId]
+  return true
+}
+
+export const getFavoriteCasesForUser = () =>
+  appState.userFavoriteCaseIds
+    .map((caseId) => getCaseById(caseId))
+    .filter(Boolean)

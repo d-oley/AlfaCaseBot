@@ -110,6 +110,14 @@
             </option>
           </select>
 
+          <label for="register-city">Город</label>
+          <input
+            id="register-city"
+            v-model.trim="registerForm.city"
+            type="text"
+            placeholder="Москва"
+          />
+
           <label for="register-password">Пароль</label>
           <div class="password-field">
             <input
@@ -184,11 +192,29 @@
 </template>
 
 <script>
-// AuthModal.vue: модальное окно входа и регистрации с локальной валидацией формы.
+// AuthModal.vue: модальное окно входа и регистрации с API-интеграцией.
+import {
+  formatBirthdateForApi,
+  getUserByUsername,
+  loginRequest,
+  parseBirthdateFromApi,
+  registerRequest,
+} from '@/api/authApi'
 import { getRoleOptions } from '@/store/appState'
 
-const PASSWORD_REGEX = /^(?=.*[^A-Za-z0-9])[A-Za-z0-9\W]{8,}$/
-const LOGIN_REGEX = /^[A-Za-z0-9]+$/
+const USERNAME_REGEX = /^\S{3,20}$/
+const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
+
+const mapApiProfileToState = (profile, fallback = {}) => ({
+  id: profile?.id || fallback.id || null,
+  username: profile?.username || fallback.username || '',
+  login: profile?.username || fallback.login || fallback.username || '',
+  email: profile?.email || fallback.email || '',
+  birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
+  role: profile?.status || fallback.role || '',
+  city: profile?.city || fallback.city || '',
+  creationDate: profile?.creationDate || fallback.creationDate || '',
+})
 
 export default {
   name: 'AuthModal',
@@ -216,6 +242,7 @@ export default {
         email: '',
         birthDate: '',
         role: '',
+        city: '',
         password: '',
       },
     }
@@ -228,33 +255,33 @@ export default {
       return this.mode === 'login'
     },
     passwordRuleText() {
-      return 'Пароль: минимум 8 символов, только латинские буквы, цифры и спецсимволы'
+      return 'Пароль: 8-30 символов, минимум одна цифра и один спецсимвол'
     },
     loginRuleText() {
-      return 'Логин должен содержать только латинские буквы и цифры'
+      return 'Логин: 3-20 символов, без пробелов'
     },
     loginUsernameInvalid() {
-      return this.loginForm.username.length > 0 && !this.isLoginValid(this.loginForm.username)
+      return this.loginForm.username.length > 0 && !this.isUsernameValid(this.loginForm.username)
     },
     registerLoginInvalid() {
-      return this.registerForm.login.length > 0 && !this.isLoginValid(this.registerForm.login)
+      return this.registerForm.login.length > 0 && !this.isUsernameValid(this.registerForm.login)
     },
     loginPasswordInvalid() {
-      return this.loginForm.password.length > 0 && !this.isPasswordValid(this.loginForm.password)
+      return false
     },
     registerPasswordInvalid() {
-      return this.registerForm.password.length > 0 && !this.isPasswordValid(this.registerForm.password)
+      return this.registerForm.password.length > 0 && !this.isRegisterPasswordValid(this.registerForm.password)
     },
     isLoginDisabled() {
-      return !this.isLoginValid(this.loginForm.username) || !this.isPasswordValid(this.loginForm.password)
+      return !this.isUsernameValid(this.loginForm.username) || !this.isLoginPasswordValid(this.loginForm.password)
     },
     isRegisterDisabled() {
       return (
-        !this.isLoginValid(this.registerForm.login) ||
+        !this.isUsernameValid(this.registerForm.login) ||
         !this.registerForm.email ||
         !this.registerForm.birthDate ||
         !this.registerForm.role ||
-        !this.isPasswordValid(this.registerForm.password)
+        !this.isRegisterPasswordValid(this.registerForm.password)
       )
     },
   },
@@ -265,10 +292,13 @@ export default {
     },
   },
   methods: {
-    isLoginValid(login) {
-      return LOGIN_REGEX.test(login)
+    isUsernameValid(username) {
+      return USERNAME_REGEX.test(username)
     },
-    isPasswordValid(password) {
+    isLoginPasswordValid(password) {
+      return Boolean(password && password.trim())
+    },
+    isRegisterPasswordValid(password) {
       return PASSWORD_REGEX.test(password)
     },
     async handleLoginSubmit() {
@@ -281,26 +311,19 @@ export default {
       this.errorMessage = ''
 
       try {
-        // TODO: После слияния проекта убрать заглушки ниже и раскомментировать реальные вызовы API.
-        // const loginResult = await loginRequest({
-        //   username: this.loginForm.username,
-        //   password: this.loginForm.password,
-        // })
-        // if (!loginResult.success) {
-        //   this.errorMessage = loginResult.errorText || 'Не удалось выполнить вход.'
-        //   return
-        // }
-        // const profile = await getUserByUsername(this.loginForm.username)
-        await new Promise((resolve) => setTimeout(resolve, 350))
-        const profile = null
-
-        this.$emit('login-success', {
-          id: profile?.id || null,
+        await loginRequest({
           username: this.loginForm.username,
-          login: this.loginForm.username,
-          email: profile?.email || '',
-          creationDate: profile?.creationDate || '',
+          password: this.loginForm.password,
         })
+        const profile = await getUserByUsername(this.loginForm.username)
+
+        this.$emit(
+          'login-success',
+          mapApiProfileToState(profile, {
+            username: this.loginForm.username,
+            login: this.loginForm.username,
+          })
+        )
         this.message = 'Успешный вход.'
       } catch (error) {
         this.errorMessage = error?.message || 'Ошибка подключения к серверу.'
@@ -318,29 +341,27 @@ export default {
       this.errorMessage = ''
 
       try {
-        // TODO: После слияния проекта убрать заглушки ниже и раскомментировать реальные вызовы API.
-        // const registerResult = await registerRequest({
-        //   username: this.registerForm.login,
-        //   email: this.registerForm.email,
-        //   password: this.registerForm.password,
-        // })
-        // if (!registerResult.success) {
-        //   this.errorMessage = registerResult.errorText || 'Не удалось создать аккаунт.'
-        //   return
-        // }
-        // const profile = await getUserByUsername(this.registerForm.login)
-        await new Promise((resolve) => setTimeout(resolve, 350))
-        const profile = null
-
-        this.$emit('register-success', {
-          id: profile?.id || null,
+        await registerRequest({
           username: this.registerForm.login,
-          login: this.registerForm.login,
           email: this.registerForm.email,
-          birthDate: this.registerForm.birthDate,
-          role: this.registerForm.role,
-          creationDate: profile?.creationDate || '',
+          password: this.registerForm.password,
+          birthdate: formatBirthdateForApi(this.registerForm.birthDate),
+          status: this.registerForm.role,
+          city: this.registerForm.city,
         })
+
+        const profile = await getUserByUsername(this.registerForm.login)
+        this.$emit(
+          'register-success',
+          mapApiProfileToState(profile, {
+            username: this.registerForm.login,
+            login: this.registerForm.login,
+            email: this.registerForm.email,
+            birthDate: this.registerForm.birthDate,
+            role: this.registerForm.role,
+            city: this.registerForm.city,
+          })
+        )
         this.message = 'Аккаунт успешно создан.'
       } catch (error) {
         this.errorMessage = error?.message || 'Ошибка подключения к серверу.'
@@ -356,7 +377,7 @@ export default {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 14, 31, 0.45);
+  background: var(--overlay-bg);
   display: grid;
   place-items: center;
   padding: clamp(12px, 3vw, 16px);
@@ -383,6 +404,7 @@ export default {
   border: none;
   border-radius: 8px;
   background: var(--secondary-bg);
+  color: var(--text-main);
   cursor: pointer;
   font-size: 1.1rem;
 }
@@ -406,7 +428,8 @@ export default {
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 0.95rem;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text-main);
 }
 
 .password-field {
@@ -419,10 +442,11 @@ export default {
 .toggle-password {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--input-bg);
   width: 44px;
   height: 42px;
   padding: 0;
+  color: var(--text-main);
   cursor: pointer;
   display: inline-flex;
   align-items: center;

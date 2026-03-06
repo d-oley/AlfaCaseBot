@@ -8,6 +8,8 @@ import DashboardPage from '@/views/DashboardPage.vue'
 import CaseDetailPage from '@/views/CaseDetailPage.vue'
 import CaseChatPage from '@/views/CaseChatPage.vue'
 import ProfilePage from '@/views/ProfilePage.vue'
+import AdminPage from '@/views/AdminPage.vue'
+import NotFoundPage from '@/views/NotFoundPage.vue'
 import { appState } from '@/store/appState'
 
 const routes = [
@@ -39,6 +41,16 @@ const routes = [
     name: 'case-chat',
     component: CaseChatPage,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminPage,
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: NotFoundPage,
   },
 ]
 

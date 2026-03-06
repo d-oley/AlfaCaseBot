@@ -7,4 +7,14 @@ import App from './App.vue'
 import router from './router'
 import './styles/global.css'
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App)
+
+app.config.errorHandler = (error, _instance, info) => {
+  console.error('[Vue error]', info, error)
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Unhandled promise rejection]', event.reason)
+})
+
+app.use(router).mount('#app')

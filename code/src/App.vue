@@ -3,9 +3,12 @@
     <app-header
       :is-authenticated="appState.isAuthenticated"
       :login="appState.user.login"
+      :user-rank="appState.user.rank"
+      :theme="theme"
       @open-login="openModal('login')"
       @open-register="openModal('register')"
       @logout="handleLogout"
+      @toggle-theme="toggleTheme"
     />
 
     <main class="app-main">
@@ -44,9 +47,26 @@ export default {
     return {
       activeModal: null,
       appState,
+      theme: 'light',
     }
   },
+  created() {
+    this.theme = this.getInitialTheme()
+    this.applyTheme()
+  },
   methods: {
+    getInitialTheme() {
+      const savedTheme = localStorage.getItem('theme')
+      return savedTheme === 'dark' ? 'dark' : 'light'
+    },
+    applyTheme() {
+      document.documentElement.setAttribute('data-theme', this.theme)
+    },
+    toggleTheme() {
+      this.theme = this.theme === 'dark' ? 'light' : 'dark'
+      this.applyTheme()
+      localStorage.setItem('theme', this.theme)
+    },
     openModal(type) {
       this.activeModal = type
     },
@@ -83,7 +103,7 @@ export default {
   padding: clamp(12px, 3vw, 24px) 0;
   background:
     radial-gradient(circle at top right, var(--bg-accent), transparent 35%),
-    linear-gradient(160deg, var(--bg-main) 0%, #eef5ff 50%, #f7faff 100%);
+    linear-gradient(160deg, var(--bg-main) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
 }
 </style>
 
