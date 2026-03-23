@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="app-shell">
     <app-header
       :is-authenticated="appState.isAuthenticated"
@@ -23,18 +23,33 @@
       @login-success="handleLoginSuccess"
       @register-success="handleRegisterSuccess"
     />
+
+    <preference-modal
+      :is-open="shouldShowPreferenceModal"
+      :initial-preferences="appState.user.preferences"
+      :tag-options="preferenceTagOptions"
+      :difficulty-options="difficultyPreferenceOptions"
+      @save="handlePreferenceSave"
+      @skip="handlePreferenceSkip"
+    />
   </div>
 </template>
 
 <script>
-// главынй компонент приложения:
-// - отображает общий каркас (хедер, контент, футер)
-// - управляет модальными окнами входа/регистрации
-// - связывает результат авторизации с глобальным состоянием
 import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
-import { appState, loginUser, logoutUser, registerUser } from './store/appState'
+import PreferenceModal from './components/PreferenceModal.vue'
+import {
+  appState,
+  getDifficultyPreferenceOptions,
+  getPreferenceTagOptions,
+  loginUser,
+  logoutUser,
+  registerUser,
+  skipUserPreferences,
+  updateUserPreferences,
+} from './store/appState'
 
 export default {
   name: 'App',
@@ -42,6 +57,7 @@ export default {
     AppFooter,
     AppHeader,
     AuthModal,
+    PreferenceModal,
   },
   data() {
     return {
@@ -49,6 +65,17 @@ export default {
       appState,
       theme: 'light',
     }
+  },
+  computed: {
+    shouldShowPreferenceModal() {
+      return this.appState.isAuthenticated && this.appState.shouldShowPreferencesOnboarding && this.$route.name === 'dashboard'
+    },
+    preferenceTagOptions() {
+      return getPreferenceTagOptions()
+    },
+    difficultyPreferenceOptions() {
+      return getDifficultyPreferenceOptions()
+    },
   },
   created() {
     this.theme = this.getInitialTheme()
@@ -83,6 +110,12 @@ export default {
       this.closeModal()
       this.$router.push('/dashboard')
     },
+    handlePreferenceSave(payload) {
+      updateUserPreferences(payload)
+    },
+    handlePreferenceSkip() {
+      skipUserPreferences()
+    },
     handleLogout() {
       logoutUser()
       this.$router.push('/')
@@ -106,4 +139,3 @@ export default {
     linear-gradient(160deg, var(--bg-main) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
 }
 </style>
-

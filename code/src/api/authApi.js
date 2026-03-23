@@ -1,5 +1,4 @@
-﻿// API-слой для интеграции с backend авторизацией.
-// HTTP-запросы к /auth, чтобы компоненты не работали с fetch напрямую.
+// API-слой для интеграции с backend авторизацией, профилем и городами.
 const DIRECT_BACKEND_URL = 'http://localhost:8080'
 const configuredBaseUrl = (process.env.VUE_APP_API_BASE_URL || '').trim().replace(/\/$/, '')
 const API_BASE_CANDIDATES = configuredBaseUrl ? [configuredBaseUrl] : ['', DIRECT_BACKEND_URL]
@@ -19,12 +18,14 @@ const BACKEND_ERROR_MAP = {
   'Username cannot be shorter than 3 characters': 'Логин должен быть не короче 3 символов.',
   'Username cannot be empty': 'Введите логин.',
   'Username cannot contain spaces': 'Логин не должен содержать пробелы.',
+  'Invalid user status code': 'Не удалось сохранить выбранный статус.',
 }
 
 const ERROR_STATUS_BY_MESSAGE = {
   'Account does not exist': 404,
 }
 
+const AUTH_PREFIX = '/api/v1/auth'
 class ApiError extends Error {
   constructor(message, options = {}) {
     super(message)
@@ -56,7 +57,6 @@ const stripHtml = (value) =>
     .trim()
 
 const isLikelyHtml = (value) => /<\/?[a-z][\s\S]*>/i.test(String(value || ''))
-
 const isRouteNotFoundText = (value) => /Cannot\s+(GET|POST|PUT|PATCH|DELETE)\s+/i.test(String(value || ''))
 
 const extractErrorText = (body) => {
@@ -77,7 +77,7 @@ const toUserErrorText = (message, fallback = 'Не удалось выполни
   }
 
   if (isRouteNotFoundText(normalizedMessage)) {
-    return 'API endpoint не найден. Проверьте адрес backend (VUE_APP_API_BASE_URL) или dev-proxy.'
+    return 'API endpoint не найден. Проверьте адрес backend или dev-proxy.'
   }
 
   return BACKEND_ERROR_MAP[normalizedMessage] || normalizedMessage
@@ -206,12 +206,10 @@ export const parseBirthdateFromApi = (birthdate) => {
   return `${year}-${month}-${day}`
 }
 
-// Получить список пользователей.
-export const listUsers = () => request('/auth/ls')
+export const listUsers = () => request(`${AUTH_PREFIX}/users`)
 
-// Получить пользователя по логину.
 export const getUserByUsername = async (username) => {
-  const user = await request(`/auth/ls/${encodeURIComponent(username)}`)
+  const user = await request(`${AUTH_PREFIX}/users/${encodeURIComponent(username)}`)
   if (!user || (typeof user === 'object' && Object.keys(user).length === 0)) {
     throw new ApiError('Аккаунт с таким логином не найден.', {
       status: 404,
@@ -221,36 +219,74 @@ export const getUserByUsername = async (username) => {
   return user
 }
 
-// Удалить пользователя по логину.
 export const deleteUserByUsername = (username) =>
-  request(`/auth/ls/${encodeURIComponent(username)}`, {
+  request(`${AUTH_PREFIX}/users/${encodeURIComponent(username)}`, {
     method: 'DELETE',
   })
 
-// Сменить пароль пользователя.
 export const resetPassword = ({ oldPassword, id, newPassword }) =>
-  request('/auth/resetpassword', {
+  request(`${AUTH_PREFIX}/resetpassword`, {
     method: 'POST',
     body: JSON.stringify({ oldPassword, id: String(id), newPassword }),
   })
 
-// Зарегистрировать пользователя.
-export const registerRequest = ({ username, email, password, birthdate, status, city }) =>
-  request('/auth/register', {
+export const registerRequest = ({
+  username,
+  email,
+  password,
+  birthdate,
+  status,
+  cityId,
+  city,
+}) =>
+  request(`${AUTH_PREFIX}/register`, {
     method: 'POST',
-    body: JSON.stringify({ username, email, password, birthdate, status, city }),
+    body: JSON.stringify({ username, email, password, birthdate, status, cityId, city }),
   })
 
-// Выполнить вход.
 export const loginRequest = ({ username, password }) =>
-  request('/auth/login', {
+  request(`${AUTH_PREFIX}/login`, {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   })
 
-// Изменить почту пользователя.
 export const changeEmail = ({ id, email }) =>
-  request('/auth/changeemail', {
+  request(`${AUTH_PREFIX}/changeemail`, {
     method: 'POST',
     body: JSON.stringify({ id: String(id), email }),
   })
+
+export const changeUserParams = ({ id, username, birthdate, status, cityId, city, firstName, lastName }) =>
+  request(`${AUTH_PREFIX}/changeparams`, {
+    method: 'POST',
+    body: JSON.stringify({
+      id: String(id),
+      username,
+      birthdate,
+      status,
+      cityId,
+      city,
+      firstName,
+      lastName,
+    }),
+  })
+
+export const listCities = async () => {
+  throw new ApiError(
+    'Текущий backend не отдает список городов через отдельный GET endpoint. Для выбора города фронту нужен endpoint вида GET /api/v1/site/cities.',
+    {
+      status: 501,
+      code: 'CITY_API_NOT_AVAILABLE',
+    }
+  )
+}
+
+export const getUserCityById = async () => {
+  throw new ApiError(
+    'Текущий backend не отдает город пользователя через браузерно-совместимый endpoint. Нужен отдельный GET endpoint без request body.',
+    {
+      status: 501,
+      code: 'CITY_API_NOT_AVAILABLE',
+    }
+  )
+}

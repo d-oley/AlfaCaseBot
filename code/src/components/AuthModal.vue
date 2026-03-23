@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div v-if="isOpen" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal card">
       <button class="modal-close" type="button" aria-label="Закрыть" @click="$emit('close')">
@@ -28,50 +28,9 @@
               :aria-label="showLoginPassword ? 'Скрыть пароль' : 'Показать пароль'"
               @click="showLoginPassword = !showLoginPassword"
             >
-              <svg
-                v-if="!showLoginPassword"
-                class="eye-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 12C3.7 8.6 7.2 6 12 6C16.8 6 20.3 8.6 22 12C20.3 15.4 16.8 18 12 18C7.2 18 3.7 15.4 2 12Z"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                />
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
-              </svg>
-              <svg
-                v-else
-                class="eye-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M3 3L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                <path
-                  d="M10.6 6.2C11.1 6.1 11.5 6 12 6C16.8 6 20.3 8.6 22 12C21.3 13.4 20.3 14.7 19 15.7"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M14.1 14.3C13.6 14.8 12.8 15.1 12 15.1C10.3 15.1 8.9 13.7 8.9 12C8.9 11.2 9.2 10.4 9.7 9.9"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M5 8.3C3.8 9.2 2.8 10.5 2 12C3.7 15.4 7.2 18 12 18C13.9 18 15.6 17.6 17 16.9"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <span class="eye-icon">{{ showLoginPassword ? '🙈' : '👁' }}</span>
             </button>
           </div>
-          <p v-if="loginPasswordInvalid" class="error-text">{{ passwordRuleText }}</p>
 
           <button class="btn btn-primary" type="submit" :disabled="isLoginDisabled || loading">
             {{ loading ? 'Вход...' : 'Войти' }}
@@ -83,21 +42,11 @@
         <h2>Регистрация</h2>
         <form class="modal-form" @submit.prevent="handleRegisterSubmit">
           <label for="register-login">Логин</label>
-          <input
-            id="register-login"
-            v-model.trim="registerForm.login"
-            type="text"
-            placeholder="Введите логин"
-          />
+          <input id="register-login" v-model.trim="registerForm.login" type="text" placeholder="Введите логин" />
           <p v-if="registerLoginInvalid" class="error-text">{{ loginRuleText }}</p>
 
           <label for="register-email">Email</label>
-          <input
-            id="register-email"
-            v-model.trim="registerForm.email"
-            type="email"
-            placeholder="you@example.com"
-          />
+          <input id="register-email" v-model.trim="registerForm.email" type="email" placeholder="you@example.com" />
 
           <label for="register-birthdate">Дата рождения</label>
           <input id="register-birthdate" v-model="registerForm.birthDate" type="date" />
@@ -105,17 +54,18 @@
           <label for="register-role">Статус</label>
           <select id="register-role" v-model="registerForm.role">
             <option value="" disabled>Выберите статус</option>
-            <option v-for="role in roleOptions" :key="role" :value="role">
-              {{ role }}
+            <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+              {{ role.label }}
             </option>
           </select>
 
           <label for="register-city">Город</label>
-          <input
+          <city-select
             id="register-city"
-            v-model.trim="registerForm.city"
-            type="text"
-            placeholder="Москва"
+            v-model="registerForm.cityId"
+            :cities="cities"
+            :disabled="citiesLoading"
+            :backend-error="cityLoadError"
           />
 
           <label for="register-password">Пароль</label>
@@ -134,47 +84,7 @@
               :aria-label="showRegisterPassword ? 'Скрыть пароль' : 'Показать пароль'"
               @click="showRegisterPassword = !showRegisterPassword"
             >
-              <svg
-                v-if="!showRegisterPassword"
-                class="eye-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 12C3.7 8.6 7.2 6 12 6C16.8 6 20.3 8.6 22 12C20.3 15.4 16.8 18 12 18C7.2 18 3.7 15.4 2 12Z"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                />
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
-              </svg>
-              <svg
-                v-else
-                class="eye-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M3 3L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                <path
-                  d="M10.6 6.2C11.1 6.1 11.5 6 12 6C16.8 6 20.3 8.6 22 12C21.3 13.4 20.3 14.7 19 15.7"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M14.1 14.3C13.6 14.8 12.8 15.1 12 15.1C10.3 15.1 8.9 13.7 8.9 12C8.9 11.2 9.2 10.4 9.7 9.9"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M5 8.3C3.8 9.2 2.8 10.5 2 12C3.7 15.4 7.2 18 12 18C13.9 18 15.6 17.6 17 16.9"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <span class="eye-icon">{{ showRegisterPassword ? '🙈' : '👁' }}</span>
             </button>
           </div>
           <p v-if="registerPasswordInvalid" class="error-text">{{ passwordRuleText }}</p>
@@ -192,10 +102,11 @@
 </template>
 
 <script>
-// AuthModal.vue: модальное окно входа и регистрации с API-интеграцией.
+import CitySelect from '@/components/CitySelect.vue'
 import {
   formatBirthdateForApi,
   getUserByUsername,
+  listCities,
   loginRequest,
   parseBirthdateFromApi,
   registerRequest,
@@ -205,19 +116,28 @@ import { getRoleOptions } from '@/store/appState'
 const USERNAME_REGEX = /^\S{3,20}$/
 const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
 
+const resolveSelectedCity = (cities, cityId) => cities.find((item) => Number(item.id) === Number(cityId)) || null
+
 const mapApiProfileToState = (profile, fallback = {}) => ({
   id: profile?.id || fallback.id || null,
   username: profile?.username || fallback.username || '',
   login: profile?.username || fallback.login || fallback.username || '',
   email: profile?.email || fallback.email || '',
+  firstName: profile?.firstName || fallback.firstName || '',
+  lastName: profile?.lastName || fallback.lastName || '',
   birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
   role: profile?.status || fallback.role || '',
-  city: profile?.city || fallback.city || '',
+  cityId: profile?.cityId ?? fallback.cityId ?? null,
+  city: fallback.city || '',
+  region: fallback.region || '',
   creationDate: profile?.creationDate || fallback.creationDate || '',
 })
 
 export default {
   name: 'AuthModal',
+  components: {
+    CitySelect,
+  },
   props: {
     mode: {
       type: String,
@@ -230,9 +150,12 @@ export default {
       message: '',
       errorMessage: '',
       loading: false,
+      citiesLoading: false,
+      cityLoadError: '',
       showLoginPassword: false,
       showRegisterPassword: false,
       roleOptions: getRoleOptions(),
+      cities: [],
       loginForm: {
         username: '',
         password: '',
@@ -242,7 +165,7 @@ export default {
         email: '',
         birthDate: '',
         role: '',
-        city: '',
+        cityId: null,
         password: '',
       },
     }
@@ -266,9 +189,6 @@ export default {
     registerLoginInvalid() {
       return this.registerForm.login.length > 0 && !this.isUsernameValid(this.registerForm.login)
     },
-    loginPasswordInvalid() {
-      return false
-    },
     registerPasswordInvalid() {
       return this.registerForm.password.length > 0 && !this.isRegisterPasswordValid(this.registerForm.password)
     },
@@ -286,12 +206,31 @@ export default {
     },
   },
   watch: {
-    mode() {
-      this.message = ''
-      this.errorMessage = ''
+    mode: {
+      immediate: true,
+      async handler(mode) {
+        this.message = ''
+        this.errorMessage = ''
+        if (mode === 'register') {
+          await this.loadCities()
+        }
+      },
     },
   },
   methods: {
+    async loadCities() {
+      this.citiesLoading = true
+      this.cityLoadError = ''
+      try {
+        const cities = await listCities()
+        this.cities = Array.isArray(cities) ? cities : []
+      } catch (error) {
+        this.cities = []
+        this.cityLoadError = error?.message || 'Не удалось загрузить список городов.'
+      } finally {
+        this.citiesLoading = false
+      }
+    },
     isUsernameValid(username) {
       return USERNAME_REGEX.test(username)
     },
@@ -315,6 +254,7 @@ export default {
           username: this.loginForm.username,
           password: this.loginForm.password,
         })
+
         const profile = await getUserByUsername(this.loginForm.username)
 
         this.$emit(
@@ -341,13 +281,16 @@ export default {
       this.errorMessage = ''
 
       try {
+        const selectedCity = resolveSelectedCity(this.cities, this.registerForm.cityId)
+
         await registerRequest({
           username: this.registerForm.login,
           email: this.registerForm.email,
           password: this.registerForm.password,
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
-          city: this.registerForm.city,
+          cityId: this.registerForm.cityId,
+          city: selectedCity?.cityName || '',
         })
 
         const profile = await getUserByUsername(this.registerForm.login)
@@ -359,7 +302,9 @@ export default {
             email: this.registerForm.email,
             birthDate: this.registerForm.birthDate,
             role: this.registerForm.role,
-            city: this.registerForm.city,
+            cityId: selectedCity?.id || null,
+            city: selectedCity?.cityName || '',
+            region: selectedCity?.regionName || '',
           })
         )
         this.message = 'Аккаунт успешно создан.'
@@ -381,11 +326,12 @@ export default {
   display: grid;
   place-items: center;
   padding: clamp(12px, 3vw, 16px);
+  z-index: 40;
 }
 
 .modal {
   position: relative;
-  width: min(440px, 100%);
+  width: min(480px, 100%);
   padding: clamp(18px, 3vw, 24px);
   border-radius: 16px;
 }
@@ -448,15 +394,10 @@ export default {
   padding: 0;
   color: var(--text-main);
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .eye-icon {
-  width: 20px;
-  height: 20px;
-  color: #445779;
+  font-size: 1rem;
 }
 
 .modal-form .btn {
@@ -485,5 +426,3 @@ export default {
   }
 }
 </style>
-
-

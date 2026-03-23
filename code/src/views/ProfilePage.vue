@@ -5,14 +5,19 @@
         <div class="avatar-frame">
           <img :src="avatarSource" alt="Аватар пользователя" class="avatar-image" />
         </div>
+
         <div class="avatar-controls">
           <h2>Личный кабинет</h2>
+          <p class="meta-line">Имя: {{ fullName || 'Пока не указано' }}</p>
           <p class="meta-line">Логин: {{ appState.user.login || 'Пользователь' }}</p>
-          <p class="meta-line">Статус: {{ appState.user.role || 'Не указан' }}</p>
+          <p class="meta-line">Статус: {{ roleLabel }}</p>
+          <p class="meta-line">Город: {{ appState.user.city || 'Пока не выбран' }}</p>
+
           <label class="avatar-upload">
             Изменить аватар
             <input type="file" accept="image/*" @change="onAvatarChange" />
           </label>
+
           <div class="header-actions">
             <button class="btn btn-primary" type="button" @click="startProfileEdit">
               Редактировать профиль
@@ -25,6 +30,12 @@
     <section v-if="isEditingProfile" class="card edit-card">
       <h3>Редактирование профиля</h3>
       <form class="profile-form" @submit.prevent="saveProfile">
+        <label for="profile-first-name">Имя</label>
+        <input id="profile-first-name" v-model.trim="profileForm.firstName" type="text" placeholder="Имя" />
+
+        <label for="profile-last-name">Фамилия</label>
+        <input id="profile-last-name" v-model.trim="profileForm.lastName" type="text" placeholder="Фамилия" />
+
         <label for="profile-login">Логин</label>
         <input id="profile-login" v-model.trim="profileForm.login" type="text" />
 
@@ -34,11 +45,36 @@
         <label for="profile-birth">Дата рождения</label>
         <input id="profile-birth" v-model="profileForm.birthDate" type="date" />
 
-        <label for="profile-role">Статус учащегося</label>
+        <label for="profile-role">Статус</label>
         <select id="profile-role" v-model="profileForm.role">
           <option value="" disabled>Выберите статус</option>
-          <option v-for="role in roleOptions" :key="role" :value="role">
-            {{ role }}
+          <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+            {{ role.label }}
+          </option>
+        </select>
+
+        <label for="profile-city">Город</label>
+        <city-select
+          id="profile-city"
+          v-model="profileForm.cityId"
+          :cities="cities"
+          :disabled="citiesLoading"
+          :backend-error="cityLoadError"
+        />
+
+        <label for="profile-tag">Я предпочитаю...</label>
+        <select id="profile-tag" v-model="profileForm.preferenceTag">
+          <option value="">Пока без предпочтений</option>
+          <option v-for="tag in preferenceTagOptions" :key="tag" :value="tag">
+            {{ tag }}
+          </option>
+        </select>
+
+        <label for="profile-difficulty">По сложности...</label>
+        <select id="profile-difficulty" v-model="profileForm.preferenceDifficulty">
+          <option value="">Пока без предпочтений</option>
+          <option v-for="item in difficultyPreferenceOptions" :key="item.value" :value="item.value">
+            {{ item.label }}
           </option>
         </select>
 
@@ -48,24 +84,15 @@
           <button class="btn btn-primary" type="submit" :disabled="isSavingProfile || isRemovingProfile">
             {{ isSavingProfile ? 'Сохранение...' : 'Сохранить изменения' }}
           </button>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="isSavingProfile || isRemovingProfile"
-            @click="cancelProfileEdit"
-          >
+          <button class="btn btn-secondary" type="button" :disabled="isSavingProfile || isRemovingProfile" @click="cancelProfileEdit">
             Отмена
           </button>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="isSavingProfile || isRemovingProfile"
-            @click="removeProfile"
-          >
+          <button class="btn btn-secondary" type="button" :disabled="isSavingProfile || isRemovingProfile" @click="removeProfile">
             {{ isRemovingProfile ? 'Удаление...' : 'Удалить профиль' }}
           </button>
         </div>
       </form>
+
       <p v-if="profileMessage" class="success-text">{{ profileMessage }}</p>
     </section>
 
@@ -76,28 +103,13 @@
 
     <section class="card switchable-card">
       <div class="switch-tabs">
-        <button
-          class="switch-tab"
-          :class="{ active: activeTab === 'solved' }"
-          type="button"
-          @click="activeTab = 'solved'"
-        >
+        <button class="switch-tab" :class="{ active: activeTab === 'solved' }" type="button" @click="activeTab = 'solved'">
           Решенные кейсы
         </button>
-        <button
-          class="switch-tab"
-          :class="{ active: activeTab === 'achievements' }"
-          type="button"
-          @click="activeTab = 'achievements'"
-        >
+        <button class="switch-tab" :class="{ active: activeTab === 'achievements' }" type="button" @click="activeTab = 'achievements'">
           Достижения
         </button>
-        <button
-          class="switch-tab"
-          :class="{ active: activeTab === 'favorites' }"
-          type="button"
-          @click="activeTab = 'favorites'"
-        >
+        <button class="switch-tab" :class="{ active: activeTab === 'favorites' }" type="button" @click="activeTab = 'favorites'">
           Избранные кейсы
         </button>
       </div>
@@ -105,15 +117,9 @@
       <div v-if="activeTab === 'solved'">
         <h3>Решенные кейсы</h3>
         <div v-if="solvedCases.length" class="solved-list">
-          <button
-            v-for="item in solvedCases"
-            :key="item.caseId"
-            class="solved-item"
-            type="button"
-            @click="openSolvedCase(item.caseId)"
-          >
+          <button v-for="item in solvedCases" :key="item.caseId" class="solved-item" type="button" @click="openSolvedCase(item.caseId)">
             <span>{{ item.title }}</span>
-            <span>{{ item.score }} / 10</span>
+            <span>{{ item.scorePercent }} / 100</span>
           </button>
         </div>
         <p v-else class="meta-line">Пока нет решенных кейсов.</p>
@@ -122,13 +128,7 @@
       <div v-else-if="activeTab === 'favorites'">
         <h3>Избранные кейсы</h3>
         <div v-if="favoriteCases.length" class="solved-list">
-          <button
-            v-for="item in favoriteCases"
-            :key="item.id"
-            class="solved-item"
-            type="button"
-            @click="openCase(item.id)"
-          >
+          <button v-for="item in favoriteCases" :key="item.id" class="solved-item" type="button" @click="openCase(item.id)">
             <span>{{ item.title }}</span>
             <span>Открыть кейс</span>
           </button>
@@ -146,7 +146,9 @@
             :class="{ inactive: !item.active }"
           >
             <div class="emoji">{{ item.emoji }}</div>
-            <p>{{ item.title }}</p>
+            <p class="achievement-title">{{ item.title }}</p>
+            <p class="achievement-description">{{ item.description }}</p>
+            <p class="achievement-progress">{{ item.progress }}</p>
           </div>
         </div>
       </div>
@@ -155,14 +157,27 @@
 </template>
 
 <script>
-// ProfilePage.vue: личный кабинет с аватаром, управлением профиля, кейсами и достижениями.
-import { changeEmail, deleteUserByUsername, isNotFoundError } from '@/api/authApi'
+import CitySelect from '@/components/CitySelect.vue'
+import {
+  changeEmail,
+  changeUserParams,
+  deleteUserByUsername,
+  formatBirthdateForApi,
+  isNotFoundError,
+  listCities,
+} from '@/api/authApi'
 import {
   appState,
   deleteUserProfile,
+  getAchievementsForUser,
+  getDifficultyPreferenceOptions,
   getFavoriteCasesForUser,
+  getFullName,
+  getPreferenceTagOptions,
+  getRoleLabel,
   getRoleOptions,
   getSolvedCasesForUser,
+  setAvailableCities,
   setUserAvatar,
   updateUserProfile,
 } from '@/store/appState'
@@ -171,10 +186,17 @@ const LOGIN_REGEX = /^\S{3,20}$/
 
 export default {
   name: 'ProfilePage',
+  components: {
+    CitySelect,
+  },
   data() {
     return {
       appState,
       roleOptions: getRoleOptions(),
+      difficultyPreferenceOptions: getDifficultyPreferenceOptions(),
+      cities: [],
+      citiesLoading: false,
+      cityLoadError: '',
       objectUrl: '',
       profileMessage: '',
       profileError: '',
@@ -183,26 +205,27 @@ export default {
       isEditingProfile: false,
       activeTab: 'solved',
       profileForm: {
+        firstName: '',
+        lastName: '',
         login: '',
         email: '',
         birthDate: '',
         role: '',
+        cityId: null,
+        preferenceTag: '',
+        preferenceDifficulty: '',
       },
-      achievements: [
-        { id: 1, active: true, emoji: '❤️', title: 'Первый вход' },
-        { id: 2, active: true, emoji: '✨', title: '3 кейса решено' },
-        { id: 3, active: true, emoji: '🎉', title: 'Лучший результат 8+' },
-        { id: 4, active: true, emoji: '🚀', title: 'Неделя активности' },
-        { id: 5, active: false, emoji: '🏆', title: '10 кейсов решено' },
-        { id: 6, active: false, emoji: '🔥', title: '5 дней подряд' },
-        { id: 7, active: false, emoji: '🧠', title: 'Эксперт аналитики' },
-        { id: 8, active: false, emoji: '🌟', title: 'Топ-10 рейтинга' },
-      ],
     }
   },
   computed: {
     avatarSource() {
       return this.appState.user.avatarUrl || this.appState.noPhotoImage
+    },
+    fullName() {
+      return getFullName(this.appState.user)
+    },
+    roleLabel() {
+      return getRoleLabel(this.appState.user.role)
     },
     solvedCases() {
       return getSolvedCasesForUser()
@@ -210,9 +233,16 @@ export default {
     favoriteCases() {
       return getFavoriteCasesForUser()
     },
+    achievements() {
+      return getAchievementsForUser()
+    },
+    preferenceTagOptions() {
+      return getPreferenceTagOptions()
+    },
   },
-  created() {
+  async created() {
     this.fillFormFromState()
+    await this.loadCities()
   },
   beforeUnmount() {
     if (this.objectUrl) {
@@ -220,11 +250,30 @@ export default {
     }
   },
   methods: {
+    async loadCities() {
+      this.citiesLoading = true
+      this.cityLoadError = ''
+      try {
+        const cities = await listCities()
+        this.cities = Array.isArray(cities) ? cities : []
+        setAvailableCities(this.cities)
+      } catch (error) {
+        this.cities = []
+        this.cityLoadError = error?.message || 'Не удалось загрузить список городов.'
+      } finally {
+        this.citiesLoading = false
+      }
+    },
     fillFormFromState() {
+      this.profileForm.firstName = this.appState.user.firstName || ''
+      this.profileForm.lastName = this.appState.user.lastName || ''
       this.profileForm.login = this.appState.user.login || ''
       this.profileForm.email = this.appState.user.email || ''
       this.profileForm.birthDate = this.appState.user.birthDate || ''
       this.profileForm.role = this.appState.user.role || ''
+      this.profileForm.cityId = this.appState.user.cityId ?? null
+      this.profileForm.preferenceTag = this.appState.user.preferences?.tag || ''
+      this.profileForm.preferenceDifficulty = this.appState.user.preferences?.difficulty || ''
     },
     startProfileEdit() {
       this.profileMessage = ''
@@ -255,22 +304,23 @@ export default {
         return
       }
 
+      if (!LOGIN_REGEX.test(this.profileForm.login)) {
+        this.profileError = 'Логин должен содержать от 3 до 20 символов без пробелов.'
+        return
+      }
+
       this.isSavingProfile = true
       this.profileMessage = ''
       this.profileError = ''
 
-      if (!LOGIN_REGEX.test(this.profileForm.login)) {
-        this.profileError = 'Логин должен содержать от 3 до 20 символов без пробелов.'
-        this.isSavingProfile = false
-        return
-      }
-
       const previousUser = { ...this.appState.user }
+      const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.profileForm.cityId)) || null
       const emailChanged = this.profileForm.email !== (previousUser.email || '')
-      const unsupportedChanged =
+      const backendParamsChanged =
         this.profileForm.login !== (previousUser.login || '') ||
         this.profileForm.birthDate !== (previousUser.birthDate || '') ||
-        this.profileForm.role !== (previousUser.role || '')
+        this.profileForm.role !== (previousUser.role || '') ||
+        Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
 
       try {
         if (emailChanged && previousUser.id) {
@@ -280,19 +330,38 @@ export default {
           })
         }
 
+        if (backendParamsChanged && previousUser.id) {
+          await changeUserParams({
+            id: previousUser.id,
+            username: this.profileForm.login,
+            birthdate: formatBirthdateForApi(this.profileForm.birthDate),
+            status: this.profileForm.role,
+            cityId: this.profileForm.cityId,
+            city: selectedCity?.cityName || '',
+          })
+        }
+
         updateUserProfile({
+          firstName: this.profileForm.firstName,
+          lastName: this.profileForm.lastName,
           login: this.profileForm.login,
+          username: this.profileForm.login,
           email: this.profileForm.email,
           birthDate: this.profileForm.birthDate,
           role: this.profileForm.role,
+          cityId: selectedCity?.id ?? null,
+          city: selectedCity?.cityName || '',
+          region: selectedCity?.regionName || '',
+          preferences: {
+            tag: this.profileForm.preferenceTag,
+            difficulty: this.profileForm.preferenceDifficulty,
+          },
         })
 
-        if (emailChanged && previousUser.id && unsupportedChanged) {
-          this.profileMessage = 'Почта сохранена на сервере. Остальные поля обновлены локально.'
-        } else if (emailChanged && !previousUser.id) {
-          this.profileMessage = 'Профиль обновлен локально. Почта пока не синхронизирована с сервером.'
+        if (backendParamsChanged || emailChanged) {
+          this.profileMessage = 'Профиль обновлен. Имя, фамилия и предпочтения сохранены на фронте; доступные серверные поля синхронизированы с backend.'
         } else {
-          this.profileMessage = 'Профиль обновлен.'
+          this.profileMessage = 'Профиль обновлен локально.'
         }
 
         this.isEditingProfile = false
@@ -388,7 +457,6 @@ export default {
 
 .avatar-controls p {
   margin: 6px 0 0;
-  color: var(--text-muted);
 }
 
 .avatar-upload {
@@ -497,15 +565,14 @@ export default {
 
 .achievements-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .achievement-item {
   border: 1px solid var(--success-border);
-  border-radius: 10px;
-  padding: 12px;
-  text-align: center;
+  border-radius: 12px;
+  padding: 14px;
   background: var(--success-bg);
 }
 
@@ -515,19 +582,24 @@ export default {
 }
 
 .emoji {
-  font-size: 2rem;
+  font-size: 1.8rem;
   line-height: 1;
 }
 
-.achievement-item p {
-  margin: 8px 0 0;
-  font-size: 0.8rem;
+.achievement-title {
+  margin: 10px 0 6px;
+  font-weight: 700;
 }
 
-@media (max-width: 980px) {
-  .achievements-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.achievement-description,
+.achievement-progress {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.achievement-progress {
+  margin-top: 8px;
 }
 
 @media (max-width: 760px) {
@@ -538,7 +610,7 @@ export default {
 
 @media (max-width: 640px) {
   .achievements-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 </style>

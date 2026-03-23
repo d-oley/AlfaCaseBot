@@ -7,7 +7,7 @@ module.exports = defineConfig({
   devServer: {
     port: Number(process.env.PORT || 8081),
     proxy: {
-      '^/auth': {
+      '^/api': {
         target: backendProxyTarget,
         changeOrigin: true,
       },

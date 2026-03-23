@@ -13,26 +13,27 @@
           ★
         </button>
       </div>
-      <p class="score">Решено на {{ caseItem.solvedScore }} / 10</p>
+
+      <p class="score">Средний балл решений: {{ caseItem.solvedScore }} / 100</p>
+
       <div class="tags">
         <span class="tag difficulty-tag">Сложность: {{ caseItem.difficulty || 'Не указана' }}</span>
         <span v-for="tag in caseItem.tags" :key="tag" class="tag">{{ tag }}</span>
       </div>
+
       <p class="description">{{ caseItem.fullDescription }}</p>
+
       <div class="actions">
         <button class="btn btn-primary" type="button" @click="goToChat">Решать</button>
-        <a
-          v-if="caseItem.pdfUrl"
-          class="btn btn-secondary"
-          :href="caseItem.pdfUrl"
-          target="_blank"
-          rel="noopener"
-        >
+        <a v-if="caseItem.pdfUrl" class="btn btn-secondary" :href="caseItem.pdfUrl" target="_blank" rel="noopener">
           Полные условия (PDF)
         </a>
       </div>
     </section>
-    <section v-else class="card detail-card">
+
+    <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
+
+    <section v-if="!caseItem" class="card detail-card">
       <h1>Кейс не найден</h1>
       <button class="btn btn-secondary" type="button" @click="$router.push('/dashboard')">
         К списку кейсов
@@ -42,11 +43,14 @@
 </template>
 
 <script>
-// CaseDetailPage.vue: страница с описанием кейса, избранным и переходом в чат решения.
-import { getCaseById, isCaseFavorite, toggleCaseFavorite } from '@/store/appState'
+import CaseLeaderboard from '@/components/CaseLeaderboard.vue'
+import { getCaseById, getCaseLeaderboard, isCaseFavorite, markCaseViewed, toggleCaseFavorite } from '@/store/appState'
 
 export default {
   name: 'CaseDetailPage',
+  components: {
+    CaseLeaderboard,
+  },
   computed: {
     caseId() {
       return this.$route.params.caseId
@@ -56,6 +60,19 @@ export default {
     },
     isFavorite() {
       return isCaseFavorite(this.caseId)
+    },
+    leaderboardEntries() {
+      return getCaseLeaderboard(this.caseId)
+    },
+  },
+  watch: {
+    caseId: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          markCaseViewed(value)
+        }
+      },
     },
   },
   methods: {
@@ -70,6 +87,11 @@ export default {
 </script>
 
 <style scoped>
+.case-detail-page {
+  display: grid;
+  gap: 16px;
+}
+
 .detail-card {
   padding: 24px;
 }

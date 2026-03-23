@@ -1,11 +1,21 @@
-﻿<template>
+<template>
   <section class="catalog">
     <div class="recommendation card">
-      <h2>Рекомендуем вам:</h2>
-      <button class="recommended-case" type="button" @click="$emit('open-case', recommendedCase.id)">
+      <h2>Рекомендуемый кейс</h2>
+
+      <button
+        v-if="recommendedCase"
+        class="recommended-case"
+        type="button"
+        @click="$emit('open-case', recommendedCase.id)"
+      >
         <strong>{{ recommendedCase.title }}</strong>
         <span>{{ recommendedCase.description }}</span>
       </button>
+
+      <p v-else class="recommendation-empty">
+        Пока пусто. Выберите предпочтения по тегу или сложности, и здесь появится персональная рекомендация.
+      </p>
     </div>
 
     <div class="filters card">
@@ -74,7 +84,6 @@
 </template>
 
 <script>
-// CaseCatalog.vue: блок рекомендаций, фильтров и сетки кейсов на странице пользователя.
 export default {
   name: 'CaseCatalog',
   props: {
@@ -84,7 +93,7 @@ export default {
     },
     recommendedCaseId: {
       type: Number,
-      default: 1,
+      default: null,
     },
   },
   emits: ['open-case'],
@@ -96,7 +105,10 @@ export default {
   },
   computed: {
     recommendedCase() {
-      return this.cases.find((item) => item.id === this.recommendedCaseId) || this.cases[0] || {}
+      if (!this.recommendedCaseId) {
+        return null
+      }
+      return this.cases.find((item) => item.id === this.recommendedCaseId) || null
     },
     allTags() {
       return [...new Set(this.cases.flatMap((item) => item.tags))].sort()
@@ -107,8 +119,7 @@ export default {
     filteredCases() {
       return this.cases.filter((item) => {
         const isTagMatch = this.selectedTag === 'Все' || item.tags.includes(this.selectedTag)
-        const isDifficultyMatch =
-          this.selectedDifficulty === 'Все' || item.difficulty === this.selectedDifficulty
+        const isDifficultyMatch = this.selectedDifficulty === 'Все' || item.difficulty === this.selectedDifficulty
         return isTagMatch && isDifficultyMatch
       })
     },
@@ -148,8 +159,13 @@ export default {
   gap: 6px;
 }
 
-.recommended-case span {
+.recommended-case span,
+.recommendation-empty {
   color: var(--text-muted);
+}
+
+.recommendation-empty {
+  margin: 0;
 }
 
 .tag-list {
