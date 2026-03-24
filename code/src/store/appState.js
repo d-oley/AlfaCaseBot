@@ -187,6 +187,7 @@ const getDefaultUser = () => ({
   username: '',
   email: '',
   login: '',
+  nickname: '',
   firstName: '',
   lastName: '',
   birthDate: '',
@@ -226,10 +227,11 @@ const safeParse = (value, fallback) => {
 const readStorage = (key, fallback) => safeParse(localStorage.getItem(key), fallback)
 const writeStorage = (key, value) => localStorage.setItem(key, JSON.stringify(value))
 const normalizeLogin = (login) => String(login || '').trim().toLowerCase()
+const getUserStorageKey = (userLike) => normalizeLogin(userLike?.username || userLike?.login)
 
 const getAllLocalUsers = () => readStorage(USER_DATA_STORAGE_KEY, {})
-const getLocalUserData = (login) => {
-  const key = normalizeLogin(login)
+const getLocalUserData = (userLike) => {
+  const key = getUserStorageKey(userLike)
   if (!key) {
     return getDefaultLocalUserData()
   }
@@ -268,7 +270,11 @@ const buildUserFromSession = () => {
     return getDefaultUser()
   }
 
-  const localUserData = getLocalUserData(session.user?.login || session.user?.username)
+  const storageUser = {
+    username: session.user?.username || '',
+    login: session.user?.login || '',
+  }
+  const localUserData = getLocalUserData(storageUser)
 
   return {
     ...getDefaultUser(),
@@ -284,7 +290,7 @@ const buildUserFromSession = () => {
 
 const initialSession = getInitialSession()
 const initialUser = buildUserFromSession()
-const initialLocalUserData = getLocalUserData(initialUser.login || initialUser.username)
+const initialLocalUserData = getLocalUserData(initialUser)
 
 export const appState = reactive({
   isAuthenticated: Boolean(initialSession?.isAuthenticated),
@@ -313,7 +319,7 @@ const persistCurrentUserData = (previousLogin = '') => {
     return
   }
 
-  const currentLogin = normalizeLogin(appState.user.login || appState.user.username)
+  const currentLogin = getUserStorageKey(appState.user)
   if (!currentLogin) {
     persistSession()
     return
@@ -420,15 +426,19 @@ const refreshRecommendedCase = () => {
 
 const hydrateCurrentUserData = (payload, { shouldShowPreferencesOnboarding = false } = {}) => {
   const login = payload.login || payload.username || ''
-  const localUserData = getLocalUserData(login)
+  const localUserData = getLocalUserData({
+    username: payload.username || '',
+    login,
+  })
 
   appState.isAuthenticated = true
   appState.user = {
     ...getDefaultUser(),
     ...payload,
     ...localUserData,
-    login: payload.login || payload.username || '',
-    username: payload.username || payload.login || '',
+    login: payload.login || payload.nickname || payload.username || '',
+    nickname: payload.nickname || payload.login || payload.username || '',
+    username: payload.username || '',
     firstName: payload.firstName ?? localUserData.firstName ?? '',
     lastName: payload.lastName ?? localUserData.lastName ?? '',
     cityId: payload.cityId ?? localUserData.cityId ?? null,
@@ -484,14 +494,15 @@ export const setUserAvatar = (avatarUrl) => {
 }
 
 export const updateUserProfile = (payload) => {
-  const previousLogin = appState.user.login || appState.user.username || ''
-  const nextLogin = payload.login ?? payload.username ?? appState.user.login
+  const previousLogin = getUserStorageKey(appState.user)
+  const nextLogin = payload.login ?? payload.nickname ?? appState.user.login
 
   appState.user = {
     ...appState.user,
     ...payload,
     login: nextLogin || '',
-    username: payload.username ?? nextLogin ?? '',
+    nickname: payload.nickname ?? nextLogin ?? '',
+    username: payload.username ?? appState.user.username ?? '',
     preferences: {
       ...getDefaultPreferences(),
       ...(appState.user.preferences || {}),
@@ -528,7 +539,7 @@ export const closePreferencesOnboarding = () => {
 }
 
 export const deleteUserProfile = () => {
-  const login = normalizeLogin(appState.user.login || appState.user.username)
+  const login = getUserStorageKey(appState.user)
   const allUsers = getAllLocalUsers()
   if (login && allUsers[login]) {
     delete allUsers[login]

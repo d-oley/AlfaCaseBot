@@ -64,8 +64,11 @@
             id="register-city"
             v-model="registerForm.cityId"
             :cities="cities"
-            :disabled="citiesLoading"
+            :loading="citiesLoading"
+            :disabled="loading"
             :backend-error="cityLoadError"
+            :selected-city-label="selectedCityLabel"
+            @search-change="handleCitySearch"
           />
 
           <label for="register-password">Пароль</label>
@@ -116,22 +119,26 @@ import { getRoleOptions } from '@/store/appState'
 const USERNAME_REGEX = /^\S{3,20}$/
 const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
 
-const resolveSelectedCity = (cities, cityId) => cities.find((item) => Number(item.id) === Number(cityId)) || null
-
 const mapApiProfileToState = (profile, fallback = {}) => ({
   id: profile?.id || fallback.id || null,
   username: profile?.username || fallback.username || '',
-  login: profile?.username || fallback.login || fallback.username || '',
+  login: profile?.nickname || profile?.username || fallback.login || fallback.username || '',
+  nickname: profile?.nickname || profile?.username || fallback.login || fallback.username || '',
   email: profile?.email || fallback.email || '',
-  firstName: profile?.firstName || fallback.firstName || '',
-  lastName: profile?.lastName || fallback.lastName || '',
+  firstName: fallback.firstName || '',
+  lastName: fallback.lastName || '',
   birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
   role: profile?.status || fallback.role || '',
   cityId: profile?.cityId ?? fallback.cityId ?? null,
-  city: fallback.city || '',
-  region: fallback.region || '',
+  city: profile?.city || fallback.city || '',
+  region: profile?.region || fallback.region || '',
   creationDate: profile?.creationDate || fallback.creationDate || '',
 })
+
+const isRestrictedProfileLookupError = (error) => {
+  const status = Number(error?.status || 0)
+  return status === 401 || status === 403
+}
 
 export default {
   name: 'AuthModal',
@@ -192,6 +199,10 @@ export default {
     registerPasswordInvalid() {
       return this.registerForm.password.length > 0 && !this.isRegisterPasswordValid(this.registerForm.password)
     },
+    selectedCityLabel() {
+      const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.registerForm.cityId))
+      return selectedCity ? [selectedCity.cityName, selectedCity.regionName].filter(Boolean).join(', ') : ''
+    },
     isLoginDisabled() {
       return !this.isUsernameValid(this.loginForm.username) || !this.isLoginPasswordValid(this.loginForm.password)
     },
@@ -201,28 +212,38 @@ export default {
         !this.registerForm.email ||
         !this.registerForm.birthDate ||
         !this.registerForm.role ||
+        !this.registerForm.cityId ||
         !this.isRegisterPasswordValid(this.registerForm.password)
       )
     },
   },
   watch: {
-    mode: {
-      immediate: true,
-      async handler(mode) {
-        this.message = ''
-        this.errorMessage = ''
-        if (mode === 'register') {
-          await this.loadCities()
-        }
-      },
+    mode() {
+      this.message = ''
+      this.errorMessage = ''
     },
   },
   methods: {
-    async loadCities() {
-      this.citiesLoading = true
+    buildFallbackProfile(overrides = {}) {
+      const selectedCity = this.cities.find((item) => Number(item.id) === Number(overrides.cityId))
+      return mapApiProfileToState(null, {
+        ...overrides,
+        cityId: overrides.cityId ?? null,
+        city: selectedCity?.cityName || overrides.city || '',
+        region: selectedCity?.regionName || overrides.region || '',
+      })
+    },
+    async handleCitySearch(value) {
       this.cityLoadError = ''
+
+      if (!value || value.trim().length < 2) {
+        this.cities = []
+        return
+      }
+
+      this.citiesLoading = true
       try {
-        const cities = await listCities()
+        const cities = await listCities(value)
         this.cities = Array.isArray(cities) ? cities : []
       } catch (error) {
         this.cities = []
@@ -255,14 +276,27 @@ export default {
           password: this.loginForm.password,
         })
 
-        const profile = await getUserByUsername(this.loginForm.username)
+        let profile = null
+        try {
+          profile = await getUserByUsername(this.loginForm.username)
+        } catch (error) {
+          if (!isRestrictedProfileLookupError(error)) {
+            throw error
+          }
+        }
 
         this.$emit(
           'login-success',
-          mapApiProfileToState(profile, {
-            username: this.loginForm.username,
-            login: this.loginForm.username,
-          })
+          profile
+            ? mapApiProfileToState(profile, {
+                username: this.loginForm.username,
+                login: profile?.nickname || this.loginForm.username,
+              })
+            : this.buildFallbackProfile({
+                username: this.loginForm.username,
+                login: this.loginForm.username,
+                nickname: this.loginForm.username,
+              })
         )
         this.message = 'Успешный вход.'
       } catch (error) {
@@ -281,8 +315,6 @@ export default {
       this.errorMessage = ''
 
       try {
-        const selectedCity = resolveSelectedCity(this.cities, this.registerForm.cityId)
-
         await registerRequest({
           username: this.registerForm.login,
           email: this.registerForm.email,
@@ -290,21 +322,18 @@ export default {
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
           cityId: this.registerForm.cityId,
-          city: selectedCity?.cityName || '',
         })
 
-        const profile = await getUserByUsername(this.registerForm.login)
         this.$emit(
           'register-success',
-          mapApiProfileToState(profile, {
+          this.buildFallbackProfile({
             username: this.registerForm.login,
             login: this.registerForm.login,
+            nickname: this.registerForm.login,
             email: this.registerForm.email,
             birthDate: this.registerForm.birthDate,
             role: this.registerForm.role,
-            cityId: selectedCity?.id || null,
-            city: selectedCity?.cityName || '',
-            region: selectedCity?.regionName || '',
+            cityId: this.registerForm.cityId,
           })
         )
         this.message = 'Аккаунт успешно создан.'

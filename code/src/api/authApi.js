@@ -1,7 +1,10 @@
-// API-слой для интеграции с backend авторизацией, профилем и городами.
 const DIRECT_BACKEND_URL = 'http://localhost:8080'
 const configuredBaseUrl = (process.env.VUE_APP_API_BASE_URL || '').trim().replace(/\/$/, '')
 const API_BASE_CANDIDATES = configuredBaseUrl ? [configuredBaseUrl] : ['', DIRECT_BACKEND_URL]
+
+const AUTH_PREFIX = '/api/v1/auth'
+const ADMIN_PREFIX = '/api/admin/v1'
+const SITE_PREFIX = '/api/v1/site'
 
 const BACKEND_ERROR_MAP = {
   'Account does not exist': 'Аккаунт с таким логином не найден.',
@@ -19,13 +22,18 @@ const BACKEND_ERROR_MAP = {
   'Username cannot be empty': 'Введите логин.',
   'Username cannot contain spaces': 'Логин не должен содержать пробелы.',
   'Invalid user status code': 'Не удалось сохранить выбранный статус.',
+  'Please login first': 'Сначала войдите в аккаунт.',
+  'Session expired': 'Сессия истекла. Войдите снова.',
+  'You are already logged in': 'Вы уже вошли в аккаунт.',
+  'You are not logged in': 'Вы не вошли в аккаунт.',
 }
 
 const ERROR_STATUS_BY_MESSAGE = {
   'Account does not exist': 404,
+  'Please login first': 401,
+  'Session expired': 401,
 }
 
-const AUTH_PREFIX = '/api/v1/auth'
 class ApiError extends Error {
   constructor(message, options = {}) {
     super(message)
@@ -125,6 +133,7 @@ const request = async (path, options = {}) => {
 
     try {
       response = await fetch(buildUrl(baseUrl, path), {
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(options.headers || {}),
@@ -182,6 +191,50 @@ const request = async (path, options = {}) => {
   })
 }
 
+const normalizeCityResponse = (city) => {
+  if (!city || city.cityName === 'not_set') {
+    return {
+      cityId: city?.cityId ?? null,
+      cityName: '',
+      regionName: '',
+    }
+  }
+
+  return {
+    cityId: city?.cityId ?? null,
+    cityName: city?.cityName || '',
+    regionName: city?.regionName || '',
+  }
+}
+
+const mergeUserWithCity = async (user) => {
+  if (!user || !user.id) {
+    return {
+      ...user,
+      city: '',
+      region: '',
+      cityId: user?.cityId ?? null,
+    }
+  }
+
+  try {
+    const city = await getUserCityById(user.id)
+    return {
+      ...user,
+      cityId: city.cityId ?? user.cityId ?? null,
+      city: city.cityName || '',
+      region: city.regionName || '',
+    }
+  } catch {
+    return {
+      ...user,
+      cityId: user?.cityId ?? null,
+      city: '',
+      region: '',
+    }
+  }
+}
+
 export const isNotFoundError = (error) => {
   if (Number(error?.status) === 404) {
     return true
@@ -206,21 +259,24 @@ export const parseBirthdateFromApi = (birthdate) => {
   return `${year}-${month}-${day}`
 }
 
-export const listUsers = () => request(`${AUTH_PREFIX}/users`)
+export const listUsers = async () => {
+  const users = await request(`${ADMIN_PREFIX}/users`)
+  return Array.isArray(users) ? Promise.all(users.map((user) => mergeUserWithCity(user))) : []
+}
 
 export const getUserByUsername = async (username) => {
-  const user = await request(`${AUTH_PREFIX}/users/${encodeURIComponent(username)}`)
+  const user = await request(`${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`)
   if (!user || (typeof user === 'object' && Object.keys(user).length === 0)) {
     throw new ApiError('Аккаунт с таким логином не найден.', {
       status: 404,
       code: 'NOT_FOUND',
     })
   }
-  return user
+  return mergeUserWithCity(user)
 }
 
 export const deleteUserByUsername = (username) =>
-  request(`${AUTH_PREFIX}/users/${encodeURIComponent(username)}`, {
+  request(`${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`, {
     method: 'DELETE',
   })
 
@@ -230,18 +286,10 @@ export const resetPassword = ({ oldPassword, id, newPassword }) =>
     body: JSON.stringify({ oldPassword, id: String(id), newPassword }),
   })
 
-export const registerRequest = ({
-  username,
-  email,
-  password,
-  birthdate,
-  status,
-  cityId,
-  city,
-}) =>
+export const registerRequest = ({ username, email, password, birthdate, status, cityId }) =>
   request(`${AUTH_PREFIX}/register`, {
     method: 'POST',
-    body: JSON.stringify({ username, email, password, birthdate, status, cityId, city }),
+    body: JSON.stringify({ username, email, password, birthdate, status, cityId }),
   })
 
 export const loginRequest = ({ username, password }) =>
@@ -250,43 +298,38 @@ export const loginRequest = ({ username, password }) =>
     body: JSON.stringify({ username, password }),
   })
 
+export const logoutRequest = () =>
+  request(`${AUTH_PREFIX}/logout`, {
+    method: 'GET',
+  })
+
 export const changeEmail = ({ id, email }) =>
   request(`${AUTH_PREFIX}/changeemail`, {
     method: 'POST',
     body: JSON.stringify({ id: String(id), email }),
   })
 
-export const changeUserParams = ({ id, username, birthdate, status, cityId, city, firstName, lastName }) =>
+export const changeUserParams = ({ nickname, birthdate, status, cityId }) =>
   request(`${AUTH_PREFIX}/changeparams`, {
     method: 'POST',
     body: JSON.stringify({
-      id: String(id),
-      username,
+      nickname,
       birthdate,
       status,
       cityId,
-      city,
-      firstName,
-      lastName,
     }),
   })
 
-export const listCities = async () => {
-  throw new ApiError(
-    'Текущий backend не отдает список городов через отдельный GET endpoint. Для выбора города фронту нужен endpoint вида GET /api/v1/site/cities.',
-    {
-      status: 501,
-      code: 'CITY_API_NOT_AVAILABLE',
-    }
-  )
+export const listCities = async (query = '') => {
+  const normalizedQuery = String(query || '').trim()
+  if (normalizedQuery.length < 2) {
+    return []
+  }
+  const cities = await request(`${SITE_PREFIX}/searchLocation/${encodeURIComponent(normalizedQuery)}`)
+  return Array.isArray(cities) ? cities : []
 }
 
-export const getUserCityById = async () => {
-  throw new ApiError(
-    'Текущий backend не отдает город пользователя через браузерно-совместимый endpoint. Нужен отдельный GET endpoint без request body.',
-    {
-      status: 501,
-      code: 'CITY_API_NOT_AVAILABLE',
-    }
-  )
+export const getUserCityById = async (id) => {
+  const city = await request(`${SITE_PREFIX}/user/${encodeURIComponent(id)}/city`)
+  return normalizeCityResponse(city)
 }

@@ -8,5 +8,5 @@ services:
     image: alfacasebot-frontend:latest
     container_name: alfacasebot-frontend
     ports:
-      - "8080:80"
+      - "8081:80"
     restart: unless-stopped

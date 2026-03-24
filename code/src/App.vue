@@ -40,6 +40,7 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
+import { logoutRequest } from './api/authApi'
 import {
   appState,
   getDifficultyPreferenceOptions,
@@ -116,7 +117,12 @@ export default {
     handlePreferenceSkip() {
       skipUserPreferences()
     },
-    handleLogout() {
+    async handleLogout() {
+      try {
+        await logoutRequest()
+      } catch {
+        // Локальный выход все равно нужен, даже если backend-сессия уже истекла.
+      }
       logoutUser()
       this.$router.push('/')
     },

@@ -1,32 +1,63 @@
 <template>
-  <div class="city-select">
-    <input
-      v-model.trim="search"
-      type="text"
-      class="search-input"
-      placeholder="Поиск по списку городов"
-      :disabled="disabled"
-    />
-
-    <select
-      :value="modelValue"
-      class="city-dropdown"
-      :disabled="disabled || !filteredCities.length"
-      @change="$emit('update:modelValue', normalizeValue($event.target.value))"
+  <div ref="root" class="city-select">
+    <div
+      class="search-shell"
+      :class="{
+        focused: isFocused,
+        disabled,
+        invalid: Boolean(backendError),
+      }"
     >
-      <option :value="emptyValue" disabled>
-        {{ filteredCities.length ? placeholder : 'Список городов недоступен' }}
-      </option>
-      <option v-for="city in filteredCities" :key="city.id" :value="city.id">
-        {{ formatCity(city) }}
-      </option>
-    </select>
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input
+        v-model.trim="search"
+        type="text"
+        class="search-input"
+        :placeholder="placeholderText"
+        :disabled="disabled"
+        @focus="handleFocus"
+        @keydown.down.prevent="moveHighlight(1)"
+        @keydown.up.prevent="moveHighlight(-1)"
+        @keydown.enter.prevent="selectHighlighted"
+        @keydown.esc.prevent="closeDropdown"
+      />
+      <span v-if="loading" class="loading-badge">Ищем...</span>
+    </div>
+
+    <div v-if="selectedCityLabel" class="selected-chip">
+      <span class="chip-label">Выбранный город</span>
+      <strong>{{ selectedCityLabel }}</strong>
+    </div>
+
+    <div v-if="shouldShowDropdown" class="dropdown-card">
+      <p v-if="backendError" class="dropdown-state error-text">
+        {{ backendError }}
+      </p>
+      <p v-else-if="loading" class="dropdown-state muted">
+        Подбираем города из базы...
+      </p>
+      <p v-else-if="!hasEnoughQuery" class="dropdown-state muted">
+        Введите минимум 2 символа, например: Мо, Каз, Ново
+      </p>
+      <p v-else-if="!resolvedOptions.length" class="dropdown-state empty">
+        По этому запросу база пока ничего не вернула. Если вашего города нет в списке, выберите ближайший.
+      </p>
+      <button
+        v-for="(city, index) in resolvedOptions"
+        v-else
+        :key="city.id"
+        type="button"
+        class="dropdown-option"
+        :class="{ active: index === highlightedIndex }"
+        @mousedown.prevent="selectCity(city)"
+      >
+        <span class="city-name">{{ city.cityName }}</span>
+        <span v-if="city.regionName" class="region-name">{{ city.regionName }}</span>
+      </button>
+    </div>
 
     <p class="hint">
       Если вашего города нет в списке, выберите ближайший.
-    </p>
-    <p v-if="backendError" class="error-text">
-      {{ backendError }}
     </p>
   </div>
 </template>
@@ -37,15 +68,15 @@ export default {
   props: {
     modelValue: {
       type: [Number, String, null],
-      default: '',
+      default: null,
     },
     cities: {
       type: Array,
       default: () => [],
     },
-    placeholder: {
-      type: String,
-      default: 'Выберите город',
+    loading: {
+      type: Boolean,
+      default: false,
     },
     disabled: {
       type: Boolean,
@@ -55,29 +86,96 @@ export default {
       type: String,
       default: '',
     },
+    selectedCityLabel: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'search-change'],
   data() {
     return {
       search: '',
-      emptyValue: '',
+      isFocused: false,
+      highlightedIndex: 0,
+      debounceId: null,
     }
   },
   computed: {
-    filteredCities() {
-      const normalizedQuery = this.search.toLowerCase()
-      if (!normalizedQuery) {
-        return this.cities
-      }
-      return this.cities.filter((city) => this.formatCity(city).toLowerCase().includes(normalizedQuery))
+    hasEnoughQuery() {
+      return this.search.trim().length >= 2
+    },
+    placeholderText() {
+      return 'Начните вводить город'
+    },
+    resolvedOptions() {
+      return Array.isArray(this.cities) ? this.cities : []
+    },
+    shouldShowDropdown() {
+      return this.isFocused && (this.hasEnoughQuery || this.loading || this.resolvedOptions.length > 0 || Boolean(this.backendError))
     },
   },
-  methods: {
-    formatCity(city) {
-      return [city?.cityName, city?.regionName].filter(Boolean).join(', ')
+  watch: {
+    search(value) {
+      clearTimeout(this.debounceId)
+      this.highlightedIndex = 0
+      this.debounceId = setTimeout(() => {
+        this.$emit('search-change', value)
+      }, 250)
     },
-    normalizeValue(value) {
-      return value ? Number(value) : null
+    cities() {
+      this.highlightedIndex = 0
+    },
+  },
+  mounted() {
+    document.addEventListener('click', this.handleOutsideClick)
+  },
+  beforeUnmount() {
+    clearTimeout(this.debounceId)
+    document.removeEventListener('click', this.handleOutsideClick)
+  },
+  methods: {
+    handleFocus() {
+      this.isFocused = true
+    },
+    closeDropdown() {
+      this.isFocused = false
+    },
+    handleOutsideClick(event) {
+      if (!this.$refs.root?.contains(event.target)) {
+        this.closeDropdown()
+      }
+    },
+    moveHighlight(direction) {
+      if (!this.shouldShowDropdown || !this.resolvedOptions.length) {
+        return
+      }
+
+      const lastIndex = this.resolvedOptions.length - 1
+      const nextIndex = this.highlightedIndex + direction
+
+      if (nextIndex < 0) {
+        this.highlightedIndex = lastIndex
+        return
+      }
+
+      if (nextIndex > lastIndex) {
+        this.highlightedIndex = 0
+        return
+      }
+
+      this.highlightedIndex = nextIndex
+    },
+    selectHighlighted() {
+      if (!this.resolvedOptions.length) {
+        return
+      }
+
+      this.selectCity(this.resolvedOptions[this.highlightedIndex])
+    },
+    selectCity(city) {
+      this.$emit('update:modelValue', city?.id ? Number(city.id) : null)
+      this.search = city?.cityName || ''
+      this.closeDropdown()
     },
   },
 }
@@ -86,29 +184,146 @@ export default {
 <style scoped>
 .city-select {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
-.search-input,
-.city-dropdown {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 0.95rem;
-  background: var(--input-bg);
+.search-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(21, 25, 34, 0.12);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 255, 0.98));
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.search-shell.focused {
+  border-color: rgba(15, 98, 254, 0.45);
+  box-shadow: 0 18px 36px rgba(15, 98, 254, 0.12);
+  transform: translateY(-1px);
+}
+
+.search-shell.invalid {
+  border-color: rgba(190, 42, 42, 0.4);
+}
+
+.search-shell.disabled {
+  opacity: 0.7;
+}
+
+.search-icon {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
   color: var(--text-main);
+  font-size: 0.98rem;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.loading-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 98, 254, 0.08);
+  color: #0f62fe;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.selected-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(14, 116, 144, 0.08);
+  color: var(--text-main);
+}
+
+.chip-label {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.dropdown-card {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(21, 25, 34, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 45px rgba(17, 24, 39, 0.08);
+}
+
+.dropdown-state {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.dropdown-state.muted {
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--text-muted);
+}
+
+.dropdown-state.empty {
+  background: rgba(245, 158, 11, 0.09);
+  color: #9a6700;
+}
+
+.dropdown-option {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.dropdown-option:hover,
+.dropdown-option.active {
+  background: rgba(15, 98, 254, 0.08);
+  transform: translateX(2px);
+}
+
+.city-name {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.region-name {
+  color: var(--text-muted);
+  font-size: 0.88rem;
 }
 
 .hint {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .error-text {
-  margin: 0;
   color: #be2a2a;
-  font-size: 0.85rem;
 }
 </style>

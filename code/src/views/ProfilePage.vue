@@ -58,8 +58,11 @@
           id="profile-city"
           v-model="profileForm.cityId"
           :cities="cities"
-          :disabled="citiesLoading"
+          :loading="citiesLoading"
+          :disabled="isSavingProfile || isRemovingProfile"
           :backend-error="cityLoadError"
+          :selected-city-label="selectedCityLabel"
+          @search-change="handleCitySearch"
         />
 
         <label for="profile-tag">Я предпочитаю...</label>
@@ -239,10 +242,16 @@ export default {
     preferenceTagOptions() {
       return getPreferenceTagOptions()
     },
+    selectedCityLabel() {
+      const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.profileForm.cityId))
+      if (selectedCity) {
+        return [selectedCity.cityName, selectedCity.regionName].filter(Boolean).join(', ')
+      }
+      return [this.appState.user.city, this.appState.user.region].filter(Boolean).join(', ')
+    },
   },
-  async created() {
+  created() {
     this.fillFormFromState()
-    await this.loadCities()
   },
   beforeUnmount() {
     if (this.objectUrl) {
@@ -250,11 +259,17 @@ export default {
     }
   },
   methods: {
-    async loadCities() {
-      this.citiesLoading = true
+    async handleCitySearch(value) {
       this.cityLoadError = ''
+
+      if (!value || value.trim().length < 2) {
+        this.cities = []
+        return
+      }
+
+      this.citiesLoading = true
       try {
-        const cities = await listCities()
+        const cities = await listCities(value)
         this.cities = Array.isArray(cities) ? cities : []
         setAvailableCities(this.cities)
       } catch (error) {
@@ -323,21 +338,19 @@ export default {
         Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
 
       try {
-        if (emailChanged && previousUser.id) {
+        if (emailChanged) {
           await changeEmail({
             id: previousUser.id,
             email: this.profileForm.email,
           })
         }
 
-        if (backendParamsChanged && previousUser.id) {
+        if (backendParamsChanged) {
           await changeUserParams({
-            id: previousUser.id,
-            username: this.profileForm.login,
+            nickname: this.profileForm.login,
             birthdate: formatBirthdateForApi(this.profileForm.birthDate),
             status: this.profileForm.role,
             cityId: this.profileForm.cityId,
-            city: selectedCity?.cityName || '',
           })
         }
 
@@ -345,13 +358,13 @@ export default {
           firstName: this.profileForm.firstName,
           lastName: this.profileForm.lastName,
           login: this.profileForm.login,
-          username: this.profileForm.login,
+          nickname: this.profileForm.login,
           email: this.profileForm.email,
           birthDate: this.profileForm.birthDate,
           role: this.profileForm.role,
-          cityId: selectedCity?.id ?? null,
-          city: selectedCity?.cityName || '',
-          region: selectedCity?.regionName || '',
+          cityId: selectedCity?.id ?? previousUser.cityId ?? null,
+          city: selectedCity?.cityName || previousUser.city || '',
+          region: selectedCity?.regionName || previousUser.region || '',
           preferences: {
             tag: this.profileForm.preferenceTag,
             difficulty: this.profileForm.preferenceDifficulty,
@@ -359,9 +372,9 @@ export default {
         })
 
         if (backendParamsChanged || emailChanged) {
-          this.profileMessage = 'Профиль обновлен. Имя, фамилия и предпочтения сохранены на фронте; доступные серверные поля синхронизированы с backend.'
+          this.profileMessage = 'Профиль обновлен. Сервер синхронизировал email, nickname, статус, дату рождения и город; имя, фамилия и предпочтения пока сохраняются на фронте.'
         } else {
-          this.profileMessage = 'Профиль обновлен локально.'
+          this.profileMessage = 'Локальные поля профиля обновлены.'
         }
 
         this.isEditingProfile = false

@@ -234,7 +234,7 @@ const createDemoUsers = () => [
 
 const mapApiUserToAdminUser = (user, index) => ({
   id: user?.id ?? index + 1,
-  login: user?.username || '',
+  login: user?.nickname || user?.username || '',
   email: user?.email || '',
   role: user?.status || 'Не указан',
   rank: index + 1,
