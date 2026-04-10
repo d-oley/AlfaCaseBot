@@ -280,10 +280,10 @@ export const deleteUserByUsername = (username) =>
     method: 'DELETE',
   })
 
-export const resetPassword = ({ oldPassword, id, newPassword }) =>
+export const resetPassword = ({ oldPassword, newPassword }) =>
   request(`${AUTH_PREFIX}/resetpassword`, {
     method: 'POST',
-    body: JSON.stringify({ oldPassword, id: String(id), newPassword }),
+    body: JSON.stringify({ oldPassword, newPassword }),
   })
 
 export const registerRequest = ({ username, email, password, birthdate, status, cityId }) =>
@@ -303,17 +303,18 @@ export const logoutRequest = () =>
     method: 'GET',
   })
 
-export const changeEmail = ({ id, email }) =>
+export const changeEmail = ({ email }) =>
   request(`${AUTH_PREFIX}/changeemail`, {
     method: 'POST',
-    body: JSON.stringify({ id: String(id), email }),
+    body: JSON.stringify({ email }),
   })
 
-export const changeUserParams = ({ nickname, birthdate, status, cityId }) =>
+export const changeUserParams = ({ firstName, lastName, birthdate, status, cityId }) =>
   request(`${AUTH_PREFIX}/changeparams`, {
     method: 'POST',
     body: JSON.stringify({
-      nickname,
+      firstName,
+      lastName,
       birthdate,
       status,
       cityId,

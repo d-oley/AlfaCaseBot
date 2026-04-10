@@ -426,7 +426,6 @@ export default {
       try {
         if (isEmailChanged) {
           await changeEmail({
-            id: this.userForm.id,
             email: payload.email,
           })
         }

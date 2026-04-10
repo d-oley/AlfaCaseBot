@@ -332,6 +332,8 @@ export default {
       const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.profileForm.cityId)) || null
       const emailChanged = this.profileForm.email !== (previousUser.email || '')
       const backendParamsChanged =
+        this.profileForm.firstName !== (previousUser.firstName || '') ||
+        this.profileForm.lastName !== (previousUser.lastName || '') ||
         this.profileForm.login !== (previousUser.login || '') ||
         this.profileForm.birthDate !== (previousUser.birthDate || '') ||
         this.profileForm.role !== (previousUser.role || '') ||
@@ -340,14 +342,14 @@ export default {
       try {
         if (emailChanged) {
           await changeEmail({
-            id: previousUser.id,
             email: this.profileForm.email,
           })
         }
 
         if (backendParamsChanged) {
           await changeUserParams({
-            nickname: this.profileForm.login,
+            firstName: this.profileForm.firstName,
+            lastName: this.profileForm.lastName,
             birthdate: formatBirthdateForApi(this.profileForm.birthDate),
             status: this.profileForm.role,
             cityId: this.profileForm.cityId,
@@ -372,7 +374,7 @@ export default {
         })
 
         if (backendParamsChanged || emailChanged) {
-          this.profileMessage = 'Профиль обновлен. Сервер синхронизировал email, nickname, статус, дату рождения и город; имя, фамилия и предпочтения пока сохраняются на фронте.'
+          this.profileMessage = 'Профиль обновлен. Сервер синхронизировал email, имя, фамилию, статус, дату рождения и город; предпочтения пока сохраняются на фронте.'
         } else {
           this.profileMessage = 'Локальные поля профиля обновлены.'
         }

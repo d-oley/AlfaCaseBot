@@ -5,7 +5,6 @@
         <p class="eyebrow">Leaderboard</p>
         <h2>Топ решений по кейсу</h2>
       </div>
-      <p class="hint">Как на Kaggle: только баллы и позиция</p>
     </div>
 
     <div v-if="entries.length" class="table">

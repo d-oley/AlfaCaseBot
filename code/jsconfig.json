@@ -1,19 +1,31 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2021",
+    "useDefineForClassFields": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
     "module": "esnext",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "ignoreDeprecations": "6.0",
     "baseUrl": "./",
-    "moduleResolution": "node",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@views/*": ["src/views/*"],
+      "@api/*": ["src/api/*"],
+      "@store/*": ["src/store/*"],
+      "@styles/*": ["src/styles/*"],
+      "@assets/*": ["src/assets/*"],
+      "@router/*": ["src/router/*"]
     },
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable",
-      "scripthost"
-    ]
-  }
+    "moduleResolution": "bundler"
+  },
+  "exclude": ["node_modules", "dist"]
 }
