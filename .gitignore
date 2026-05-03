@@ -1,0 +1,41 @@
+# OS files
+.DS_Store
+
+# IDE
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Frontend (code folder)
+code/node_modules
+code/dist
+code/.env.local
+code/.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Backend (back folder)
+back/build
+back/.gradle
+back/.classpath
+back/.project
+back/.settings/
+
+# ML (ml folder)
+ml/data1.csv
+ml/data2.csv
+ml/__pycache__
+ml/*.pyc
+ml/.ipynb_checkpoints/
+
+# Generated files
+*.jar
+*.class
