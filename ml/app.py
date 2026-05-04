@@ -16,7 +16,7 @@ MODEL_PATH = Path(__file__).resolve().parent / "artifacts" / "baseline.joblib"
 BACK_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
 CHECK_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
-SAVE_PATH = os.getenv("SAVE_RATING_PATH", "/internal/save-rating")
+SAVE_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
 TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 
 SUCCESS_MSG = "Ответ принят."
@@ -184,10 +184,8 @@ def evaluate():
     llm = llm_stub(text, case_id)
     try:
         status, data = back_req(SAVE_PATH, body={
-            "case_id": case_id,
+            "caseId": case_id,
             "rating": llm["rating"],
-            "rating_source": llm["status"],
-            "llm_meta": llm["meta"],
         }, cookie=cookie)
     except RuntimeError as e:
         return jsonify(error_resp("BACKEND_UNAVAILABLE", str(e))), 502

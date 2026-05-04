@@ -46,8 +46,29 @@ async function request(url, opts = {}) {
   return data
 }
 
-function mlRequest(url, opts = {}) {
-  return request(url, opts)
+async function mlRequest(url, opts = {}) {
+  const res = await fetch(url, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+  })
+
+  let data = null
+  try {
+    data = await res.json()
+  } catch {
+    if (!res.ok) throw new Error('Server error')
+    return null
+  }
+
+  if (!res.ok) {
+    const err = new Error(data?.message || 'ML service error')
+    err.status = res.status
+    err.body = data
+    throw err
+  }
+
+  return data
 }
 
 function normalizeCity(city) {
