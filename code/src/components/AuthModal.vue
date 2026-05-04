@@ -224,6 +224,10 @@ export default {
     },
   },
   methods: {
+    resetMessages() {
+      this.message = ''
+      this.errorMessage = ''
+    },
     buildFallbackProfile(overrides = {}) {
       const selectedCity = this.cities.find((item) => Number(item.id) === Number(overrides.cityId))
       return mapApiProfileToState(null, {
@@ -267,8 +271,7 @@ export default {
       }
 
       this.loading = true
-      this.message = ''
-      this.errorMessage = ''
+      this.resetMessages()
 
       try {
         await loginRequest({
@@ -311,8 +314,7 @@ export default {
       }
 
       this.loading = true
-      this.message = ''
-      this.errorMessage = ''
+      this.resetMessages()
 
       try {
         await registerRequest({

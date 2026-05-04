@@ -43,56 +43,43 @@ import PreferenceModal from './components/PreferenceModal.vue'
 import { logoutRequest } from './api/authApi'
 import {
   appState,
-  getDifficultyPreferenceOptions,
-  getPreferenceTagOptions,
   loginUser,
   logoutUser,
   registerUser,
   skipUserPreferences,
   updateUserPreferences,
+  getDifficultyPreferenceOptions,
+  getPreferenceTagOptions,
 } from './store/appState'
 
 export default {
   name: 'App',
-  components: {
-    AppFooter,
-    AppHeader,
-    AuthModal,
-    PreferenceModal,
-  },
+  components: { AppFooter, AppHeader, AuthModal, PreferenceModal },
   data() {
     return {
       activeModal: null,
       appState,
-      theme: 'light',
+      theme: localStorage.getItem('theme') || 'light',
+      preferenceTagOptions: getPreferenceTagOptions(),
+      difficultyPreferenceOptions: getDifficultyPreferenceOptions(),
     }
   },
   computed: {
     shouldShowPreferenceModal() {
-      return this.appState.isAuthenticated && this.appState.shouldShowPreferencesOnboarding && this.$route.name === 'dashboard'
-    },
-    preferenceTagOptions() {
-      return getPreferenceTagOptions()
-    },
-    difficultyPreferenceOptions() {
-      return getDifficultyPreferenceOptions()
+      return (
+        this.appState.isAuthenticated &&
+        this.appState.shouldShowPreferencesOnboarding &&
+        this.$route.name === 'dashboard'
+      )
     },
   },
   created() {
-    this.theme = this.getInitialTheme()
-    this.applyTheme()
+    document.documentElement.setAttribute('data-theme', this.theme)
   },
   methods: {
-    getInitialTheme() {
-      const savedTheme = localStorage.getItem('theme')
-      return savedTheme === 'dark' ? 'dark' : 'light'
-    },
-    applyTheme() {
-      document.documentElement.setAttribute('data-theme', this.theme)
-    },
     toggleTheme() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark'
-      this.applyTheme()
+      document.documentElement.setAttribute('data-theme', this.theme)
       localStorage.setItem('theme', this.theme)
     },
     openModal(type) {
@@ -121,7 +108,7 @@ export default {
       try {
         await logoutRequest()
       } catch {
-        // Локальный выход все равно нужен, даже если backend-сессия уже истекла.
+        // OK if session already ended
       }
       logoutUser()
       this.$router.push('/')

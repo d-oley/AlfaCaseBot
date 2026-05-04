@@ -9,12 +9,12 @@ import './styles/global.css'
 
 const app = createApp(App)
 
-app.config.errorHandler = (error, _instance, info) => {
-  console.error('[Vue error]', info, error)
+app.config.errorHandler = (err) => {
+  console.error('Error:', err)
 }
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('[Unhandled promise rejection]', event.reason)
+  console.error('Promise error:', event.reason)
 })
 
 app.use(router).mount('#app')

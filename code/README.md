@@ -50,15 +50,19 @@ npm run lint
 
 По умолчанию dev-сервер фронта:
 - запускается на `http://localhost:8081`
-- проксирует запросы `/auth/*` на backend `http://localhost:8080`
+- проксирует запросы `/api/*` на backend `http://localhost:8080`
+- проксирует запросы `/evaluate` на Python service `http://localhost:5000`
 
-Если backend запущен на другом адресе, задайте:
+Если сервисы запущены на других адресах, задайте:
 - `VUE_APP_BACKEND_PROXY_TARGET` (для локальной разработки через proxy)
+- `VUE_APP_ML_PROXY_TARGET` (для локальной разработки через proxy)
 - или `VUE_APP_API_BASE_URL` (для прямого обращения без proxy)
+- или `VUE_APP_ML_API_BASE_URL` (для прямого обращения к Python service)
 
 Пример для **Windows PowerShell**:
 ```powershell
 $env:VUE_APP_API_BASE_URL="http://localhost:8080"
+$env:VUE_APP_ML_API_BASE_URL="http://localhost:5000"
 npm run serve
 ```
 

@@ -14,9 +14,14 @@
         </div>
       </div>
 
+      <p v-if="statusMessage" class="status-text">{{ statusMessage }}</p>
+      <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
+
       <form class="chat-form" @submit.prevent="sendMessage">
-        <input v-model.trim="draft" type="text" placeholder="Введите сообщение..." />
-        <button class="btn btn-primary" type="submit" :disabled="!draft">Отправить</button>
+        <input v-model.trim="draft" type="text" :disabled="isSending" placeholder="Введите сообщение..." />
+        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending">
+          {{ isSending ? 'Отправка...' : 'Отправить' }}
+        </button>
       </form>
     </section>
 
@@ -32,16 +37,28 @@
 
 <script>
 // CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
-import { getCaseById } from '@/store/appState'
+import { evaluateCaseSolution } from '@/api/authApi'
+import { appState, getCaseById, markCaseViewed, saveSolvedCaseResult } from '@/store/appState'
 
 export default {
   name: 'CaseChatPage',
   data() {
     return {
+      appState,
       draft: '',
-      messages: [],
+      messages: [
+        {
+          id: 0,
+          author: 'bot',
+          text: 'Отправьте ваше решение по кейсу, и я проверю его на токсичность и сохраню результат.',
+        },
+      ],
       nextId: 1,
       isConditionModalOpen: false,
+      isSending: false,
+      errorMessage: '',
+      statusMessage: '',
+      openedAt: Date.now(),
     }
   },
   computed: {
@@ -61,6 +78,9 @@ export default {
       return this.caseItem?.pdfUrl || ''
     },
   },
+  created() {
+    markCaseViewed(this.caseId)
+  },
   methods: {
     openConditions() {
       if (this.casePdfUrl) {
@@ -69,17 +89,74 @@ export default {
       }
       this.isConditionModalOpen = true
     },
-    sendMessage() {
+    buildSolveMinutes() {
+      const diffMs = Date.now() - this.openedAt
+      return Math.max(1, Math.round(diffMs / 60000))
+    },
+    async sendMessage() {
       if (!this.draft) {
         return
       }
+
+      const text = this.draft
+      this.errorMessage = ''
+      this.statusMessage = ''
+      this.isSending = true
+
       this.messages.push({
         id: this.nextId,
         author: 'user',
-        text: this.draft,
+        text,
       })
       this.nextId += 1
       this.draft = ''
+
+      try {
+        const response = await evaluateCaseSolution({
+          text,
+          caseId: this.caseId,
+        })
+
+        this.messages.push({
+          id: this.nextId,
+          author: 'bot',
+          text: response.message || `Решение принято. Итоговая оценка: ${response.rating ?? 0}.`,
+        })
+        this.nextId += 1
+
+        this.statusMessage =
+          response.rating === null || response.rating === undefined
+            ? 'Ответ обработан.'
+            : `Рейтинг по кейсу: ${response.rating} / 100`
+
+        if (typeof response.rating === 'number' && this.appState.isAuthenticated) {
+          saveSolvedCaseResult(this.caseId, response.rating, {
+            solveMinutes: this.buildSolveMinutes(),
+          })
+        }
+      } catch (error) {
+        const toxicResponse = error?.body
+
+        if (toxicResponse?.status === 'toxic') {
+          this.messages.push({
+            id: this.nextId,
+            author: 'bot',
+            text: toxicResponse.message,
+          })
+          this.nextId += 1
+          this.statusMessage = 'Ответ не принят из-за токсичности.'
+          return
+        }
+
+        if (Number(error?.status) === 401) {
+          this.errorMessage = 'Сначала войдите в аккаунт, чтобы отправить решение.'
+          return
+        }
+
+        this.errorMessage = error?.message || 'Не удалось отправить решение. Попробуйте ещё раз.'
+      } finally {
+        this.isSending = false
+      }
     },
   },
 }
@@ -132,11 +209,29 @@ export default {
   background: var(--surface-user-message);
 }
 
+.message.bot {
+  background: var(--surface-bot-message);
+}
+
 .message p {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.4;
+}
+
+.status-text,
+.error-text {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.status-text {
+  color: var(--text-muted);
+}
+
+.error-text {
+  color: #b42318;
 }
 
 .chat-form {

@@ -259,6 +259,13 @@ export default {
     }
   },
   methods: {
+    resetProfileMessages() {
+      this.profileMessage = ''
+      this.profileError = ''
+    },
+    getSelectedCity() {
+      return this.cities.find((item) => Number(item.id) === Number(this.profileForm.cityId)) || null
+    },
     async handleCitySearch(value) {
       this.cityLoadError = ''
 
@@ -291,15 +298,13 @@ export default {
       this.profileForm.preferenceDifficulty = this.appState.user.preferences?.difficulty || ''
     },
     startProfileEdit() {
-      this.profileMessage = ''
-      this.profileError = ''
+      this.resetProfileMessages()
       this.fillFormFromState()
       this.isEditingProfile = true
     },
     cancelProfileEdit() {
       this.isEditingProfile = false
-      this.profileError = ''
-      this.profileMessage = ''
+      this.resetProfileMessages()
     },
     onAvatarChange(event) {
       const file = event.target.files?.[0]
@@ -325,11 +330,10 @@ export default {
       }
 
       this.isSavingProfile = true
-      this.profileMessage = ''
-      this.profileError = ''
+      this.resetProfileMessages()
 
       const previousUser = { ...this.appState.user }
-      const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.profileForm.cityId)) || null
+      const selectedCity = this.getSelectedCity()
       const emailChanged = this.profileForm.email !== (previousUser.email || '')
       const backendParamsChanged =
         this.profileForm.firstName !== (previousUser.firstName || '') ||
@@ -392,8 +396,7 @@ export default {
       }
 
       this.isRemovingProfile = true
-      this.profileMessage = ''
-      this.profileError = ''
+      this.resetProfileMessages()
 
       try {
         if (this.appState.user.username) {
