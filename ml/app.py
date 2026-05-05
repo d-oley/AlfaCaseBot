@@ -19,6 +19,8 @@ TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
 TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 
+
+
 SUCCESS_MSG = "Ответ принят."
 TOXIC_MSG = "Обнаружены недопустимые формулировки 😠😠😠. После 3 таких сообщений ваш аккаунт будет заблокирован!!!"
 
@@ -125,7 +127,7 @@ def back_ok(d):
     return d.get("success") is True
 
 
-def llm_stub(text, case_id):
+def llm_request(text, case_id):
     return {"rating": 0, "status": "stub", "meta": {"case_id": case_id, "text": text[:200]}}
 
 
