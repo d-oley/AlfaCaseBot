@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install flask joblib langdetect scikit-learn numpy
+RUN pip install flask flask-cors joblib langdetect scikit-learn numpy
 
 EXPOSE 5000
 

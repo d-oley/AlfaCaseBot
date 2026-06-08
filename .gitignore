@@ -37,6 +37,9 @@ ml/data2.csv
 ml/__pycache__
 ml/*.pyc
 ml/.ipynb_checkpoints/
+ml/config.py
+ml/.env
+ml/.env.local
 
 # Generated files
 *.jar

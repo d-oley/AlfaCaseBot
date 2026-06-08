@@ -1,13 +1,16 @@
-const API_URL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8080'
-const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || 'http://localhost:5000'
+const API_URL = process.env.VUE_APP_API_BASE_URL || ''
+const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
 const SITE_PREFIX = '/api/v1/site'
 
 const errors = {
-  'Account does not exist': 'Аккаунт не найден',
+  'Account does not exist': 'Такой пользователь не найден',
+  'User not found': 'Такой пользователь не найден',
+  'Пользователь не найден': 'Такой пользователь не найден',
   'Incorrect password': 'Неверный пароль',
+  'Invalid password': 'Неверный пароль',
   'This email address is invalid': 'Некорректный email',
   'This email address is already taken': 'Email уже используется',
   'This username is already taken': 'Логин уже занят',
@@ -23,11 +26,12 @@ const errors = {
   'Session expired': 'Сессия истекла',
 }
 
+
 async function request(url, opts = {}) {
   const res = await fetch(url, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
     ...opts,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
   })
 
   let data = null
@@ -48,9 +52,12 @@ async function request(url, opts = {}) {
 
 async function mlRequest(url, opts = {}) {
   const res = await fetch(url, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
     ...opts,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(opts.headers || {})
+    },
   })
 
   let data = null
@@ -70,7 +77,6 @@ async function mlRequest(url, opts = {}) {
 
   return data
 }
-
 function normalizeCity(city) {
   if (!city || city.cityName === 'not_set') {
     return { cityId: city?.cityId || null, cityName: '', regionName: '' }
@@ -117,9 +123,13 @@ export const listUsers = async () => {
 }
 
 export const getUserByUsername = async (username) => {
-  const user = await request(`${API_URL}${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`)
-  if (!user || Object.keys(user).length === 0) throw new Error('Пользователь не найден')
-  return addCityToUser(user)
+  try {
+    const user = await request(`${API_URL}${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`)
+    if (!user || Object.keys(user).length === 0) throw new Error('Пользователь не найден')
+    return addCityToUser(user)
+  } catch (error) {
+    return null
+  }
 }
 
 export const deleteUserByUsername = (username) =>
@@ -175,3 +185,8 @@ export const evaluateCaseSolution = ({ text, caseId }) =>
     method: 'POST',
     body: JSON.stringify({ text, case_id: caseId }),
   })
+
+export const isNotFoundError = (error) => {
+  const message = error?.message || ''
+  return message.includes('не найден') || message.includes('not found')
+}

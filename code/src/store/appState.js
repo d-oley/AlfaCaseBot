@@ -348,7 +348,6 @@ const calcRecommendedCase = () => {
 }
 
 export const hydrateUser = (payload, opts = {}) => {
-  const key = String(payload?.username || payload?.login || '').trim().toLowerCase()
   const local = getLocalUserData(payload)
 
   appState.isAuthenticated = true
@@ -564,6 +563,27 @@ export const getAchievementsForUser = () => {
     { id: 'toprank', title: '🎖️ Лидер мнений', desc: 'Топ-3 рейтинга', active: appState.user.rank > 0 && appState.user.rank <= 3, prog: `#${appState.user.rank || '-'}` },
   ]
 }
+
+export const getFullName = (user) => {
+  if (!user) return ''
+  const firstName = user.firstName || ''
+  const lastName = user.lastName || ''
+  return [firstName, lastName].filter(Boolean).join(' ') || user.login || user.nickname || 'Пользователь'
+}
+
+export const getSolvedCasesForUser = () => {
+  return appState.userSolvedCases
+    .map(solved => ({ ...getCaseById(solved.caseId), ...solved }))
+    .filter(c => c)
+}
+
+export const getFavoriteCasesForUser = () => {
+  return appState.userFavoriteCaseIds
+    .map(id => getCaseById(id))
+    .filter(c => c)
+}
+
+export const saveSolvedCaseResult = saveSolvedCase
 
 syncTopUsers()
 appState.recommendedCaseId = calcRecommendedCase()

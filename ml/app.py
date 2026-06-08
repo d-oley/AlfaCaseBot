@@ -8,9 +8,21 @@ from urllib import request as urllib_request
 import joblib
 import langdetect
 from flask import Flask, jsonify, request
+from flask_cors import CORS
+
+from case_contexts import get_case_context
+from llm_service import evaluate_solution
 
 
 app = Flask(__name__)
+
+
+CORS(app, 
+     origins=["http://localhost:8081", "http://localhost:8080"],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Cookie", "X-Auth-Cookie"],
+     methods=["GET", "POST", "OPTIONS"],
+     automatic_options=True)
 
 MODEL_PATH = Path(__file__).resolve().parent / "artifacts" / "baseline.joblib"
 BACK_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
@@ -128,20 +140,45 @@ def back_ok(d):
 
 
 def llm_request(text, case_id):
-    return {"rating": 0, "status": "stub", "meta": {"case_id": case_id, "text": text[:200]}}
+   
+    try:
+        case_info = get_case_context(case_id)
+        case_context = case_info.get("context", "")
+        
+        evaluation_result = evaluate_solution(text, case_context)
+        
+        final_score = evaluation_result.get("final_score", 70)
+        
+        return {
+            "rating": round(final_score),
+            "status": evaluation_result.get("status", "evaluated"),
+            "stages": evaluation_result.get("stages", {}),
+            "message": evaluation_result.get("message", "Оценка завершена"),
+            "meta": {
+                "case_id": case_id,
+                "text_length": len(text)
+            }
+        }
+    except Exception as e:
+        print(f"LLM evaluation error: {e}")
+        return {
+            "rating": 70,
+            "status": "error",
+            "message": "Произошла ошибка при оценке решения. Попробуйте ещё раз.",
+            "meta": {"case_id": case_id, "error": str(e)}
+        }
 
 
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "model_loaded": MODEL is not None})
 
-
 @app.post("/evaluate")
 def evaluate():
     payload = request.get_json(silent=True) or {}
     text = payload.get("text")
     case_id = payload.get("case_id") or payload.get("caseId")
-    cookie = request.headers.get("Cookie", "").strip()
+    cookie = request.headers.get("X-Auth-Cookie", "").strip() or request.headers.get("Cookie", "").strip()
 
     if not isinstance(text, str) or not text.strip():
         return jsonify(error_resp("INVALID_INPUT", "Требуется поле text")), 400
@@ -173,17 +210,22 @@ def evaluate():
         except RuntimeError as e:
             return jsonify(error_resp("BACKEND_UNAVAILABLE", str(e))), 502
 
-        if status != 200 or not back_ok(data):
+        if status != 200:
             return jsonify(error_resp("MARK_TOXIC_FAILED", "Не удалось сохранить")), 502
+
+        user_banned = not back_ok(data)
+        toxic_message = data.get("errorText") or TOXIC_MSG if user_banned else TOXIC_MSG
 
         return jsonify({
             "status": "toxic",
-            "message": TOXIC_MSG,
+            "message": toxic_message,
             "case_id": case_id,
+            "user_banned": user_banned,
             "toxicity": {"confidence": result.get("confidence"), "details": result.get("details", {})},
         }), 400
 
-    llm = llm_stub(text, case_id)
+    llm = llm_request(text, case_id)
+    
     try:
         status, data = back_req(SAVE_PATH, body={
             "caseId": case_id,
@@ -197,10 +239,14 @@ def evaluate():
 
     return jsonify({
         "status": "accepted",
-        "message": SUCCESS_MSG,
+        "message": llm.get("message", SUCCESS_MSG),
         "case_id": case_id,
         "rating": llm["rating"],
-        "llm": llm,
+        "evaluation": {
+            "stages": llm.get("stages", {}),
+            "final_score": llm["rating"]
+        },
+        "llm_meta": llm.get("meta", {})
     })
 
 

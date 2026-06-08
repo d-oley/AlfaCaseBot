@@ -28,7 +28,7 @@
               :aria-label="showLoginPassword ? 'Скрыть пароль' : 'Показать пароль'"
               @click="showLoginPassword = !showLoginPassword"
             >
-              <span class="eye-icon">{{ showLoginPassword ? '🙈' : '👁' }}</span>
+              <span class="eye-icon">{{ showLoginPassword ? '🐵' : '🙈' }}</span>
             </button>
           </div>
 
@@ -87,7 +87,7 @@
               :aria-label="showRegisterPassword ? 'Скрыть пароль' : 'Показать пароль'"
               @click="showRegisterPassword = !showRegisterPassword"
             >
-              <span class="eye-icon">{{ showRegisterPassword ? '🙈' : '👁' }}</span>
+              <span class="eye-icon">{{ showRegisterPassword ? '🐵' : '🙈' }}</span>
             </button>
           </div>
           <p v-if="registerPasswordInvalid" class="error-text">{{ passwordRuleText }}</p>
@@ -303,7 +303,10 @@ export default {
         )
         this.message = 'Успешный вход.'
       } catch (error) {
-        this.errorMessage = error?.message || 'Ошибка подключения к серверу.'
+        const message = error?.message || 'Ошибка подключения к серверу.'
+        this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
+          ? 'Ошибка подключения к серверу. Проверьте, запущен ли бэкенд на localhost:8080.'
+          : message
       } finally {
         this.loading = false
       }
@@ -340,7 +343,10 @@ export default {
         )
         this.message = 'Аккаунт успешно создан.'
       } catch (error) {
-        this.errorMessage = error?.message || 'Ошибка подключения к серверу.'
+        const message = error?.message || 'Ошибка подключения к серверу.'
+        this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
+          ? 'Ошибка подключения к серверу. Проверьте, запущен ли бэкенд на localhost:8080.'
+          : message
       } finally {
         this.loading = false
       }
