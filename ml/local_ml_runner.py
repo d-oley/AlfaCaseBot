@@ -3,14 +3,16 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import time
 import uuid
 from pathlib import Path
 
+os.environ.setdefault("ML_DISABLE_APP_FILE_LOGGING", "1")
+
 from app import SUCCESS_MSG, TOXIC_MSG, analyze_text, elapsed_ms, truncate_log
 from case_contexts import CASE_CONTEXTS, get_case_context
 from llm_service import evaluate_solution
+from logging_utils import configure_numbered_file_logging
 
 
 LOG_LEVEL = os.getenv("ML_LOG_LEVEL", "INFO").upper()
@@ -47,62 +49,8 @@ def parse_args():
     )
     return parser.parse_args()
 
-
-def build_run_log_path(base_log_path):
-    log_dir = base_log_path.parent
-    stem = base_log_path.stem
-    suffix = base_log_path.suffix or ".log"
-    pattern = f"{stem}_*{suffix}"
-    max_index = 0
-
-    for existing_path in log_dir.glob(pattern):
-        suffix_part = existing_path.stem[len(stem) + 1 :]
-        if suffix_part.isdigit():
-            max_index = max(max_index, int(suffix_part))
-
-    return log_dir / f"{stem}_{max_index + 1:04d}{suffix}"
-
-
 def configure_file_logging(log_level, log_file):
-    requested_path = Path(log_file).expanduser().resolve()
-    candidate_paths = [requested_path]
-
-    for candidate in (
-        os.getenv("LOCALAPPDATA"),
-        os.getenv("USERPROFILE"),
-        os.getenv("TEMP"),
-        os.getenv("TMP"),
-    ):
-        if candidate:
-            candidate_paths.append(Path(candidate) / "alfacasebot" / "logs" / requested_path.name)
-
-    try:
-        candidate_paths.append(Path(tempfile.gettempdir()) / "alfacasebot" / "logs" / requested_path.name)
-    except (FileNotFoundError, OSError):
-        pass
-
-    candidate_paths.append(Path.cwd() / requested_path.name)
-
-    root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
-
-    for base_candidate_path in candidate_paths:
-        try:
-            if not base_candidate_path.parent.exists():
-                continue
-
-            candidate_path = build_run_log_path(base_candidate_path)
-            file_handler = logging.FileHandler(candidate_path, encoding="utf-8")
-            file_handler.setLevel(root_logger.level)
-            file_handler.setFormatter(
-                logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-            )
-            root_logger.addHandler(file_handler)
-            return candidate_path
-        except OSError:
-            continue
-
-    return None
+    return configure_numbered_file_logging(log_level, log_file)
 
 
 def read_text(args):

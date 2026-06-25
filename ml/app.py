@@ -15,6 +15,7 @@ from flask_cors import CORS
 
 from case_contexts import get_case_context
 from llm_service import evaluate_solution, parse_json_payload
+from logging_utils import configure_numbered_file_logging
 
 
 app = Flask(__name__)
@@ -34,12 +35,28 @@ TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
 TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 LOG_LEVEL = os.getenv("ML_LOG_LEVEL", "INFO").upper()
+APP_LOG_FILE = Path(__file__).resolve().parent / "logs" / "app.log"
+APP_FILE_LOGGING_DISABLED = os.getenv("ML_DISABLE_APP_FILE_LOGGING", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 LOGGER = logging.getLogger("ml.app")
+
+if not APP_FILE_LOGGING_DISABLED:
+    app_log_path = configure_numbered_file_logging(
+        LOG_LEVEL,
+        os.getenv("ML_APP_LOG_FILE", str(APP_LOG_FILE)),
+    )
+    if app_log_path:
+        LOGGER.info("app_log_file path=%s", app_log_path)
+    else:
+        LOGGER.warning("app_log_file_unavailable requested_path=%s", APP_LOG_FILE)
 
 
 
