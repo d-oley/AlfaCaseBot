@@ -37,7 +37,8 @@
         <input id="profile-last-name" v-model.trim="profileForm.lastName" type="text" placeholder="Фамилия" />
 
         <label for="profile-login">Логин</label>
-        <input id="profile-login" v-model.trim="profileForm.login" type="text" />
+        <input id="profile-login" v-model.trim="profileForm.login" type="text" disabled />
+        <p class="hint">Смену логина backend пока не поддерживает, поэтому поле доступно только для просмотра.</p>
 
         <label for="profile-email">Почта</label>
         <input id="profile-email" v-model.trim="profileForm.email" type="email" />
@@ -91,7 +92,7 @@
             Отмена
           </button>
           <button class="btn btn-secondary" type="button" :disabled="isSavingProfile || isRemovingProfile" @click="removeProfile">
-            {{ isRemovingProfile ? 'Удаление...' : 'Удалить профиль' }}
+            {{ isRemovingProfile ? 'Очистка...' : 'Очистить локальный профиль' }}
           </button>
         </div>
       </form>
@@ -164,10 +165,9 @@ import CitySelect from '@/components/CitySelect.vue'
 import {
   changeEmail,
   changeUserParams,
-  deleteUserByUsername,
   formatBirthdateForApi,
-  isNotFoundError,
   listCities,
+  logoutRequest,
 } from '@/api/authApi'
 import {
   appState,
@@ -338,7 +338,6 @@ export default {
       const backendParamsChanged =
         this.profileForm.firstName !== (previousUser.firstName || '') ||
         this.profileForm.lastName !== (previousUser.lastName || '') ||
-        this.profileForm.login !== (previousUser.login || '') ||
         this.profileForm.birthDate !== (previousUser.birthDate || '') ||
         this.profileForm.role !== (previousUser.role || '') ||
         Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
@@ -363,8 +362,6 @@ export default {
         updateUserProfile({
           firstName: this.profileForm.firstName,
           lastName: this.profileForm.lastName,
-          login: this.profileForm.login,
-          nickname: this.profileForm.login,
           email: this.profileForm.email,
           birthDate: this.profileForm.birthDate,
           role: this.profileForm.role,
@@ -399,14 +396,10 @@ export default {
       this.resetProfileMessages()
 
       try {
-        if (this.appState.user.username) {
-          try {
-            await deleteUserByUsername(this.appState.user.username)
-          } catch (error) {
-            if (!isNotFoundError(error)) {
-              throw error
-            }
-          }
+        try {
+          await logoutRequest()
+        } catch {
+          // Локальную очистку все равно выполняем, даже если серверная сессия уже недоступна.
         }
 
         deleteUserProfile()

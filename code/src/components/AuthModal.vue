@@ -108,7 +108,6 @@
 import CitySelect from '@/components/CitySelect.vue'
 import {
   formatBirthdateForApi,
-  getUserByUsername,
   listCities,
   loginRequest,
   parseBirthdateFromApi,
@@ -134,11 +133,6 @@ const mapApiProfileToState = (profile, fallback = {}) => ({
   region: profile?.region || fallback.region || '',
   creationDate: profile?.creationDate || fallback.creationDate || '',
 })
-
-const isRestrictedProfileLookupError = (error) => {
-  const status = Number(error?.status || 0)
-  return status === 401 || status === 403
-}
 
 export default {
   name: 'AuthModal',
@@ -279,27 +273,13 @@ export default {
           password: this.loginForm.password,
         })
 
-        let profile = null
-        try {
-          profile = await getUserByUsername(this.loginForm.username)
-        } catch (error) {
-          if (!isRestrictedProfileLookupError(error)) {
-            throw error
-          }
-        }
-
         this.$emit(
           'login-success',
-          profile
-            ? mapApiProfileToState(profile, {
-                username: this.loginForm.username,
-                login: profile?.nickname || this.loginForm.username,
-              })
-            : this.buildFallbackProfile({
-                username: this.loginForm.username,
-                login: this.loginForm.username,
-                nickname: this.loginForm.username,
-              })
+          this.buildFallbackProfile({
+            username: this.loginForm.username,
+            login: this.loginForm.username,
+            nickname: this.loginForm.username,
+          })
         )
         this.message = 'Успешный вход.'
       } catch (error) {

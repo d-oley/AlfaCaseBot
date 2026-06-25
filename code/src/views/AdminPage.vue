@@ -98,13 +98,17 @@
               {{ isUsersLoading ? 'Обновление...' : 'Обновить из API' }}
             </button>
           </div>
+          <p class="hint">
+            Создание пользователя идет через публичный endpoint регистрации. Редактирование и удаление существующих
+            записей пока сохраняются только локально, без backend-admin endpoint.
+          </p>
           <p v-if="usersError" class="error-text">{{ usersError }}</p>
           <p v-if="userMessage" class="success-text">{{ userMessage }}</p>
           <div class="list">
             <div v-for="user in adminUsers" :key="user.id" class="list-item">
               <div>
                 <p class="title">{{ user.login }}</p>
-                <p class="meta">Email: {{ user.email }} | Роль: {{ user.role }} | Ранг: #{{ user.rank }}</p>
+                <p class="meta">Email: {{ user.email }} | Роль: {{ getRoleText(user.role) }} | Ранг: #{{ user.rank }}</p>
               </div>
               <div class="row-actions">
                 <button class="btn btn-secondary" type="button" @click="startUserEdit(user)">Изменить</button>
@@ -124,13 +128,27 @@
             <input id="user-email" v-model.trim="userForm.email" type="email" />
 
             <label for="user-role">Роль</label>
-            <input id="user-role" v-model.trim="userForm.role" type="text" />
+            <select id="user-role" v-model="userForm.role">
+              <option value="" disabled>Выберите статус</option>
+              <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                {{ role.label }}
+              </option>
+            </select>
 
             <label for="user-birthdate">Дата рождения (для нового пользователя)</label>
             <input id="user-birthdate" v-model="userForm.birthDate" type="date" />
 
             <label for="user-city">Город (для нового пользователя)</label>
-            <input id="user-city" v-model.trim="userForm.city" type="text" />
+            <city-select
+              id="user-city"
+              v-model="userForm.cityId"
+              :cities="cities"
+              :loading="citiesLoading"
+              :disabled="isUsersLoading"
+              :backend-error="cityLoadError"
+              :selected-city-label="selectedCityLabel"
+              @search-change="handleCitySearch"
+            />
 
             <label for="user-password">Пароль (для нового пользователя)</label>
             <input id="user-password" v-model.trim="userForm.password" type="password" />
@@ -180,15 +198,15 @@
 </template>
 
 <script>
+import CitySelect from '@/components/CitySelect.vue'
 import {
-  changeEmail,
-  deleteUserByUsername,
   formatBirthdateForApi,
-  isNotFoundError,
   listUsers,
+  listCities,
+  parseBirthdateFromApi,
   registerRequest,
 } from '@/api/authApi'
-import { appState } from '@/store/appState'
+import { appState, getRoleLabel, getRoleOptions } from '@/store/appState'
 
 const ADMIN_LOGIN = 'admin'
 const ADMIN_PASSWORD = 'admin123'
@@ -207,9 +225,11 @@ const toUserForm = (item = null) => ({
   id: item?.id || null,
   login: item?.login || '',
   email: item?.email || '',
-  role: item?.role || 'Студент',
+  role: item?.role || '',
   rank: item?.rank ?? 1,
+  cityId: item?.cityId ?? null,
   city: item?.city || '',
+  region: item?.region || '',
   birthDate: item?.birthDate || '',
   password: '',
 })
@@ -220,30 +240,35 @@ const toTagForm = (item = null) => ({
 })
 
 const createDemoUsers = () => [
-  { id: 1, login: 'PupiKapi', email: 'pupikapi@example.com', role: 'Студент', rank: 1, city: '' },
+  { id: 1, login: 'PupiKapi', email: 'pupikapi@example.com', role: 'UNDERGRADUATE', rank: 1, city: '' },
   {
     id: 2,
     login: 'AlphaSamets',
     email: 'alphasamets@example.com',
-    role: 'Учащийся 11 класса',
+    role: 'STUDENT10',
     rank: 2,
     city: '',
   },
-  { id: 3, login: 'Theresnohope', email: 'theresnohope@example.com', role: 'Студент', rank: 3, city: '' },
+  { id: 3, login: 'Theresnohope', email: 'theresnohope@example.com', role: 'UNDERGRADUATE', rank: 3, city: '' },
 ]
 
 const mapApiUserToAdminUser = (user, index) => ({
   id: user?.id ?? index + 1,
   login: user?.nickname || user?.username || '',
   email: user?.email || '',
-  role: user?.status || 'Не указан',
+  role: user?.status || '',
   rank: index + 1,
+  cityId: user?.cityId ?? null,
   city: user?.city || '',
-  birthDate: user?.birthdate || '',
+  region: user?.region || '',
+  birthDate: parseBirthdateFromApi(user?.birthdate || ''),
 })
 
 export default {
   name: 'AdminPage',
+  components: {
+    CitySelect,
+  },
   data() {
     const tags = [...new Set(appState.cases.flatMap((item) => item.tags))]
     return {
@@ -256,6 +281,10 @@ export default {
       activeTab: 'cases',
       adminCases: appState.cases.map((item) => ({ ...item, tags: [...item.tags] })),
       adminUsers: createDemoUsers(),
+      roleOptions: getRoleOptions(),
+      cities: [],
+      citiesLoading: false,
+      cityLoadError: '',
       isUsersLoading: false,
       usersError: '',
       userMessage: '',
@@ -267,6 +296,15 @@ export default {
   },
   created() {
     this.loadUsersFromApi()
+  },
+  computed: {
+    selectedCityLabel() {
+      const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.userForm.cityId))
+      if (selectedCity) {
+        return [selectedCity.cityName, selectedCity.regionName].filter(Boolean).join(', ')
+      }
+      return [this.userForm.city, this.userForm.region].filter(Boolean).join(', ')
+    },
   },
   methods: {
     async handleAdminLogin() {
@@ -288,17 +326,48 @@ export default {
     async loadUsersFromApi() {
       this.isUsersLoading = true
       this.usersError = ''
+      let isLoaded = false
 
       try {
         const users = await listUsers()
         if (Array.isArray(users)) {
           this.adminUsers = users.map(mapApiUserToAdminUser)
+          isLoaded = true
         }
       } catch (error) {
         this.usersError =
-          error?.message || 'Не удалось загрузить пользователей с сервера. Показаны локальные данные.'
+          Number(error?.status) === 401 || Number(error?.status) === 403
+            ? 'Список пользователей доступен только при реальной admin-сессии backend. Пока показаны локальные данные.'
+            : error?.message || 'Не удалось загрузить пользователей с сервера. Показаны локальные данные.'
       } finally {
         this.isUsersLoading = false
+      }
+
+      return isLoaded
+    },
+    getSelectedCity() {
+      return this.cities.find((item) => Number(item.id) === Number(this.userForm.cityId)) || null
+    },
+    getRoleText(role) {
+      return getRoleLabel(role) === 'Не указан' ? role || 'Не указан' : getRoleLabel(role)
+    },
+    async handleCitySearch(value) {
+      this.cityLoadError = ''
+
+      if (!value || value.trim().length < 2) {
+        this.cities = []
+        return
+      }
+
+      this.citiesLoading = true
+      try {
+        const cities = await listCities(value)
+        this.cities = Array.isArray(cities) ? cities : []
+      } catch (error) {
+        this.cities = []
+        this.cityLoadError = error?.message || 'Не удалось загрузить список городов.'
+      } finally {
+        this.citiesLoading = false
       }
     },
     parseTags(rawTags) {
@@ -369,11 +438,14 @@ export default {
     startUserEdit(user) {
       this.userMessage = ''
       this.usersError = ''
+      this.cityLoadError = ''
       this.userForm = toUserForm(user)
     },
     resetUserForm() {
       this.userMessage = ''
       this.usersError = ''
+      this.cityLoadError = ''
+      this.cities = []
       this.userForm = toUserForm()
     },
     async saveUser() {
@@ -384,17 +456,25 @@ export default {
 
       this.userMessage = ''
       this.usersError = ''
+      const selectedCity = this.getSelectedCity()
 
       const payload = {
         login: this.userForm.login,
         email: this.userForm.email,
         role: this.userForm.role,
         rank: Number(this.userForm.rank) || 1,
-        city: this.userForm.city,
+        cityId: this.userForm.cityId ? Number(this.userForm.cityId) : null,
+        city: selectedCity?.cityName || this.userForm.city || '',
+        region: selectedCity?.regionName || this.userForm.region || '',
         birthDate: this.userForm.birthDate,
       }
 
       if (!this.userForm.id) {
+        if (!payload.role || !payload.birthDate || !payload.cityId) {
+          this.usersError = 'Для нового пользователя выберите статус, дату рождения и город.'
+          return
+        }
+
         if (!this.userForm.password) {
           this.usersError = 'Для нового пользователя укажите пароль.'
           return
@@ -406,12 +486,17 @@ export default {
             email: payload.email,
             password: this.userForm.password,
             status: payload.role,
-            city: payload.city,
+            cityId: payload.cityId,
             birthdate: formatBirthdateForApi(payload.birthDate),
           })
-          await this.loadUsersFromApi()
+          const isLoaded = await this.loadUsersFromApi()
+          if (!isLoaded) {
+            this.adminUsers = [...this.adminUsers, { id: this.nextId(this.adminUsers), ...payload }]
+          }
           this.resetUserForm()
-          this.userMessage = 'Пользователь добавлен через API.'
+          this.userMessage = isLoaded
+            ? 'Пользователь добавлен через API.'
+            : 'Пользователь добавлен через API. Список ниже обновлен локально, потому что admin endpoint чтения недоступен.'
           return
         } catch (error) {
           this.usersError =
@@ -420,29 +505,13 @@ export default {
         }
       }
 
-      const currentUser = this.adminUsers.find((item) => item.id === this.userForm.id)
-      const isEmailChanged = payload.email !== (currentUser?.email || '')
-
       try {
-        if (isEmailChanged) {
-          await changeEmail({
-            email: payload.email,
-          })
-        }
-
         this.adminUsers = this.adminUsers.map((item) =>
           item.id === this.userForm.id ? { ...item, ...payload } : item
         )
-
-        if (isEmailChanged) {
-          this.resetUserForm()
-          this.userMessage =
-            'Email обновлен на сервере. Логин/роль/ранг сохранены локально (для них пока нет endpoint).'
-          return
-        }
-
         this.resetUserForm()
-        this.userMessage = 'Изменения сохранены локально.'
+        this.userMessage =
+          'Изменения сохранены локально. Backend пока не умеет безопасно редактировать произвольного пользователя через эту админку.'
       } catch (error) {
         this.usersError = error?.message || 'Не удалось обновить пользователя.'
       }
@@ -450,26 +519,13 @@ export default {
     async deleteUser(user) {
       this.userMessage = ''
       this.usersError = ''
-      let successMessage = ''
-
-      try {
-        await deleteUserByUsername(user.login)
-        await this.loadUsersFromApi()
-        successMessage = 'Пользователь удален через API.'
-      } catch (error) {
-        if (isNotFoundError(error)) {
-          this.adminUsers = this.adminUsers.filter((item) => item.id !== user.id)
-          successMessage = 'Удалено локально (endpoint удаления недоступен или пользователь уже удален).'
-        } else {
-          this.usersError = error?.message || 'Не удалось удалить пользователя.'
-          return
-        }
-      }
+      this.adminUsers = this.adminUsers.filter((item) => item.id !== user.id)
 
       if (this.userForm.id === user.id) {
         this.resetUserForm()
       }
-      this.userMessage = successMessage
+      this.userMessage =
+        'Пользователь удален только из локального списка. Серверный endpoint удаления пока не подключен.'
     },
     startTagEdit(tag) {
       this.tagForm = toTagForm(tag)

@@ -11,6 +11,7 @@ const errors = {
   'Пользователь не найден': 'Такой пользователь не найден',
   'Incorrect password': 'Неверный пароль',
   'Invalid password': 'Неверный пароль',
+  'Please login first': 'Сначала войдите в аккаунт',
   'This email address is invalid': 'Некорректный email',
   'This email address is already taken': 'Email уже используется',
   'This username is already taken': 'Логин уже занят',
@@ -24,8 +25,49 @@ const errors = {
   'Username cannot be empty': 'Введите логин',
   'Username cannot contain spaces': 'Логин не должен иметь пробелы',
   'Session expired': 'Сессия истекла',
+  'User does not exist': 'Пользователь не найден',
+  'Invalid user status code': 'Некорректный статус пользователя',
 }
 
+const httpErrors = {
+  401: 'Сначала войдите в аккаунт',
+  403: 'Недостаточно прав для этого действия',
+  404: 'Ресурс не найден',
+  502: 'Сервис временно недоступен',
+}
+
+const translateError = (message, fallback = 'Server error') => {
+  const normalized = String(message || '').trim()
+  if (!normalized) {
+    return fallback
+  }
+
+  if (normalized.startsWith('<!DOCTYPE') || normalized.startsWith('<html')) {
+    return fallback
+  }
+
+  return errors[normalized] || normalized
+}
+
+const buildRequestError = ({ message, status = 0, body = null, fallback }) => {
+  const error = new Error(translateError(message, fallback || httpErrors[status] || 'Server error'))
+  error.status = status
+  error.body = body
+  return error
+}
+
+async function parseResponse(res) {
+  const raw = await res.text()
+  if (!raw) {
+    return { data: null, raw: '' }
+  }
+
+  try {
+    return { data: JSON.parse(raw), raw }
+  } catch {
+    return { data: null, raw }
+  }
+}
 
 async function request(url, opts = {}) {
   const res = await fetch(url, {
@@ -34,17 +76,23 @@ async function request(url, opts = {}) {
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
   })
 
-  let data = null
-  try {
-    data = await res.json()
-  } catch {
-    if (!res.ok) throw new Error('Server error')
-    return null
-  }
+  const { data, raw } = await parseResponse(res)
 
   if (!res.ok) {
-    const msg = data?.errorText || data?.message || 'Error'
-    throw new Error(errors[msg] || msg)
+    throw buildRequestError({
+      message: data?.errorText || data?.message || raw,
+      status: res.status,
+      body: data,
+    })
+  }
+
+  if (data && typeof data === 'object' && !Array.isArray(data) && data.success === false) {
+    throw buildRequestError({
+      message: data.errorText || data.message,
+      status: data.errorText === 'Please login first' || data.errorText === 'Session expired' ? 401 : res.status,
+      body: data,
+      fallback: 'Ошибка запроса',
+    })
   }
 
   return data
@@ -60,19 +108,15 @@ async function mlRequest(url, opts = {}) {
     },
   })
 
-  let data = null
-  try {
-    data = await res.json()
-  } catch {
-    if (!res.ok) throw new Error('Server error')
-    return null
-  }
+  const { data, raw } = await parseResponse(res)
 
   if (!res.ok) {
-    const err = new Error(data?.message || 'ML service error')
-    err.status = res.status
-    err.body = data
-    throw err
+    throw buildRequestError({
+      message: data?.message || raw,
+      status: res.status,
+      body: data,
+      fallback: 'Ошибка ML-сервиса',
+    })
   }
 
   return data
@@ -121,19 +165,6 @@ export const listUsers = async () => {
   const users = await request(`${API_URL}${ADMIN_PREFIX}/users`)
   return Array.isArray(users) ? Promise.all(users.map(addCityToUser)) : []
 }
-
-export const getUserByUsername = async (username) => {
-  try {
-    const user = await request(`${API_URL}${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`)
-    if (!user || Object.keys(user).length === 0) throw new Error('Пользователь не найден')
-    return addCityToUser(user)
-  } catch (error) {
-    return null
-  }
-}
-
-export const deleteUserByUsername = (username) =>
-  request(`${API_URL}${ADMIN_PREFIX}/users/${encodeURIComponent(username)}`, { method: 'DELETE' })
 
 export const resetPassword = ({ oldPassword, newPassword }) =>
   request(`${API_URL}${AUTH_PREFIX}/resetpassword`, {

@@ -7,7 +7,7 @@ const USER_DATA_STORAGE_KEY = 'alfacasebot-user-data-v2'
 const roleOptions = [
   { value: 'STUDENT5', label: 'Ученик средней школы' },
   { value: 'STUDENT10', label: 'Ученик старшей школы' },
-  { value: 'COLLEGESTUDENT', label: 'Студент СПО' },
+  { value: 'COLLEGE_STUDENT', label: 'Студент СПО' },
   { value: 'UNDERGRADUATE', label: 'Студент бакалавриата' },
   { value: 'POSTGRADUATE', label: 'Студент магистратуры' },
   { value: 'WORKER', label: 'Работающий специалист' },
