@@ -40,6 +40,8 @@ ml/.ipynb_checkpoints/
 ml/config.py
 ml/.env
 ml/.env.local
+ml/logs/
+ml/local_ml_runner*.log
 
 # Generated files
 *.jar

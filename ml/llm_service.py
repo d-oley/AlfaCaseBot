@@ -1,8 +1,14 @@
 import json
+import logging
 import os
+import re
+import time
 import requests
 from typing import Dict, List, Optional, Tuple
 from config import OPENROUTER_API_KEY, OPENROUTER_URL, DEFAULT_MODEL, SERPER_API_KEY
+
+LOGGER = logging.getLogger("ml.llm")
+TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 # Веса для расчета финальной оценки
@@ -15,7 +21,86 @@ WEIGHTS = {
 }
 
 
-def call_llm(messages: List[Dict[str, str]], temperature: float = 0.7) -> Optional[str]:
+def elapsed_ms(started_at: float) -> float:
+    return round((time.perf_counter() - started_at) * 1000, 2)
+
+
+def truncate_log(value: str, limit: int = 200) -> str:
+    return value if len(value) <= limit else f"{value[:limit]}..."
+
+
+def serialize_log_payload(payload, limit: int = 4000) -> str:
+    if isinstance(payload, (dict, list)):
+        raw_text = json.dumps(payload, ensure_ascii=False)
+    else:
+        raw_text = str(payload)
+    return truncate_log(raw_text, limit)
+
+
+def extract_json_text(raw_text: str) -> str:
+    if raw_text is None:
+        raise ValueError("JSON payload is empty")
+
+    text = str(raw_text).strip()
+    if not text:
+        raise ValueError("JSON payload is empty")
+
+    fenced_match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, flags=re.DOTALL | re.IGNORECASE)
+    if fenced_match:
+        text = fenced_match.group(1).strip()
+
+    if text.lower().startswith("json"):
+        text = text[4:].strip()
+
+    start_positions = [index for index in (text.find("{"), text.find("[")) if index != -1]
+    if not start_positions:
+        return text
+
+    start_index = min(start_positions)
+    candidate = text[start_index:].strip()
+
+    for closing_char in ("}", "]"):
+        end_index = candidate.rfind(closing_char)
+        if end_index != -1:
+            cropped = candidate[: end_index + 1].strip()
+            if cropped:
+                return cropped
+
+    return candidate
+
+
+def parse_json_payload(raw_text: str):
+    return json.loads(extract_json_text(raw_text))
+
+
+def log_proxy_hint(exc: Exception, operation_name: str) -> None:
+    if "Missing dependencies for SOCKS support" in str(exc):
+        LOGGER.error(
+            "proxy_configuration_error operation=%s hint=%s",
+            operation_name,
+            "Обнаружен SOCKS proxy без поддержки PySocks. Установите `pip install pysocks` или уберите proxy-переменные окружения перед запуском.",
+        )
+
+
+def log_stage_payload(stage_name: str, payload) -> None:
+    LOGGER.info(
+        "llm_stage_payload stage=%s payload=%s",
+        stage_name,
+        serialize_log_payload(payload, 2000),
+    )
+
+
+def create_http_session() -> requests.Session:
+    session = requests.Session()
+    session.trust_env = TRUST_ENV_PROXIES
+    return session
+
+
+def call_llm(
+    messages: List[Dict[str, str]],
+    temperature: float = 0.7,
+    operation_name: str = "unknown",
+) -> Optional[str]:
     """
     Вызов OpenRouter LLM API с заданными сообщениями
     
@@ -26,8 +111,16 @@ def call_llm(messages: List[Dict[str, str]], temperature: float = 0.7) -> Option
     Returns:
         Текст ответа LLM или None при ошибке
     """
+    started_at = time.perf_counter()
     try:
-        response = requests.post(
+        LOGGER.info(
+            "openrouter_request_started operation=%s model=%s temperature=%s messages=%s",
+            operation_name,
+            DEFAULT_MODEL,
+            temperature,
+            serialize_log_payload(messages, 5000),
+        )
+        response = create_http_session().post(
             url=OPENROUTER_URL,
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -43,15 +136,36 @@ def call_llm(messages: List[Dict[str, str]], temperature: float = 0.7) -> Option
         )
         
         if response.status_code != 200:
-            print(f"LLM API error: {response.status_code} - {response.text}")
+            LOGGER.warning(
+                "openrouter_request_failed operation=%s model=%s status=%s duration_ms=%.2f body=%s",
+                operation_name,
+                DEFAULT_MODEL,
+                response.status_code,
+                elapsed_ms(started_at),
+                truncate_log(response.text, 2000),
+            )
             return None
         
         response_dict = response.json()
         content = response_dict.get("choices", [{}])[0].get("message", {}).get("content")
+        LOGGER.info(
+            "openrouter_request_completed operation=%s model=%s duration_ms=%.2f content_length=%s content=%s",
+            operation_name,
+            DEFAULT_MODEL,
+            elapsed_ms(started_at),
+            len(content) if content else 0,
+            truncate_log(content or "", 2000),
+        )
         return content
     
     except Exception as e:
-        print(f"LLM request exception: {e}")
+        log_proxy_hint(e, operation_name)
+        LOGGER.exception(
+            "openrouter_request_exception operation=%s model=%s duration_ms=%.2f",
+            operation_name,
+            DEFAULT_MODEL,
+            elapsed_ms(started_at),
+        )
         return None
 
 
@@ -61,8 +175,13 @@ def search_internet(query: str) -> str:
     Поиск информации через Serper.dev (Google Search API)
     Бесплатно 2500 запросов/мес
     """
+    started_at = time.perf_counter()
     try:
-        response = requests.post(
+        LOGGER.info(
+            "serper_request_started query=%s",
+            truncate_log(query, 500),
+        )
+        response = create_http_session().post(
             "https://google.serper.dev/search",
             headers={
                 "X-API-KEY": SERPER_API_KEY,
@@ -78,7 +197,12 @@ def search_internet(query: str) -> str:
         )
         
         if response.status_code != 200:
-            print(f"Serper API error: {response.status_code}")
+            LOGGER.warning(
+                "serper_request_failed status=%s duration_ms=%.2f query=%s",
+                response.status_code,
+                elapsed_ms(started_at),
+                truncate_log(query, 120),
+            )
             return ""
         
         data = response.json()
@@ -108,10 +232,21 @@ def search_internet(query: str) -> str:
             if ab.get("snippet"):
                 snippets.insert(0, f"{ab.get('title', '')}: {ab['snippet']}")
         
+        LOGGER.info(
+            "serper_request_completed duration_ms=%.2f query=%s snippets=%s",
+            elapsed_ms(started_at),
+            truncate_log(query, 120),
+            len(snippets),
+        )
         return "\n".join(snippets) if snippets else ""
         
     except Exception as e:
-        print(f"Search error: {e}")
+        log_proxy_hint(e, "serper_search")
+        LOGGER.exception(
+            "serper_request_exception duration_ms=%.2f query=%s",
+            elapsed_ms(started_at),
+            truncate_log(query, 120),
+        )
         return ""
 
 
@@ -128,18 +263,21 @@ Return JSON: {{"queries": ["query1"]}}. Empty list if nothing to check."""
 
     extraction_response = call_llm(
         [{"role": "user", "content": extraction_prompt}], 
-        temperature=0.1
+        temperature=0.1,
+        operation_name="fact_check_query_extraction",
     )
     
     # поиск
     internet_context = ""
     try:
-        queries = json.loads(extraction_response).get("queries", [])
+        queries = parse_json_payload(extraction_response).get("queries", [])
+        LOGGER.info("fact_check_queries_generated count=%s", min(len(queries), 3))
         for query in queries[:3]:
             result = search_internet(query)
             if result:
                 internet_context += f"\nQuery: {query}\n{result}\n"
-    except:
+    except Exception:
+        LOGGER.warning("fact_check_query_parsing_failed, using fallback search")
         internet_context = search_internet(user_solution[:200]) or ""
     
     # Проверка фактов
@@ -173,23 +311,29 @@ Be strict but fair. Only penalize clear factual errors."""
 
     response = call_llm(
         [{"role": "user", "content": evaluation_prompt}], 
-        temperature=0.3
+        temperature=0.3,
+        operation_name="fact_check_evaluation",
     )
     
     if not response:
         return 70.0, "Не удалось проверить факты"
     
     try:
-        result = json.loads(response)
+        result = parse_json_payload(response)
         score = float(result.get("score", 70))
         feedback = result.get("feedback_ru", "")
+        log_stage_payload("fact_check", result)
         
         issues = result.get("issues", [])
         if issues:
-            print(f"Fact-check issues: {issues}")
+            LOGGER.info("fact_check_issues_detected count=%s", len(issues))
         
         return score, feedback
-    except:
+    except Exception:
+        LOGGER.warning(
+            "fact_check_result_parsing_failed raw=%s",
+            truncate_log(response, 2000),
+        )
         return 70.0, "Проверка фактов завершена с ошибкой"
     
 
@@ -207,7 +351,11 @@ Case Context:
 Provide a brief typical solution (3-5 key points) that represents common, expected approaches."""
 
     messages = [{"role": "user", "content": prompt}]
-    response = call_llm(messages, temperature=0.5)
+    response = call_llm(messages, temperature=0.5, operation_name="typical_solution_generation")
+    LOGGER.info(
+        "typical_solution_payload content=%s",
+        truncate_log(response or "Typical solution: Standard approach with common industry practices.", 2000),
+    )
     
     return response or "Typical solution: Standard approach with common industry practices."
 
@@ -249,15 +397,20 @@ Respond in JSON format:
 Give high scores for genuinely creative approaches, but don't penalize practical standard solutions too harshly."""
 
     messages = [{"role": "user", "content": prompt}]
-    response = call_llm(messages, temperature=0.7)
+    response = call_llm(messages, temperature=0.7, operation_name="originality_evaluation")
     
     if not response:
         return 75.0, "Не удалось оценить оригинальность"
     
     try:
-        result = json.loads(response)
+        result = parse_json_payload(response)
+        log_stage_payload("originality", result)
         return float(result.get("score", 75)), result.get("feedback_ru", "")
-    except:
+    except Exception:
+        LOGGER.warning(
+            "originality_result_parsing_failed raw=%s",
+            truncate_log(response, 2000),
+        )
         return 75.0, "Оценка оригинальности завершена"
 
 
@@ -295,15 +448,20 @@ Respond in JSON format:
 }}"""
 
     messages = [{"role": "user", "content": prompt}]
-    response = call_llm(messages, temperature=0.5)
+    response = call_llm(messages, temperature=0.5, operation_name="effectiveness_evaluation")
     
     if not response:
         return 75.0, "Не удалось оценить эффективность"
     
     try:
-        result = json.loads(response)
+        result = parse_json_payload(response)
+        log_stage_payload("effectiveness", result)
         return float(result.get("score", 75)), result.get("feedback_ru", "")
-    except:
+    except Exception:
+        LOGGER.warning(
+            "effectiveness_result_parsing_failed raw=%s",
+            truncate_log(response, 2000),
+        )
         return 75.0, "Оценка эффективности завершена"
 
 
@@ -340,15 +498,20 @@ Respond in JSON format:
 }}"""
 
     messages = [{"role": "user", "content": prompt}]
-    response = call_llm(messages, temperature=0.3)
+    response = call_llm(messages, temperature=0.3, operation_name="logic_evaluation")
     
     if not response:
         return 80.0, "Не удалось оценить логичность"
     
     try:
-        result = json.loads(response)
+        result = parse_json_payload(response)
+        log_stage_payload("logic", result)
         return float(result.get("score", 80)), result.get("feedback_ru", "")
-    except:
+    except Exception:
+        LOGGER.warning(
+            "logic_result_parsing_failed raw=%s",
+            truncate_log(response, 2000),
+        )
         return 80.0, "Оценка логичности завершена"
 
 
@@ -386,15 +549,20 @@ Respond in JSON format:
 }}"""
 
     messages = [{"role": "user", "content": prompt}]
-    response = call_llm(messages, temperature=0.4)
+    response = call_llm(messages, temperature=0.4, operation_name="completeness_evaluation")
     
     if not response:
         return 75.0, "Не удалось оценить полноту"
     
     try:
-        result = json.loads(response)
+        result = parse_json_payload(response)
+        log_stage_payload("completeness", result)
         return float(result.get("score", 75)), result.get("feedback_ru", "")
-    except:
+    except Exception:
+        LOGGER.warning(
+            "completeness_result_parsing_failed raw=%s",
+            truncate_log(response, 2000),
+        )
         return 75.0, "Оценка полноты завершена"
 
 
@@ -478,6 +646,13 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
         "final_score": 0,
         "message": ""
     }
+    started_at = time.perf_counter()
+    LOGGER.info(
+        "evaluation_started text_length=%s context_length=%s user_solution=%s",
+        len(user_solution or ""),
+        len(case_context or ""),
+        truncate_log(user_solution or "", 3000),
+    )
     
     try:
         # Stage 1: Fact-checking
@@ -486,6 +661,11 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
             "score": fact_score,
             "feedback": fact_feedback
         }
+        LOGGER.info(
+            "evaluation_stage_completed stage=fact_check score=%s feedback=%s",
+            fact_score,
+            truncate_log(fact_feedback, 1000),
+        )
         
         # Stage 2: Originality (with typical solution generation)
         typical_solution = generate_typical_solution(case_context)
@@ -494,6 +674,11 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
             "score": orig_score,
             "feedback": orig_feedback
         }
+        LOGGER.info(
+            "evaluation_stage_completed stage=originality score=%s feedback=%s",
+            orig_score,
+            truncate_log(orig_feedback, 1000),
+        )
         
         # Stage 3: Effectiveness
         eff_score, eff_feedback = evaluate_effectiveness(user_solution, case_context)
@@ -501,6 +686,11 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
             "score": eff_score,
             "feedback": eff_feedback
         }
+        LOGGER.info(
+            "evaluation_stage_completed stage=effectiveness score=%s feedback=%s",
+            eff_score,
+            truncate_log(eff_feedback, 1000),
+        )
         
         # Stage 4: Logic
         logic_score, logic_feedback = evaluate_logic(user_solution, case_context)
@@ -508,6 +698,11 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
             "score": logic_score,
             "feedback": logic_feedback
         }
+        LOGGER.info(
+            "evaluation_stage_completed stage=logic score=%s feedback=%s",
+            logic_score,
+            truncate_log(logic_feedback, 1000),
+        )
         
         # Stage 5: Completeness
         compl_score, compl_feedback = evaluate_completeness(user_solution, case_context)
@@ -515,6 +710,11 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
             "score": compl_score,
             "feedback": compl_feedback
         }
+        LOGGER.info(
+            "evaluation_stage_completed stage=completeness score=%s feedback=%s",
+            compl_score,
+            truncate_log(compl_feedback, 1000),
+        )
         
         # Calculate final weighted score: w1*x1 + w2*x2 + w3*x3 + w4*x4 + w5*x5
         final_score = (
@@ -528,9 +728,15 @@ def evaluate_solution(user_solution: str, case_context: str) -> Dict:
         results["final_score"] = round(final_score, 1)
         
         results["message"] = generate_feedback_message(final_score, results["stages"])
+        log_stage_payload("ml_final_evaluation", results)
+        LOGGER.info(
+            "evaluation_completed final_score=%s duration_ms=%.2f",
+            results["final_score"],
+            elapsed_ms(started_at),
+        )
         
     except Exception as e:
-        print(f"Evaluation error: {e}")
+        LOGGER.exception("evaluation_failed duration_ms=%.2f", elapsed_ms(started_at))
         results["status"] = "error"
         results["final_score"] = 70.0
         results["message"] = "Произошла ошибка при оценке. Попробуйте ещё раз."
