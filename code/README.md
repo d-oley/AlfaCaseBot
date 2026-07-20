@@ -51,7 +51,7 @@ npm run lint
 По умолчанию dev-сервер фронта:
 - запускается на `http://localhost:8081`
 - проксирует запросы `/api/*` на backend `http://localhost:8080`
-- проксирует запросы `/evaluate` на Python service `http://localhost:5000`
+- проксирует запросы `/evaluate` на FastAPI service `http://localhost:5000`
 
 Если сервисы запущены на других адресах, задайте:
 - `VUE_APP_BACKEND_PROXY_TARGET` (для локальной разработки через proxy)
@@ -87,8 +87,11 @@ docker run --rm -p 8080:80 alfacasebot-frontend
 
 ### Вариант 2: через Docker Compose
 
+Compose запускает frontend и ML. Java-backend должен быть доступен на хосте по `http://localhost:8080`; уже запущенный PostgreSQL-контейнер compose не изменяет.
+
 Запуск:
 ```bash
+$env:OPENROUTER_API_KEY="your-key"
 docker compose up --build -d
 ```
 
@@ -96,5 +99,11 @@ docker compose up --build -d
 ```bash
 docker compose down
 ```
+
+Проверка:
+
+- frontend: `http://localhost:8081`
+- FastAPI Swagger: `http://localhost:5000/docs`
+- FastAPI health-check: `http://localhost:5000/health`
 
 

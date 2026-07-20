@@ -1,170 +1,112 @@
-# AlfaCaseBot ML Service - README
+# AlfaCaseBot ML API
 
-## Описание
-
-ML-сервис для оценки решений кейсов с использованием LLM (Large Language Model).
-
-## Компоненты системы
-
-### 1. `case_contexts.py`
-Система контекстов для каждого кейса. Содержит подробное описание требований, целей и критериев оценки для всех 7 кейсов.
-
-**Как добавить новый кейс:**
-```python
-from case_contexts import add_case_context
-
-add_case_context(
-    case_id=8,
-    title="Название кейса",
-    context="Подробный контекст кейса..."
-)
-```
-
-### 2. `llm_service.py`
-Многоэтапная система оценки решений с использованием LLM:
-
-**Этапы оценки:**
-1. **Факт-чекинг** (вес 0.2) - проверка фактической точности
-2. **Оригинальность** (вес 0.25) - оценка нетипичности решения
-3. **Эффективность** (вес 0.25) - оценка бизнес-ценности
-4. **Логичность** (вес 0.15) - проверка причинно-следственных связей
-5. **Завершенность** (вес 0.15) - полнота решения
-
-**Финальная оценка:**
-```
-score = 0.2*fact + 0.25*orig + 0.25*eff + 0.15*logic + 0.15*compl
-```
-
-**Генерация обратной связи:**
-- Система НЕ указывает конкретные ошибки
-- Даёт наводящие подсказки (hints)
-- Мотивирует на улучшение
-
-### 3. `app.py`
-Flask API для интеграции с фронтендом и бэкендом.
-
-**Основные endpoint'ы:**
-- `GET /health` - проверка работоспособности
-- `POST /evaluate` - оценка решения кейса
-
-## Установка
-
-```bash
-cd alfacasebot/ml
-pip install -r requirements.txt
-```
-
-## Конфигурация
-
-Установите переменную окружения с API-ключом OpenRouter:
-```bash
-export OPENROUTER_API_KEY="your-api-key-here"
-```
-
-Или измените ключ в `llm_service.py` (не рекомендуется для production).
+FastAPI-сервис проверяет решение на токсичность, оценивает его через LLM и сохраняет результат в Java-backend.
 
 ## Запуск
 
-```bash
-python app.py
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
-Сервис будет доступен на `http://localhost:5000`
+После запуска доступны:
 
-## Пример использования API
+- API: `http://localhost:5000`
+- Swagger UI: `http://localhost:5000/docs`
+- OpenAPI: `http://localhost:5000/openapi.json`
+- health-check: `GET http://localhost:5000/health`
 
-### Запрос
-```bash
-curl -X POST http://localhost:5000/evaluate \
-  -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
-  -d '{
-    "text": "Моё решение кейса...",
-    "case_id": 6
-  }'
+Для Docker:
+
+```powershell
+docker build -t alfacasebot-ml .
+docker run --rm -p 5000:5000 `
+  -e BACKEND_BASE_URL=http://host.docker.internal:8080 `
+  -e OPENROUTER_API_KEY=your-key `
+  alfacasebot-ml
 ```
 
-### Ответ (успех)
+## Переменные окружения
+
+| Переменная | Значение по умолчанию | Назначение |
+|---|---|---|
+| `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
+| `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |
+| `OPENROUTER_API_KEY` | пусто | ключ OpenRouter |
+| `OPENROUTER_URL` | `https://openrouter.ai/api/v1/chat/completions` | URL OpenRouter |
+| `OPENROUTER_MODEL` | `openai/gpt-4o-mini` | модель оценки |
+| `SERPER_API_KEY` | пусто | ключ факт-чекинга Serper |
+| `ML_CORS_ORIGINS` | localhost на портах 8080/8081 | разрешённые origin через запятую |
+| `ML_TRUST_ENV_PROXIES` | `false` | использовать proxy из окружения |
+| `ML_LOG_LEVEL` | `INFO` | уровень логирования |
+
+Секреты читаются только из окружения. `config.py` и `.env*` исключены из Docker context.
+
+## API
+
+### `GET /health`
+
+```json
+{
+  "status": "ok",
+  "model_loaded": true,
+  "llm_configured": true
+}
+```
+
+Без `OPENROUTER_API_KEY` health-check остаётся доступным, а попытка оценки возвращает HTTP 503 с кодом `LLM_NOT_CONFIGURED`; фиктивная оценка в backend не сохраняется.
+
+### `POST /evaluate`
+
+Сервис принимает `case_id` и совместимый alias `caseId`. Cookie `token` должна прийти от браузера в заголовке `Cookie`; для серверных клиентов также поддержан `X-Auth-Cookie`.
+
+```json
+{
+  "text": "Моё решение кейса...",
+  "case_id": 6
+}
+```
+
+Успешный ответ:
+
 ```json
 {
   "status": "accepted",
-  "message": "Хорошее решение! 👍\n\nНа что стоит обратить внимание:...",
+  "message": "Хорошее решение!",
   "case_id": 6,
   "rating": 78,
   "evaluation": {
-    "stages": {
-      "fact_check": {"score": 82, "feedback": "..."},
-      "originality": {"score": 75, "feedback": "..."},
-      "effectiveness": {"score": 80, "feedback": "..."},
-      "logic": {"score": 78, "feedback": "..."},
-      "completeness": {"score": 76, "feedback": "..."}
-    },
+    "stages": {},
     "final_score": 78
+  },
+  "llm_meta": {
+    "case_id": 6,
+    "text_length": 24
   }
 }
 ```
 
-### Ответ (токсичность)
+Перед оценкой FastAPI вызывает `GET /api/text/v1/checkCookie`. После оценки он отправляет в Java `POST /api/text/v1/addScore` со всеми обязательными полями:
+
 ```json
 {
-  "status": "toxic",
-  "message": "Обнаружены недопустимые формулировки...",
-  "case_id": 6,
-  "user_banned": false
+  "caseId": 6,
+  "rating": 78,
+  "solutionText": "Моё решение кейса...",
+  "solutionResponse": "Хорошее решение!"
 }
 ```
 
-## Архитектура оценки
+При токсичности вызывается `POST /api/text/v1/processViolation`. Если backend блокирует пользователя и удаляет cookie, заголовок `Set-Cookie` передаётся браузеру.
 
-```
-User Solution
-     ↓
-[Toxicity Check] → если токсично → отклонено
-     ↓
-[LLM Evaluation] → 5 этапов параллельно
-     ↓
-  ├─ Fact Checking (weight: 0.20)
-  ├─ Originality (weight: 0.25)
-  ├─ Effectiveness (weight: 0.25)
-  ├─ Logic (weight: 0.15)
-  └─ Completeness (weight: 0.15)
-     ↓
-[Weighted Score Calculation]
-     ↓
-[Hint Generation] → мягкие подсказки
-     ↓
-Final Response
+## Локальный запуск пайплайна
+
+Оценку без сайта и backend можно запустить так:
+
+```powershell
+python local_ml_runner.py --case-id 6 --text "Текст решения"
 ```
 
-## Настройка весов оценки
-
-Веса можно изменить в `llm_service.py`:
-```python
-WEIGHTS = {
-    "fact_check": 0.2,
-    "originality": 0.25,
-    "effectiveness": 0.25,
-    "logic": 0.15,
-    "completeness": 0.15
-}
-```
-
-## Экономия токенов
-
-1. **Промпты на английском** - более эффективное использование токенов
-2. **Финальный ответ на русском** - для пользователя
-3. **Структурированный JSON output** - легко парсится
-4. **Температура настроена** - баланс между креативностью и стабильностью
-5. **Используется gpt-4o-mini** - экономичная модель
-
-## Интеграция с фронтендом
-
-Фронтенд отправляет решение через `evaluateCaseSolution()` в `authApi.js`.
-Ответ отображается в чате на `CaseChatPage.vue` с рейтингом и обратной связью.
-
-## Безопасность
-
-1. Проверка cookie через бэкенд Java
-2. Проверка токсичности перед LLM оценкой
-3. Ограничение по времени запросов (timeout: 60s)
-4. Обработка ошибок на всех этапах
+Локальный runner использует те же функции токсичности и LLM, что и FastAPI.

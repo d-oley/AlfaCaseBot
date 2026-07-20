@@ -129,9 +129,11 @@ const mapApiProfileToState = (profile, fallback = {}) => ({
   birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
   role: profile?.status || fallback.role || '',
   cityId: profile?.cityId ?? fallback.cityId ?? null,
-  city: profile?.city || fallback.city || '',
-  region: profile?.region || fallback.region || '',
+  city: profile?.cityName || profile?.city || fallback.city || '',
+  region: profile?.regionName || profile?.region || fallback.region || '',
   creationDate: profile?.creationDate || fallback.creationDate || '',
+  rank: profile?.placement ?? fallback.rank ?? null,
+  points: profile?.score ?? fallback.points ?? 0,
 })
 
 export default {
@@ -307,6 +309,12 @@ export default {
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
           cityId: this.registerForm.cityId,
+        })
+
+        // RegisterResult не устанавливает cookie. Создаем backend-сессию отдельным login-запросом.
+        await loginRequest({
+          username: this.registerForm.login,
+          password: this.registerForm.password,
         })
 
         this.$emit(

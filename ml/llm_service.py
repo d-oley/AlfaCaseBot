@@ -5,7 +5,11 @@ import re
 import time
 import requests
 from typing import Dict, List, Optional, Tuple
-from config import OPENROUTER_API_KEY, OPENROUTER_URL, DEFAULT_MODEL, SERPER_API_KEY
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+OPENROUTER_URL = os.getenv("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions").strip()
+DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini").strip()
+SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 
 LOGGER = logging.getLogger("ml.llm")
 TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -111,6 +115,10 @@ def call_llm(
     Returns:
         Текст ответа LLM или None при ошибке
     """
+    if not OPENROUTER_API_KEY:
+        LOGGER.warning("openrouter_request_skipped operation=%s reason=missing_api_key", operation_name)
+        return None
+
     started_at = time.perf_counter()
     try:
         LOGGER.info(
@@ -175,6 +183,10 @@ def search_internet(query: str) -> str:
     Поиск информации через Serper.dev (Google Search API)
     Бесплатно 2500 запросов/мес
     """
+    if not SERPER_API_KEY:
+        LOGGER.info("serper_request_skipped reason=missing_api_key")
+        return ""
+
     started_at = time.perf_counter()
     try:
         LOGGER.info(

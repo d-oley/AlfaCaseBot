@@ -40,7 +40,7 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
-import { logoutRequest } from './api/authApi'
+import { checkSession, logoutRequest } from './api/authApi'
 import {
   appState,
   loginUser,
@@ -75,8 +75,22 @@ export default {
   },
   created() {
     document.documentElement.setAttribute('data-theme', this.theme)
+    this.validateStoredSession()
   },
   methods: {
+    async validateStoredSession() {
+      if (!this.appState.isAuthenticated) {
+        return
+      }
+      try {
+        await checkSession()
+      } catch {
+        logoutUser()
+        if (this.$route.meta.requiresAuth) {
+          this.$router.replace('/')
+        }
+      }
+    },
     toggleTheme() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark'
       document.documentElement.setAttribute('data-theme', this.theme)

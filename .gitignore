@@ -35,6 +35,7 @@ back/.settings/
 ml/data1.csv
 ml/data2.csv
 ml/__pycache__
+ml/.venv/
 ml/*.pyc
 ml/.ipynb_checkpoints/
 ml/config.py

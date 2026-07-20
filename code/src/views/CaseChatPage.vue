@@ -18,8 +18,8 @@
       <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
 
       <form class="chat-form" @submit.prevent="sendMessage">
-        <input v-model.trim="draft" type="text" :disabled="isSending" placeholder="Введите сообщение..." />
-        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending">
+        <input v-model.trim="draft" type="text" :disabled="isSending || isHistoryLoading" placeholder="Введите сообщение..." />
+        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending || isHistoryLoading">
           {{ isSending ? 'Отправка...' : 'Отправить' }}
         </button>
       </form>
@@ -37,8 +37,8 @@
 
 <script>
 // CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
-import { evaluateCaseSolution } from '@/api/authApi'
-import { appState, getCaseById, markCaseViewed, saveSolvedCaseResult } from '@/store/appState'
+import { evaluateCaseSolution, getCaseChatSequence } from '@/api/authApi'
+import { appState, getCaseById, logoutUser, markCaseViewed, saveSolvedCaseResult } from '@/store/appState'
 
 export default {
   name: 'CaseChatPage',
@@ -56,6 +56,7 @@ export default {
       nextId: 1,
       isConditionModalOpen: false,
       isSending: false,
+      isHistoryLoading: false,
       errorMessage: '',
       statusMessage: '',
       openedAt: Date.now(),
@@ -78,10 +79,33 @@ export default {
       return this.caseItem?.pdfUrl || ''
     },
   },
-  created() {
+  async created() {
     markCaseViewed(this.caseId)
+    await this.loadChatHistory()
   },
   methods: {
+    async loadChatHistory() {
+      this.isHistoryLoading = true
+      try {
+        const sequence = await getCaseChatSequence(this.caseId)
+        const history = []
+        sequence.forEach((item) => {
+          if (item.solutionText) {
+            history.push({ id: this.nextId++, author: 'user', text: item.solutionText })
+          }
+          if (item.solutionResponse) {
+            history.push({ id: this.nextId++, author: 'bot', text: item.solutionResponse })
+          }
+        })
+        this.messages = [this.messages[0], ...history]
+      } catch (error) {
+        if (Number(error?.status) === 401 || Number(error?.status) === 403) {
+          this.errorMessage = 'Не удалось загрузить историю: сессия истекла.'
+        }
+      } finally {
+        this.isHistoryLoading = false
+      }
+    },
     openConditions() {
       if (this.casePdfUrl) {
         window.open(this.casePdfUrl, '_blank', 'noopener')
@@ -145,6 +169,10 @@ export default {
           })
           this.nextId += 1
           this.statusMessage = 'Ответ не принят из-за токсичности.'
+          if (toxicResponse.user_banned) {
+            logoutUser()
+            this.statusMessage = 'Аккаунт заблокирован. Сессия завершена.'
+          }
           return
         }
 

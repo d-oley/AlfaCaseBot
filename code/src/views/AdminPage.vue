@@ -16,7 +16,9 @@
         />
 
         <p v-if="authError" class="error-text">{{ authError }}</p>
-        <button class="btn btn-primary" type="submit">Войти</button>
+        <button class="btn btn-primary" type="submit" :disabled="isAdminAuthLoading">
+          {{ isAdminAuthLoading ? 'Проверка...' : 'Войти' }}
+        </button>
       </form>
     </section>
 
@@ -201,15 +203,14 @@
 import CitySelect from '@/components/CitySelect.vue'
 import {
   formatBirthdateForApi,
+  loginRequest,
   listUsers,
   listCities,
+  logoutRequest,
   parseBirthdateFromApi,
   registerRequest,
 } from '@/api/authApi'
 import { appState, getRoleLabel, getRoleOptions } from '@/store/appState'
-
-const ADMIN_LOGIN = 'admin'
-const ADMIN_PASSWORD = 'admin123'
 
 const toCaseForm = (item = null) => ({
   id: item?.id || null,
@@ -239,24 +240,11 @@ const toTagForm = (item = null) => ({
   name: item?.name || '',
 })
 
-const createDemoUsers = () => [
-  { id: 1, login: 'PupiKapi', email: 'pupikapi@example.com', role: 'UNDERGRADUATE', rank: 1, city: '' },
-  {
-    id: 2,
-    login: 'AlphaSamets',
-    email: 'alphasamets@example.com',
-    role: 'STUDENT10',
-    rank: 2,
-    city: '',
-  },
-  { id: 3, login: 'Theresnohope', email: 'theresnohope@example.com', role: 'UNDERGRADUATE', rank: 3, city: '' },
-]
-
 const mapApiUserToAdminUser = (user, index) => ({
   id: user?.id ?? index + 1,
   login: user?.nickname || user?.username || '',
   email: user?.email || '',
-  role: user?.status || '',
+  role: user?.status || user?.role || '',
   rank: index + 1,
   cityId: user?.cityId ?? null,
   city: user?.city || '',
@@ -273,6 +261,7 @@ export default {
     const tags = [...new Set(appState.cases.flatMap((item) => item.tags))]
     return {
       isAdminAuthorized: false,
+      isAdminAuthLoading: false,
       authError: '',
       credentials: {
         login: '',
@@ -280,7 +269,7 @@ export default {
       },
       activeTab: 'cases',
       adminCases: appState.cases.map((item) => ({ ...item, tags: [...item.tags] })),
-      adminUsers: createDemoUsers(),
+      adminUsers: [],
       roleOptions: getRoleOptions(),
       cities: [],
       citiesLoading: false,
@@ -295,7 +284,7 @@ export default {
     }
   },
   created() {
-    this.loadUsersFromApi()
+    this.restoreAdminSession()
   },
   computed: {
     selectedCityLabel() {
@@ -307,18 +296,52 @@ export default {
     },
   },
   methods: {
+    async restoreAdminSession() {
+      const isLoaded = await this.loadUsersFromApi()
+      this.isAdminAuthorized = isLoaded
+      if (!isLoaded) {
+        this.usersError = ''
+      }
+    },
     async handleAdminLogin() {
-      if (this.credentials.login === ADMIN_LOGIN && this.credentials.password === ADMIN_PASSWORD) {
-        this.isAdminAuthorized = true
-        this.authError = ''
-        this.credentials.password = ''
-        await this.loadUsersFromApi()
+      if (!this.credentials.login || !this.credentials.password || this.isAdminAuthLoading) {
+        this.authError = 'Введите логин и пароль.'
         return
       }
-      this.authError = 'Неверный логин или пароль.'
+
+      this.isAdminAuthLoading = true
+      this.authError = ''
+      try {
+        await loginRequest({
+          username: this.credentials.login,
+          password: this.credentials.password,
+        })
+        const isLoaded = await this.loadUsersFromApi()
+        if (!isLoaded) {
+          try {
+            await logoutRequest()
+          } catch {
+            // Сессию мог уже отклонить backend.
+          }
+          throw new Error('У аккаунта нет прав администратора.')
+        }
+        this.isAdminAuthorized = true
+        this.credentials.password = ''
+      } catch (error) {
+        this.isAdminAuthorized = false
+        this.authError = error?.message || 'Не удалось войти в админ-панель.'
+      } finally {
+        this.isAdminAuthLoading = false
+      }
     },
-    logoutAdmin() {
+    async logoutAdmin() {
+      try {
+        await logoutRequest()
+      } catch {
+        // Локальное состояние админки очищаем и при истекшей backend-сессии.
+      }
       this.isAdminAuthorized = false
+      this.adminUsers = []
       this.credentials.login = ''
       this.credentials.password = ''
       this.authError = ''

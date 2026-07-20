@@ -4,6 +4,9 @@ const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
 const SITE_PREFIX = '/api/v1/site'
+const TEXT_PREFIX = '/api/text/v1'
+
+const withBaseUrl = (baseUrl, path) => `${String(baseUrl || '').replace(/\/$/, '')}${path}`
 
 const errors = {
   'Account does not exist': 'Такой пользователь не найден',
@@ -27,6 +30,10 @@ const errors = {
   'Session expired': 'Сессия истекла',
   'User does not exist': 'Пользователь не найден',
   'Invalid user status code': 'Некорректный статус пользователя',
+  'Invalid username or password': 'Неверный логин или пароль',
+  'You are already logged in': 'Сначала выйдите из текущего аккаунта',
+  'You are not logged in': 'Вы уже вышли из аккаунта',
+  'Invalid request': 'Backend отклонил данные запроса',
 }
 
 const httpErrors = {
@@ -121,12 +128,30 @@ async function mlRequest(url, opts = {}) {
 
   return data
 }
+
+async function multipartRequest(url, formData) {
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+  const { data, raw } = await parseResponse(res)
+  if (!res.ok || data?.success === false) {
+    throw buildRequestError({
+      message: data?.errorText || data?.message || raw,
+      status: res.status,
+      body: data,
+      fallback: 'Не удалось загрузить файл',
+    })
+  }
+  return data
+}
 function normalizeCity(city) {
   if (!city || city.cityName === 'not_set') {
-    return { cityId: city?.cityId || null, cityName: '', regionName: '' }
+    return { cityId: city?.id ?? city?.cityId ?? null, cityName: '', regionName: '' }
   }
   return {
-    cityId: city?.cityId || null,
+    cityId: city?.id ?? city?.cityId ?? null,
     cityName: city?.cityName || '',
     regionName: city?.regionName || '',
   }
@@ -162,57 +187,88 @@ export const parseBirthdateFromApi = (date) => {
 }
 
 export const listUsers = async () => {
-  const users = await request(`${API_URL}${ADMIN_PREFIX}/users`)
+  const users = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`))
   return Array.isArray(users) ? Promise.all(users.map(addCityToUser)) : []
 }
 
+export const checkSession = () =>
+  request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
+
 export const resetPassword = ({ oldPassword, newPassword }) =>
-  request(`${API_URL}${AUTH_PREFIX}/resetpassword`, {
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
     method: 'POST',
     body: JSON.stringify({ oldPassword, newPassword }),
   })
 
 export const registerRequest = ({ username, email, password, birthdate, status, cityId }) =>
-  request(`${API_URL}${AUTH_PREFIX}/register`, {
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
     body: JSON.stringify({ username, email, password, birthdate, status, cityId }),
   })
 
 export const loginRequest = ({ username, password }) =>
-  request(`${API_URL}${AUTH_PREFIX}/login`, {
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/login`), {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   })
 
 export const logoutRequest = () =>
-  request(`${API_URL}${AUTH_PREFIX}/logout`, { method: 'GET' })
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/logout`), { method: 'GET' })
 
 export const changeEmail = ({ email }) =>
-  request(`${API_URL}${AUTH_PREFIX}/changeemail`, {
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
 
-export const changeUserParams = ({ firstName, lastName, birthdate, status, cityId }) =>
-  request(`${API_URL}${AUTH_PREFIX}/changeparams`, {
+export const changeUserParams = ({ firstName, lastName, middleName, nickName, birthdate, status, cityId }) =>
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
     method: 'POST',
-    body: JSON.stringify({ firstName, lastName, birthdate, status, cityId }),
+    body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
   })
+
+export const setProfilePicture = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return multipartRequest(withBaseUrl(API_URL, `${AUTH_PREFIX}/setProfilePicture`), formData)
+}
 
 export const listCities = async (query = '') => {
   const q = String(query).trim()
   if (q.length < 2) return []
-  const cities = await request(`${API_URL}${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}`)
+  const cities = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}`)
+  )
   return Array.isArray(cities) ? cities : []
 }
 
 export const getUserCityById = async (id) => {
-  const city = await request(`${API_URL}${SITE_PREFIX}/user/${encodeURIComponent(id)}/city`)
+  const city = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/city`)
+  )
   return normalizeCity(city)
 }
 
+export const getUserProfileById = (id) =>
+  request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
+
+export const getUserAvatarUrl = (id) =>
+  withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/avatar`)
+
+export const listLeaderboard = async () => {
+  const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))
+  return Array.isArray(users) ? users : []
+}
+
+export const getCaseChatSequence = async (caseId) => {
+  const sequence = await request(
+    withBaseUrl(API_URL, `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`)
+  )
+  return Array.isArray(sequence) ? sequence : []
+}
+
 export const evaluateCaseSolution = ({ text, caseId }) =>
-  mlRequest(`${ML_URL}/evaluate`, {
+  mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
     method: 'POST',
     body: JSON.stringify({ text, case_id: caseId }),
   })

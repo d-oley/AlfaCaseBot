@@ -405,6 +405,12 @@ export const setAvailableCities = (cities) => {
   appState.cities = Array.isArray(cities) ? [...cities] : []
 }
 
+export const setLeaderboardUsers = (users) => {
+  if (Array.isArray(users) && users.length) {
+    appState.topUsers = [...users].sort((a, b) => Number(a.rank) - Number(b.rank))
+  }
+}
+
 export const setUserAvatar = (url) => {
   appState.user.avatarUrl = url
   persistUserData()

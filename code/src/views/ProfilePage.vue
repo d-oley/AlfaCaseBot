@@ -15,7 +15,7 @@
 
           <label class="avatar-upload">
             Изменить аватар
-            <input type="file" accept="image/*" @change="onAvatarChange" />
+            <input type="file" accept="image/jpeg" :disabled="isAvatarUploading" @change="onAvatarChange" />
           </label>
 
           <div class="header-actions">
@@ -168,6 +168,7 @@ import {
   formatBirthdateForApi,
   listCities,
   logoutRequest,
+  setProfilePicture,
 } from '@/api/authApi'
 import {
   appState,
@@ -205,6 +206,7 @@ export default {
       profileError: '',
       isSavingProfile: false,
       isRemovingProfile: false,
+      isAvatarUploading: false,
       isEditingProfile: false,
       activeTab: 'solved',
       profileForm: {
@@ -306,18 +308,39 @@ export default {
       this.isEditingProfile = false
       this.resetProfileMessages()
     },
-    onAvatarChange(event) {
+    async onAvatarChange(event) {
       const file = event.target.files?.[0]
       if (!file) {
         return
       }
 
-      if (this.objectUrl) {
-        URL.revokeObjectURL(this.objectUrl)
+      this.resetProfileMessages()
+      if (!['image/jpeg', 'image/jpg'].includes(file.type)) {
+        this.profileError = 'Backend принимает только JPEG/JPG.'
+        event.target.value = ''
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.profileError = 'Размер аватара не должен превышать 5 МБ.'
+        event.target.value = ''
+        return
       }
 
-      this.objectUrl = URL.createObjectURL(file)
-      setUserAvatar(this.objectUrl)
+      this.isAvatarUploading = true
+      try {
+        await setProfilePicture(file)
+        if (this.objectUrl) {
+          URL.revokeObjectURL(this.objectUrl)
+        }
+        this.objectUrl = URL.createObjectURL(file)
+        setUserAvatar(this.objectUrl)
+        this.profileMessage = 'Аватар сохранён на сервере.'
+      } catch (error) {
+        this.profileError = error?.message || 'Не удалось загрузить аватар.'
+      } finally {
+        this.isAvatarUploading = false
+        event.target.value = ''
+      }
     },
     async saveProfile() {
       if (this.isSavingProfile || this.isRemovingProfile) {
@@ -338,6 +361,7 @@ export default {
       const backendParamsChanged =
         this.profileForm.firstName !== (previousUser.firstName || '') ||
         this.profileForm.lastName !== (previousUser.lastName || '') ||
+        this.profileForm.login !== (previousUser.login || '') ||
         this.profileForm.birthDate !== (previousUser.birthDate || '') ||
         this.profileForm.role !== (previousUser.role || '') ||
         Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
@@ -353,6 +377,7 @@ export default {
           await changeUserParams({
             firstName: this.profileForm.firstName,
             lastName: this.profileForm.lastName,
+            nickName: this.profileForm.login,
             birthdate: formatBirthdateForApi(this.profileForm.birthDate),
             status: this.profileForm.role,
             cityId: this.profileForm.cityId,
@@ -362,6 +387,8 @@ export default {
         updateUserProfile({
           firstName: this.profileForm.firstName,
           lastName: this.profileForm.lastName,
+          login: this.profileForm.login,
+          nickname: this.profileForm.login,
           email: this.profileForm.email,
           birthDate: this.profileForm.birthDate,
           role: this.profileForm.role,
