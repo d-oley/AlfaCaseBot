@@ -193,10 +193,9 @@ export default {
   gap: 10px;
   min-height: 48px;
   padding: 0 14px;
-  border: 1px solid rgba(21, 25, 34, 0.12);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 255, 0.98));
+  background: var(--input-bg);
   box-shadow: 0 12px 30px rgba(17, 24, 39, 0.05);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -234,18 +233,6 @@ export default {
   color: var(--text-muted);
 }
 
-@media (prefers-color-scheme: dark) {
-  .search-shell {
-    background: var(--input-bg);
-    border-color: var(--border);
-  }
-
-  .dropdown-card {
-    background: var(--card-bg);
-    border-color: var(--border);
-  }
-}
-
 .loading-badge {
   padding: 6px 10px;
   border-radius: 999px;
@@ -275,9 +262,9 @@ export default {
   display: grid;
   gap: 6px;
   padding: 8px;
-  border: 1px solid rgba(21, 25, 34, 0.08);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--card-bg);
   box-shadow: 0 18px 45px rgba(17, 24, 39, 0.08);
 }
 

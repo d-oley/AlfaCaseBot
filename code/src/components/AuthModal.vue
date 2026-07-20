@@ -1,7 +1,7 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="$emit('close')">
+  <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
     <div class="modal card">
-      <button class="modal-close" type="button" aria-label="Закрыть" @click="$emit('close')">
+      <button class="modal-close" type="button" aria-label="Закрыть" @click="handleClose">
         ×
       </button>
 
@@ -34,6 +34,33 @@
 
           <button class="btn btn-primary" type="submit" :disabled="isLoginDisabled || loading">
             {{ loading ? 'Вход...' : 'Войти' }}
+          </button>
+        </form>
+      </template>
+
+      <template v-else-if="isEmailVerification">
+        <h2>Подтвердите email</h2>
+        <form class="modal-form" @submit.prevent="handleVerificationSubmit">
+          <p class="verification-hint">
+            Мы отправили шестизначный код на {{ pendingVerification.email }}.
+          </p>
+
+          <label for="verification-code">Код из письма</label>
+          <input
+            id="verification-code"
+            v-model.trim="verificationCode"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="123456"
+          />
+
+          <button class="btn btn-primary" type="submit" :disabled="!isVerificationCodeValid || loading">
+            {{ loading ? 'Проверяем...' : 'Подтвердить и войти' }}
+          </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="resetVerification">
+            Изменить данные регистрации
           </button>
         </form>
       </template>
@@ -108,33 +135,18 @@
 import CitySelect from '@/components/CitySelect.vue'
 import {
   formatBirthdateForApi,
+  getCurrentUserProfile,
   listCities,
+  isBannedError,
   loginRequest,
-  parseBirthdateFromApi,
+  mapApiProfileToState,
   registerRequest,
+  verifyEmail,
 } from '@/api/authApi'
 import { getRoleOptions } from '@/store/appState'
 
 const USERNAME_REGEX = /^\S{3,20}$/
 const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
-
-const mapApiProfileToState = (profile, fallback = {}) => ({
-  id: profile?.id || fallback.id || null,
-  username: profile?.username || fallback.username || '',
-  login: profile?.nickname || profile?.username || fallback.login || fallback.username || '',
-  nickname: profile?.nickname || profile?.username || fallback.login || fallback.username || '',
-  email: profile?.email || fallback.email || '',
-  firstName: fallback.firstName || '',
-  lastName: fallback.lastName || '',
-  birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
-  role: profile?.status || fallback.role || '',
-  cityId: profile?.cityId ?? fallback.cityId ?? null,
-  city: profile?.cityName || profile?.city || fallback.city || '',
-  region: profile?.regionName || profile?.region || fallback.region || '',
-  creationDate: profile?.creationDate || fallback.creationDate || '',
-  rank: profile?.placement ?? fallback.rank ?? null,
-  points: profile?.score ?? fallback.points ?? 0,
-})
 
 export default {
   name: 'AuthModal',
@@ -147,7 +159,7 @@ export default {
       default: null,
     },
   },
-  emits: ['close', 'login-success', 'register-success'],
+  emits: ['close', 'login-success', 'register-success', 'account-banned'],
   data() {
     return {
       message: '',
@@ -159,6 +171,8 @@ export default {
       showRegisterPassword: false,
       roleOptions: getRoleOptions(),
       cities: [],
+      pendingVerification: null,
+      verificationCode: '',
       loginForm: {
         username: '',
         password: '',
@@ -179,6 +193,12 @@ export default {
     },
     isLogin() {
       return this.mode === 'login'
+    },
+    isEmailVerification() {
+      return Boolean(this.pendingVerification)
+    },
+    isVerificationCodeValid() {
+      return /^\d{6}$/.test(this.verificationCode)
     },
     passwordRuleText() {
       return 'Пароль: 8-30 символов, минимум одна цифра и один спецсимвол'
@@ -217,12 +237,23 @@ export default {
     mode() {
       this.message = ''
       this.errorMessage = ''
+      if (this.mode !== 'register') {
+        this.resetVerification()
+      }
     },
   },
   methods: {
     resetMessages() {
       this.message = ''
       this.errorMessage = ''
+    },
+    resetVerification() {
+      this.pendingVerification = null
+      this.verificationCode = ''
+    },
+    handleClose() {
+      this.resetVerification()
+      this.$emit('close')
     },
     buildFallbackProfile(overrides = {}) {
       const selectedCity = this.cities.find((item) => Number(item.id) === Number(overrides.cityId))
@@ -274,20 +305,25 @@ export default {
           username: this.loginForm.username,
           password: this.loginForm.password,
         })
+        const profile = await getCurrentUserProfile()
 
         this.$emit(
           'login-success',
-          this.buildFallbackProfile({
+          mapApiProfileToState(profile, this.buildFallbackProfile({
             username: this.loginForm.username,
             login: this.loginForm.username,
             nickname: this.loginForm.username,
-          })
+          }))
         )
         this.message = 'Успешный вход.'
       } catch (error) {
-        const message = error?.message || 'Ошибка подключения к серверу.'
+        if (isBannedError(error)) {
+          this.$emit('account-banned', error?.body?.errorText || error?.message)
+          return
+        }
+        const message = error?.message || 'Не удалось выполнить вход.'
         this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
-          ? 'Ошибка подключения к серверу. Проверьте, запущен ли бэкенд на localhost:8080.'
+          ? 'Не удалось выполнить вход. Попробуйте ещё раз.'
           : message
       } finally {
         this.loading = false
@@ -302,24 +338,26 @@ export default {
       this.resetMessages()
 
       try {
-        await registerRequest({
+        const result = await registerRequest({
           username: this.registerForm.login,
           email: this.registerForm.email,
           password: this.registerForm.password,
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
           cityId: this.registerForm.cityId,
+          validationMethod: 'EMAIL',
         })
 
-        // RegisterResult не устанавливает cookie. Создаем backend-сессию отдельным login-запросом.
-        await loginRequest({
+        if (!result?.id) {
+          throw new Error('Не удалось начать подтверждение email.')
+        }
+
+        this.pendingVerification = {
+          id: result.id,
           username: this.registerForm.login,
           password: this.registerForm.password,
-        })
-
-        this.$emit(
-          'register-success',
-          this.buildFallbackProfile({
+          email: this.registerForm.email,
+          profile: this.buildFallbackProfile({
             username: this.registerForm.login,
             login: this.registerForm.login,
             nickname: this.registerForm.login,
@@ -327,13 +365,46 @@ export default {
             birthDate: this.registerForm.birthDate,
             role: this.registerForm.role,
             cityId: this.registerForm.cityId,
-          })
-        )
-        this.message = 'Аккаунт успешно создан.'
+          }),
+        }
+        this.verificationCode = ''
+        this.message = 'Код подтверждения отправлен на email.'
       } catch (error) {
-        const message = error?.message || 'Ошибка подключения к серверу.'
+        const message = error?.message || 'Не удалось зарегистрироваться.'
         this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
-          ? 'Ошибка подключения к серверу. Проверьте, запущен ли бэкенд на localhost:8080.'
+          ? 'Не удалось зарегистрироваться. Попробуйте ещё раз.'
+          : message
+      } finally {
+        this.loading = false
+      }
+    },
+    async handleVerificationSubmit() {
+      if (!this.isVerificationCodeValid || !this.pendingVerification || this.loading) {
+        return
+      }
+
+      this.loading = true
+      this.resetMessages()
+
+      try {
+        await verifyEmail({
+          userId: this.pendingVerification.id,
+          verification: Number(this.verificationCode),
+        })
+        await loginRequest({
+          username: this.pendingVerification.username,
+          password: this.pendingVerification.password,
+        })
+        const profile = await getCurrentUserProfile()
+        const user = mapApiProfileToState(profile, this.pendingVerification.profile)
+
+        this.resetVerification()
+        this.$emit('register-success', user)
+        this.message = 'Email подтвержден. Аккаунт успешно создан.'
+      } catch (error) {
+        const message = error?.message || 'Не удалось подтвердить email.'
+        this.errorMessage = message.includes('CORS') || message.includes('ERR_')
+          ? 'Не удалось подтвердить email. Попробуйте ещё раз.'
           : message
       } finally {
         this.loading = false

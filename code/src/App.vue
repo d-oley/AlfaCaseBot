@@ -11,6 +11,16 @@
       @toggle-theme="toggleTheme"
     />
 
+    <section v-if="appState.banNotice" class="ban-notice" role="alert">
+      <div>
+        <strong>Аккаунт заблокирован</strong>
+        <p>{{ appState.banNotice.message }}</p>
+      </div>
+      <button type="button" aria-label="Закрыть уведомление о блокировке" @click="clearBanNotice">
+        ×
+      </button>
+    </section>
+
     <main class="app-main">
       <router-view @open-login="openModal('login')" @open-register="openModal('register')" />
     </main>
@@ -22,6 +32,7 @@
       @close="closeModal"
       @login-success="handleLoginSuccess"
       @register-success="handleRegisterSuccess"
+      @account-banned="handleAccountBanned"
     />
 
     <preference-modal
@@ -40,13 +51,15 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
-import { checkSession, logoutRequest } from './api/authApi'
+import { getCurrentUserProfile, logoutRequest, mapApiProfileToState } from './api/authApi'
 import {
   appState,
+  clearBanNotice,
   loginUser,
   logoutUser,
   registerUser,
   skipUserPreferences,
+  showBanNotice,
   updateUserPreferences,
   getDifficultyPreferenceOptions,
   getPreferenceTagOptions,
@@ -79,13 +92,13 @@ export default {
   },
   methods: {
     async validateStoredSession() {
-      if (!this.appState.isAuthenticated) {
-        return
-      }
       try {
-        await checkSession()
+        const profile = await getCurrentUserProfile()
+        loginUser(mapApiProfileToState(profile, this.appState.user))
       } catch {
-        logoutUser()
+        if (this.appState.isAuthenticated) {
+          logoutUser()
+        }
         if (this.$route.meta.requiresAuth) {
           this.$router.replace('/')
         }
@@ -103,6 +116,7 @@ export default {
       this.activeModal = null
     },
     handleLoginSuccess(payload) {
+      clearBanNotice()
       loginUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
@@ -111,6 +125,10 @@ export default {
       registerUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
+    },
+    handleAccountBanned(message) {
+      showBanNotice(message)
+      this.closeModal()
     },
     handlePreferenceSave(payload) {
       updateUserPreferences(payload)
@@ -144,5 +162,37 @@ export default {
   background:
     radial-gradient(circle at top right, var(--bg-accent), transparent 35%),
     linear-gradient(160deg, var(--bg-main) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
+}
+
+.ban-notice {
+  width: min(1120px, calc(100% - 32px));
+  margin: 14px auto 0;
+  padding: 12px 14px;
+  border: 1px solid #f5a3a3;
+  border-radius: 12px;
+  background: #fff1f0;
+  color: #7a1212;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ban-notice strong,
+.ban-notice p {
+  margin: 0;
+}
+
+.ban-notice p {
+  margin-top: 4px;
+}
+
+.ban-notice button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 </style>

@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="container dashboard-page">
-    <user-podium :users="appState.topUsers" :fallback-avatar="appState.noPhotoImage" />
+    <user-podium :users="appState.topUsers" />
     <case-catalog
       :cases="appState.cases"
       :recommended-case-id="appState.recommendedCaseId"

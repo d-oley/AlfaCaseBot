@@ -3,7 +3,14 @@
     <section class="card profile-header">
       <div class="avatar-block">
         <div class="avatar-frame">
-          <img :src="avatarSource" alt="Аватар пользователя" class="avatar-image" />
+          <img
+            v-if="avatarSource && !avatarLoadFailed"
+            :src="avatarSource"
+            alt="Аватар пользователя"
+            class="avatar-image"
+            @error="handleAvatarLoadError"
+          />
+          <div v-else class="avatar-empty" role="img" aria-label="Аватар не установлен"></div>
         </div>
 
         <div class="avatar-controls">
@@ -12,11 +19,6 @@
           <p class="meta-line">Логин: {{ appState.user.login || 'Пользователь' }}</p>
           <p class="meta-line">Статус: {{ roleLabel }}</p>
           <p class="meta-line">Город: {{ appState.user.city || 'Пока не выбран' }}</p>
-
-          <label class="avatar-upload">
-            Изменить аватар
-            <input type="file" accept="image/jpeg" :disabled="isAvatarUploading" @change="onAvatarChange" />
-          </label>
 
           <div class="header-actions">
             <button class="btn btn-primary" type="button" @click="startProfileEdit">
@@ -30,15 +32,20 @@
     <section v-if="isEditingProfile" class="card edit-card">
       <h3>Редактирование профиля</h3>
       <form class="profile-form" @submit.prevent="saveProfile">
+        <label for="profile-avatar">Аватар</label>
+        <input
+          id="profile-avatar"
+          type="file"
+          accept="image/jpeg,image/jpg"
+          :disabled="isSavingProfile"
+          @change="onAvatarChange"
+        />
+
         <label for="profile-first-name">Имя</label>
         <input id="profile-first-name" v-model.trim="profileForm.firstName" type="text" placeholder="Имя" />
 
         <label for="profile-last-name">Фамилия</label>
         <input id="profile-last-name" v-model.trim="profileForm.lastName" type="text" placeholder="Фамилия" />
-
-        <label for="profile-login">Логин</label>
-        <input id="profile-login" v-model.trim="profileForm.login" type="text" disabled />
-        <p class="hint">Смену логина backend пока не поддерживает, поэтому поле доступно только для просмотра.</p>
 
         <label for="profile-email">Почта</label>
         <input id="profile-email" v-model.trim="profileForm.email" type="email" />
@@ -60,7 +67,7 @@
           v-model="profileForm.cityId"
           :cities="cities"
           :loading="citiesLoading"
-          :disabled="isSavingProfile || isRemovingProfile"
+          :disabled="isSavingProfile"
           :backend-error="cityLoadError"
           :selected-city-label="selectedCityLabel"
           @search-change="handleCitySearch"
@@ -85,14 +92,11 @@
         <p v-if="profileError" class="error-text">{{ profileError }}</p>
 
         <div class="profile-actions">
-          <button class="btn btn-primary" type="submit" :disabled="isSavingProfile || isRemovingProfile">
+          <button class="btn btn-primary" type="submit" :disabled="isSavingProfile">
             {{ isSavingProfile ? 'Сохранение...' : 'Сохранить изменения' }}
           </button>
-          <button class="btn btn-secondary" type="button" :disabled="isSavingProfile || isRemovingProfile" @click="cancelProfileEdit">
+          <button class="btn btn-secondary" type="button" :disabled="isSavingProfile" @click="cancelProfileEdit">
             Отмена
-          </button>
-          <button class="btn btn-secondary" type="button" :disabled="isSavingProfile || isRemovingProfile" @click="removeProfile">
-            {{ isRemovingProfile ? 'Очистка...' : 'Очистить локальный профиль' }}
           </button>
         </div>
       </form>
@@ -166,13 +170,12 @@ import {
   changeEmail,
   changeUserParams,
   formatBirthdateForApi,
+  getUserAvatarUrl,
   listCities,
-  logoutRequest,
   setProfilePicture,
 } from '@/api/authApi'
 import {
   appState,
-  deleteUserProfile,
   getAchievementsForUser,
   getDifficultyPreferenceOptions,
   getFavoriteCasesForUser,
@@ -185,8 +188,6 @@ import {
   setUserAvatar,
   updateUserProfile,
 } from '@/store/appState'
-
-const LOGIN_REGEX = /^\S{3,20}$/
 
 export default {
   name: 'ProfilePage',
@@ -202,17 +203,16 @@ export default {
       citiesLoading: false,
       cityLoadError: '',
       objectUrl: '',
+      pendingAvatarFile: null,
+      avatarLoadFailed: false,
       profileMessage: '',
       profileError: '',
       isSavingProfile: false,
-      isRemovingProfile: false,
-      isAvatarUploading: false,
       isEditingProfile: false,
       activeTab: 'solved',
       profileForm: {
         firstName: '',
         lastName: '',
-        login: '',
         email: '',
         birthDate: '',
         role: '',
@@ -224,7 +224,7 @@ export default {
   },
   computed: {
     avatarSource() {
-      return this.appState.user.avatarUrl || this.appState.noPhotoImage
+      return this.objectUrl || this.appState.user.avatarUrl || ''
     },
     fullName() {
       return getFullName(this.appState.user)
@@ -250,6 +250,11 @@ export default {
         return [selectedCity.cityName, selectedCity.regionName].filter(Boolean).join(', ')
       }
       return [this.appState.user.city, this.appState.user.region].filter(Boolean).join(', ')
+    },
+  },
+  watch: {
+    avatarSource() {
+      this.avatarLoadFailed = false
     },
   },
   created() {
@@ -291,7 +296,6 @@ export default {
     fillFormFromState() {
       this.profileForm.firstName = this.appState.user.firstName || ''
       this.profileForm.lastName = this.appState.user.lastName || ''
-      this.profileForm.login = this.appState.user.login || ''
       this.profileForm.email = this.appState.user.email || ''
       this.profileForm.birthDate = this.appState.user.birthDate || ''
       this.profileForm.role = this.appState.user.role || ''
@@ -301,12 +305,26 @@ export default {
     },
     startProfileEdit() {
       this.resetProfileMessages()
+      this.clearPendingAvatar()
       this.fillFormFromState()
       this.isEditingProfile = true
     },
     cancelProfileEdit() {
       this.isEditingProfile = false
+      this.clearPendingAvatar()
       this.resetProfileMessages()
+    },
+    clearPendingAvatar() {
+      this.pendingAvatarFile = null
+      if (this.objectUrl) {
+        URL.revokeObjectURL(this.objectUrl)
+        this.objectUrl = ''
+      }
+    },
+    handleAvatarLoadError() {
+      if (!this.objectUrl) {
+        this.avatarLoadFailed = true
+      }
     },
     async onAvatarChange(event) {
       const file = event.target.files?.[0]
@@ -316,7 +334,7 @@ export default {
 
       this.resetProfileMessages()
       if (!['image/jpeg', 'image/jpg'].includes(file.type)) {
-        this.profileError = 'Backend принимает только JPEG/JPG.'
+        this.profileError = 'Допустимы только изображения JPEG/JPG.'
         event.target.value = ''
         return
       }
@@ -326,29 +344,14 @@ export default {
         return
       }
 
-      this.isAvatarUploading = true
-      try {
-        await setProfilePicture(file)
-        if (this.objectUrl) {
-          URL.revokeObjectURL(this.objectUrl)
-        }
-        this.objectUrl = URL.createObjectURL(file)
-        setUserAvatar(this.objectUrl)
-        this.profileMessage = 'Аватар сохранён на сервере.'
-      } catch (error) {
-        this.profileError = error?.message || 'Не удалось загрузить аватар.'
-      } finally {
-        this.isAvatarUploading = false
-        event.target.value = ''
-      }
+      this.clearPendingAvatar()
+      this.pendingAvatarFile = file
+      this.objectUrl = URL.createObjectURL(file)
+      this.avatarLoadFailed = false
+      event.target.value = ''
     },
     async saveProfile() {
-      if (this.isSavingProfile || this.isRemovingProfile) {
-        return
-      }
-
-      if (!LOGIN_REGEX.test(this.profileForm.login)) {
-        this.profileError = 'Логин должен содержать от 3 до 20 символов без пробелов.'
+      if (this.isSavingProfile) {
         return
       }
 
@@ -358,10 +361,9 @@ export default {
       const previousUser = { ...this.appState.user }
       const selectedCity = this.getSelectedCity()
       const emailChanged = this.profileForm.email !== (previousUser.email || '')
-      const backendParamsChanged =
+      const profileParamsChanged =
         this.profileForm.firstName !== (previousUser.firstName || '') ||
         this.profileForm.lastName !== (previousUser.lastName || '') ||
-        this.profileForm.login !== (previousUser.login || '') ||
         this.profileForm.birthDate !== (previousUser.birthDate || '') ||
         this.profileForm.role !== (previousUser.role || '') ||
         Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
@@ -373,22 +375,29 @@ export default {
           })
         }
 
-        if (backendParamsChanged) {
+        if (profileParamsChanged) {
           await changeUserParams({
             firstName: this.profileForm.firstName,
             lastName: this.profileForm.lastName,
-            nickName: this.profileForm.login,
             birthdate: formatBirthdateForApi(this.profileForm.birthDate),
             status: this.profileForm.role,
             cityId: this.profileForm.cityId,
           })
         }
 
+        if (this.pendingAvatarFile) {
+          await setProfilePicture(this.pendingAvatarFile)
+          const avatarUrl = this.appState.user.id
+            ? `${getUserAvatarUrl(this.appState.user.id)}?v=${Date.now()}`
+            : ''
+          setUserAvatar(avatarUrl)
+          this.clearPendingAvatar()
+          this.avatarLoadFailed = false
+        }
+
         updateUserProfile({
           firstName: this.profileForm.firstName,
           lastName: this.profileForm.lastName,
-          login: this.profileForm.login,
-          nickname: this.profileForm.login,
           email: this.profileForm.email,
           birthDate: this.profileForm.birthDate,
           role: this.profileForm.role,
@@ -401,40 +410,13 @@ export default {
           },
         })
 
-        if (backendParamsChanged || emailChanged) {
-          this.profileMessage = 'Профиль обновлен. Сервер синхронизировал email, имя, фамилию, статус, дату рождения и город; предпочтения пока сохраняются на фронте.'
-        } else {
-          this.profileMessage = 'Локальные поля профиля обновлены.'
-        }
+        this.profileMessage = 'Изменения сохранены.'
 
         this.isEditingProfile = false
       } catch (error) {
         this.profileError = error?.message || 'Не удалось сохранить изменения профиля.'
       } finally {
         this.isSavingProfile = false
-      }
-    },
-    async removeProfile() {
-      if (this.isRemovingProfile || this.isSavingProfile) {
-        return
-      }
-
-      this.isRemovingProfile = true
-      this.resetProfileMessages()
-
-      try {
-        try {
-          await logoutRequest()
-        } catch {
-          // Локальную очистку все равно выполняем, даже если серверная сессия уже недоступна.
-        }
-
-        deleteUserProfile()
-        this.$router.push('/')
-      } catch (error) {
-        this.profileError = error?.message || 'Не удалось удалить профиль.'
-      } finally {
-        this.isRemovingProfile = false
       }
     },
     openSolvedCase(caseId) {

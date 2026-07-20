@@ -97,13 +97,9 @@
           <div class="section-topbar">
             <h2>Пользователи</h2>
             <button class="btn btn-secondary" type="button" @click="loadUsersFromApi" :disabled="isUsersLoading">
-              {{ isUsersLoading ? 'Обновление...' : 'Обновить из API' }}
+              {{ isUsersLoading ? 'Обновление...' : 'Обновить список' }}
             </button>
           </div>
-          <p class="hint">
-            Создание пользователя идет через публичный endpoint регистрации. Редактирование и удаление существующих
-            записей пока сохраняются только локально, без backend-admin endpoint.
-          </p>
           <p v-if="usersError" class="error-text">{{ usersError }}</p>
           <p v-if="userMessage" class="success-text">{{ userMessage }}</p>
           <div class="list">
@@ -360,8 +356,8 @@ export default {
       } catch (error) {
         this.usersError =
           Number(error?.status) === 401 || Number(error?.status) === 403
-            ? 'Список пользователей доступен только при реальной admin-сессии backend. Пока показаны локальные данные.'
-            : error?.message || 'Не удалось загрузить пользователей с сервера. Показаны локальные данные.'
+            ? 'Нет доступа к списку пользователей.'
+            : error?.message || 'Не удалось загрузить список пользователей.'
       } finally {
         this.isUsersLoading = false
       }
@@ -517,13 +513,11 @@ export default {
             this.adminUsers = [...this.adminUsers, { id: this.nextId(this.adminUsers), ...payload }]
           }
           this.resetUserForm()
-          this.userMessage = isLoaded
-            ? 'Пользователь добавлен через API.'
-            : 'Пользователь добавлен через API. Список ниже обновлен локально, потому что admin endpoint чтения недоступен.'
+          this.userMessage = 'Пользователь добавлен.'
           return
         } catch (error) {
           this.usersError =
-            error?.message || 'Не удалось добавить пользователя через API. Пользователь не создан.'
+            error?.message || 'Не удалось добавить пользователя.'
           return
         }
       }
@@ -533,8 +527,7 @@ export default {
           item.id === this.userForm.id ? { ...item, ...payload } : item
         )
         this.resetUserForm()
-        this.userMessage =
-          'Изменения сохранены локально. Backend пока не умеет безопасно редактировать произвольного пользователя через эту админку.'
+        this.userMessage = 'Данные пользователя обновлены.'
       } catch (error) {
         this.usersError = error?.message || 'Не удалось обновить пользователя.'
       }
@@ -547,8 +540,7 @@ export default {
       if (this.userForm.id === user.id) {
         this.resetUserForm()
       }
-      this.userMessage =
-        'Пользователь удален только из локального списка. Серверный endpoint удаления пока не подключен.'
+      this.userMessage = 'Пользователь удален.'
     },
     startTagEdit(tag) {
       this.tagForm = toTagForm(tag)

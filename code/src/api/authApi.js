@@ -31,9 +31,14 @@ const errors = {
   'User does not exist': 'Пользователь не найден',
   'Invalid user status code': 'Некорректный статус пользователя',
   'Invalid username or password': 'Неверный логин или пароль',
+  'User is still banned': 'Аккаунт временно заблокирован',
   'You are already logged in': 'Сначала выйдите из текущего аккаунта',
   'You are not logged in': 'Вы уже вышли из аккаунта',
-  'Invalid request': 'Backend отклонил данные запроса',
+  'Invalid request': 'Не удалось обработать данные',
+  'Validation method is required': 'Выберите способ подтверждения email',
+  'Verification code is required': 'Введите код из письма',
+  'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
+  'Account is not verified': 'Подтвердите email перед входом',
 }
 
 const httpErrors = {
@@ -43,7 +48,7 @@ const httpErrors = {
   502: 'Сервис временно недоступен',
 }
 
-const translateError = (message, fallback = 'Server error') => {
+const translateError = (message, fallback = 'Не удалось выполнить действие') => {
   const normalized = String(message || '').trim()
   if (!normalized) {
     return fallback
@@ -57,7 +62,7 @@ const translateError = (message, fallback = 'Server error') => {
 }
 
 const buildRequestError = ({ message, status = 0, body = null, fallback }) => {
-  const error = new Error(translateError(message, fallback || httpErrors[status] || 'Server error'))
+  const error = new Error(translateError(message, fallback || httpErrors[status] || 'Не удалось выполнить действие'))
   error.status = status
   error.body = body
   return error
@@ -122,7 +127,7 @@ async function mlRequest(url, opts = {}) {
       message: data?.message || raw,
       status: res.status,
       body: data,
-      fallback: 'Ошибка ML-сервиса',
+      fallback: 'Не удалось обработать ответ',
     })
   }
 
@@ -191,6 +196,30 @@ export const listUsers = async () => {
   return Array.isArray(users) ? Promise.all(users.map(addCityToUser)) : []
 }
 
+export const mapApiProfileToState = (profile, fallback = {}) => {
+  const username = profile?.username || fallback.username || profile?.nickName || profile?.nickname || ''
+  const login = profile?.nickName || profile?.nickname || fallback.login || username
+
+  return {
+    id: profile?.id ?? fallback.id ?? null,
+    username,
+    login,
+    nickname: login,
+    email: profile?.email ?? fallback.email ?? '',
+    firstName: profile?.firstName ?? fallback.firstName ?? '',
+    lastName: profile?.lastName ?? fallback.lastName ?? '',
+    birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
+    role: profile?.status ?? fallback.role ?? '',
+    cityId: profile?.cityId ?? fallback.cityId ?? null,
+    city: profile?.cityName ?? profile?.city ?? fallback.city ?? '',
+    region: profile?.regionName ?? profile?.region ?? fallback.region ?? '',
+    creationDate: profile?.creationDate ?? fallback.creationDate ?? '',
+    rank: profile?.placement ?? fallback.rank ?? 57,
+    points: profile?.score ?? fallback.points ?? 0,
+    avatarUrl: profile?.id ? getUserAvatarUrl(profile.id) : '',
+  }
+}
+
 export const checkSession = () =>
   request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
 
@@ -200,10 +229,10 @@ export const resetPassword = ({ oldPassword, newPassword }) =>
     body: JSON.stringify({ oldPassword, newPassword }),
   })
 
-export const registerRequest = ({ username, email, password, birthdate, status, cityId }) =>
+export const registerRequest = ({ username, email, password, birthdate, status, cityId, validationMethod }) =>
   request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
-    body: JSON.stringify({ username, email, password, birthdate, status, cityId }),
+    body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
   })
 
 export const loginRequest = ({ username, password }) =>
@@ -225,6 +254,12 @@ export const changeUserParams = ({ firstName, lastName, middleName, nickName, bi
   request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
     method: 'POST',
     body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
+  })
+
+export const verifyEmail = ({ userId, verification }) =>
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify`), {
+    method: 'POST',
+    body: JSON.stringify({ userId, verification }),
   })
 
 export const setProfilePicture = (file) => {
@@ -252,6 +287,9 @@ export const getUserCityById = async (id) => {
 export const getUserProfileById = (id) =>
   request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
 
+export const getCurrentUserProfile = () =>
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
+
 export const getUserAvatarUrl = (id) =>
   withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/avatar`)
 
@@ -276,4 +314,9 @@ export const evaluateCaseSolution = ({ text, caseId }) =>
 export const isNotFoundError = (error) => {
   const message = error?.message || ''
   return message.includes('не найден') || message.includes('not found')
+}
+
+export const isBannedError = (error) => {
+  const message = String(error?.body?.errorText || error?.body?.message || error?.message || '').toLowerCase()
+  return message.includes('banned') || message.includes('заблокирован')
 }

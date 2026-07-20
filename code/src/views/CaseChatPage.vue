@@ -38,7 +38,14 @@
 <script>
 // CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
 import { evaluateCaseSolution, getCaseChatSequence } from '@/api/authApi'
-import { appState, getCaseById, logoutUser, markCaseViewed, saveSolvedCaseResult } from '@/store/appState'
+import {
+  appState,
+  getCaseById,
+  logoutUser,
+  markCaseViewed,
+  saveSolvedCaseResult,
+  showBanNotice,
+} from '@/store/appState'
 
 export default {
   name: 'CaseChatPage',
@@ -170,8 +177,9 @@ export default {
           this.nextId += 1
           this.statusMessage = 'Ответ не принят из-за токсичности.'
           if (toxicResponse.user_banned) {
+            showBanNotice(toxicResponse.message)
             logoutUser()
-            this.statusMessage = 'Аккаунт заблокирован. Сессия завершена.'
+            this.$router.replace('/')
           }
           return
         }

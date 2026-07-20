@@ -1,8 +1,7 @@
 import { reactive } from 'vue'
-import noPhotoImage from '@/assets/no-photo.png'
-
 const SESSION_STORAGE_KEY = 'alfacasebot-session-v2'
 const USER_DATA_STORAGE_KEY = 'alfacasebot-user-data-v2'
+const BAN_NOTICE_STORAGE_KEY = 'alfacasebot-ban-notice-v1'
 
 const roleOptions = [
   { value: 'STUDENT5', label: 'Ученик средней школы' },
@@ -187,7 +186,7 @@ const getDefaultUser = () => ({
 })
 
 const getDefaultLocalUserData = () => ({
-  firstName: '', lastName: '', avatarUrl: '', rank: 57,
+  firstName: '', lastName: '', rank: 57,
   cityId: null, city: '', region: '', preferences: getDefaultPreferences(),
   userSolvedCases: [], userFavoriteCaseIds: [], viewedCaseIds: [],
   shouldShowPreferencesOnboarding: false,
@@ -200,6 +199,7 @@ function safeParse(val, fallback) {
 
 const readStorage = (key, fallback) => safeParse(localStorage.getItem(key), fallback)
 const writeStorage = (key, val) => localStorage.setItem(key, JSON.stringify(val))
+const readSessionStorage = (key, fallback) => safeParse(sessionStorage.getItem(key), fallback)
 
 const getInitialSession = () => readStorage(SESSION_STORAGE_KEY, {
   isAuthenticated: false, user: getDefaultUser(),
@@ -242,6 +242,7 @@ const buildUserFromSession = () => {
 const initialSession = getInitialSession()
 const initialUser = buildUserFromSession()
 const initialLocalUserData = getLocalUserData(initialUser)
+const initialBanNotice = readSessionStorage(BAN_NOTICE_STORAGE_KEY, null)
 
 export const appState = reactive({
   isAuthenticated: Boolean(initialSession?.isAuthenticated),
@@ -254,7 +255,7 @@ export const appState = reactive({
   userSolvedCases: [...initialLocalUserData.userSolvedCases],
   userFavoriteCaseIds: [...initialLocalUserData.userFavoriteCaseIds],
   viewedCaseIds: [...initialLocalUserData.viewedCaseIds],
-  noPhotoImage,
+  banNotice: initialBanNotice,
 })
 
 const persistSession = () => {
@@ -289,7 +290,6 @@ const persistUserData = (prevLogin = '') => {
     ...allUsers[curKey],
     firstName: appState.user.firstName || '',
     lastName: appState.user.lastName || '',
-    avatarUrl: appState.user.avatarUrl || '',
     rank: appState.user.rank || 57,
     cityId: appState.user.cityId ?? null,
     city: appState.user.city || '',
@@ -364,7 +364,7 @@ export const hydrateUser = (payload, opts = {}) => {
     city: payload.city ?? local.city ?? '',
     region: payload.region ?? local.region ?? '',
     rank: payload.rank ?? local.rank ?? 57,
-    avatarUrl: payload.avatarUrl ?? local.avatarUrl ?? '',
+    avatarUrl: payload.avatarUrl || '',
     preferences: {
       ...getDefaultPreferences(),
       ...payload.preferences,
@@ -399,6 +399,19 @@ export const logoutUser = () => {
   appState.recommendedCaseId = null
   syncTopUsers()
   persistSession()
+}
+
+export const showBanNotice = (message = '') => {
+  const notice = {
+    message: String(message).trim() || 'Аккаунт заблокирован за нарушение правил общения.',
+  }
+  appState.banNotice = notice
+  sessionStorage.setItem(BAN_NOTICE_STORAGE_KEY, JSON.stringify(notice))
+}
+
+export const clearBanNotice = () => {
+  appState.banNotice = null
+  sessionStorage.removeItem(BAN_NOTICE_STORAGE_KEY)
 }
 
 export const setAvailableCities = (cities) => {
@@ -452,16 +465,6 @@ export const skipUserPreferences = () => {
 export const closePreferencesOnboarding = () => {
   appState.shouldShowPreferencesOnboarding = false
   persistUserData()
-}
-
-export const deleteUserProfile = () => {
-  const key = String(appState.user?.username || appState.user?.login || '').trim().toLowerCase()
-  const allUsers = readStorage(USER_DATA_STORAGE_KEY, {})
-  if (key && allUsers[key]) {
-    delete allUsers[key]
-    writeStorage(USER_DATA_STORAGE_KEY, allUsers)
-  }
-  logoutUser()
 }
 
 export const getCaseById = (id) => appState.cases.find(c => c.id === Number(id)) || null

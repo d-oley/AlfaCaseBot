@@ -3,7 +3,14 @@
     <h2>Топ-3 пользователей</h2>
     <div class="podium-grid">
       <article v-for="user in orderedUsers" :key="user.id" class="podium-user">
-        <img :src="user.avatarUrl || fallbackAvatar" :alt="`Аватар ${user.login}`" class="avatar" />
+        <img
+          v-if="hasAvatar(user)"
+          :src="user.avatarUrl"
+          :alt="`Аватар ${user.login}`"
+          class="avatar"
+          @error="hideAvatar(user.id)"
+        />
+        <div v-else class="avatar avatar-empty" role="img" :aria-label="`Аватар ${user.login} не установлен`"></div>
         <p class="place">#{{ user.rank }}</p>
         <p class="name">{{ getDisplayName(user) }}</p>
         <p class="login">@{{ user.login }}</p>
@@ -22,9 +29,15 @@ export default {
       type: Array,
       default: () => [],
     },
-    fallbackAvatar: {
-      type: String,
-      required: true,
+  },
+  data() {
+    return {
+      failedAvatarIds: [],
+    }
+  },
+  watch: {
+    users() {
+      this.failedAvatarIds = []
     },
   },
   computed: {
@@ -33,6 +46,14 @@ export default {
     },
   },
   methods: {
+    hasAvatar(user) {
+      return Boolean(user?.avatarUrl) && !this.failedAvatarIds.includes(user.id)
+    },
+    hideAvatar(id) {
+      if (!this.failedAvatarIds.includes(id)) {
+        this.failedAvatarIds.push(id)
+      }
+    },
     getDisplayName(user) {
       return [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.login || 'Пользователь'
     },
@@ -68,6 +89,12 @@ export default {
   height: 56px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.avatar-empty {
+  display: inline-block;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
 }
 
 .place,
