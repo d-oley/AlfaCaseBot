@@ -40,6 +40,8 @@
         </button>
       </div>
 
+      <p v-if="adminActionError" class="error-text">{{ adminActionError }}</p>
+
       <div v-if="activeTab === 'cases'" class="panel-grid">
         <article class="card panel-card">
           <h2>Кейсы</h2>
@@ -80,9 +82,6 @@
 
             <label for="case-tags">Теги через запятую</label>
             <input id="case-tags" v-model.trim="caseForm.tagsText" type="text" placeholder="UX, Аналитика" />
-
-            <label for="case-score">Средний балл</label>
-            <input id="case-score" v-model.number="caseForm.solvedScore" type="number" step="0.1" min="0" max="10" />
 
             <div class="row-actions">
               <button class="btn btn-primary" type="submit">Сохранить</button>
@@ -198,13 +197,11 @@
 <script>
 import CitySelect from '@/components/CitySelect.vue'
 import {
-  formatBirthdateForApi,
   loginRequest,
   listUsers,
   listCities,
   logoutRequest,
   parseBirthdateFromApi,
-  registerRequest,
 } from '@/api/authApi'
 import { appState, getRoleLabel, getRoleOptions } from '@/store/appState'
 
@@ -215,7 +212,6 @@ const toCaseForm = (item = null) => ({
   fullDescription: item?.fullDescription || '',
   difficulty: item?.difficulty || 'Средний',
   tagsText: item?.tags?.join(', ') || '',
-  solvedScore: item?.solvedScore ?? 0,
 })
 
 const toUserForm = (item = null) => ({
@@ -259,6 +255,7 @@ export default {
       isAdminAuthorized: false,
       isAdminAuthLoading: false,
       authError: '',
+      adminActionError: '',
       credentials: {
         login: '',
         password: '',
@@ -364,9 +361,6 @@ export default {
 
       return isLoaded
     },
-    getSelectedCity() {
-      return this.cities.find((item) => Number(item.id) === Number(this.userForm.cityId)) || null
-    },
     getRoleText(role) {
       return getRoleLabel(role) === 'Не указан' ? role || 'Не указан' : getRoleLabel(role)
     },
@@ -389,16 +383,6 @@ export default {
         this.citiesLoading = false
       }
     },
-    parseTags(rawTags) {
-      return [...new Set(rawTags.split(',').map((tag) => tag.trim()).filter(Boolean))]
-    },
-    nextId(items) {
-      return items.length ? Math.max(...items.map((item) => item.id)) + 1 : 1
-    },
-    syncTagCatalogWithCases() {
-      const tagSet = new Set(this.adminCases.flatMap((item) => item.tags))
-      this.adminTags = [...tagSet].map((name, index) => ({ id: index + 1, name }))
-    },
     startCaseEdit(item) {
       this.caseForm = toCaseForm(item)
     },
@@ -406,53 +390,11 @@ export default {
       this.caseForm = toCaseForm()
     },
     saveCase() {
-      if (!this.caseForm.title) {
-        return
-      }
-      const tags = this.parseTags(this.caseForm.tagsText)
-      const payload = {
-        title: this.caseForm.title,
-        description: this.caseForm.description,
-        fullDescription: this.caseForm.fullDescription,
-        difficulty: this.caseForm.difficulty,
-        tags,
-        solvedScore: Number(this.caseForm.solvedScore) || 0,
-      }
-
-      // TODO (DB/API версия):
-      // await db.table('cases').upsert({
-      //   id: this.caseForm.id,
-      //   title: payload.title,
-      //   description: payload.description,
-      //   full_description: payload.fullDescription,
-      //   difficulty: payload.difficulty,
-      //   solved_score: payload.solvedScore,
-      // })
-      // TODO:
-      // - обновить связующую таблицу case_tags (case_id, tag_id)
-      // - получить свежий список кейсов через SELECT с JOIN
-
-      if (this.caseForm.id) {
-        this.adminCases = this.adminCases.map((item) =>
-          item.id === this.caseForm.id ? { ...item, ...payload } : item
-        )
-      } else {
-        this.adminCases = [...this.adminCases, { id: this.nextId(this.adminCases), ...payload }]
-      }
-      this.syncTagCatalogWithCases()
-      this.resetCaseForm()
+      this.adminActionError = 'Сохранение кейсов пока недоступно.'
     },
     deleteCase(caseId) {
-      // TODO (DB/API версия):
-      // await db.table('cases').delete().where({ id: caseId })
-      // TODO:
-      // - каскадно очистить case_tags для удаленного кейса
-
-      this.adminCases = this.adminCases.filter((item) => item.id !== caseId)
-      this.syncTagCatalogWithCases()
-      if (this.caseForm.id === caseId) {
-        this.resetCaseForm()
-      }
+      void caseId
+      this.adminActionError = 'Удаление кейсов пока недоступно.'
     },
     startUserEdit(user) {
       this.userMessage = ''
@@ -475,72 +417,15 @@ export default {
 
       this.userMessage = ''
       this.usersError = ''
-      const selectedCity = this.getSelectedCity()
-
-      const payload = {
-        login: this.userForm.login,
-        email: this.userForm.email,
-        role: this.userForm.role,
-        rank: Number(this.userForm.rank) || 1,
-        cityId: this.userForm.cityId ? Number(this.userForm.cityId) : null,
-        city: selectedCity?.cityName || this.userForm.city || '',
-        region: selectedCity?.regionName || this.userForm.region || '',
-        birthDate: this.userForm.birthDate,
-      }
-
       if (!this.userForm.id) {
-        if (!payload.role || !payload.birthDate || !payload.cityId) {
-          this.usersError = 'Для нового пользователя выберите статус, дату рождения и город.'
-          return
-        }
-
-        if (!this.userForm.password) {
-          this.usersError = 'Для нового пользователя укажите пароль.'
-          return
-        }
-
-        try {
-          await registerRequest({
-            username: payload.login,
-            email: payload.email,
-            password: this.userForm.password,
-            status: payload.role,
-            cityId: payload.cityId,
-            birthdate: formatBirthdateForApi(payload.birthDate),
-          })
-          const isLoaded = await this.loadUsersFromApi()
-          if (!isLoaded) {
-            this.adminUsers = [...this.adminUsers, { id: this.nextId(this.adminUsers), ...payload }]
-          }
-          this.resetUserForm()
-          this.userMessage = 'Пользователь добавлен.'
-          return
-        } catch (error) {
-          this.usersError =
-            error?.message || 'Не удалось добавить пользователя.'
-          return
-        }
+        this.adminActionError = 'Добавление пользователей пока недоступно.'
+        return
       }
-
-      try {
-        this.adminUsers = this.adminUsers.map((item) =>
-          item.id === this.userForm.id ? { ...item, ...payload } : item
-        )
-        this.resetUserForm()
-        this.userMessage = 'Данные пользователя обновлены.'
-      } catch (error) {
-        this.usersError = error?.message || 'Не удалось обновить пользователя.'
-      }
+      this.adminActionError = 'Изменение пользователей пока недоступно.'
     },
     async deleteUser(user) {
       this.userMessage = ''
-      this.usersError = ''
-      this.adminUsers = this.adminUsers.filter((item) => item.id !== user.id)
-
-      if (this.userForm.id === user.id) {
-        this.resetUserForm()
-      }
-      this.userMessage = 'Пользователь удален.'
+      this.adminActionError = `Удаление пользователя ${user.login || user.id} пока недоступно.`
     },
     startTagEdit(tag) {
       this.tagForm = toTagForm(tag)
@@ -549,57 +434,11 @@ export default {
       this.tagForm = toTagForm()
     },
     saveTag() {
-      if (!this.tagForm.name) {
-        return
-      }
-      const normalizedName = this.tagForm.name.trim()
-      if (!normalizedName) {
-        return
-      }
-
-      // TODO (DB/API версия):
-      // await db.table('tags').upsert({
-      //   id: this.tagForm.id,
-      //   name: normalizedName,
-      // })
-      // TODO:
-      // - при переименовании обновлять связи в case_tags
-
-      if (this.tagForm.id) {
-        const previousTag = this.adminTags.find((item) => item.id === this.tagForm.id)?.name
-        this.adminTags = this.adminTags.map((item) =>
-          item.id === this.tagForm.id ? { ...item, name: normalizedName } : item
-        )
-        if (previousTag && previousTag !== normalizedName) {
-          this.adminCases = this.adminCases.map((item) => ({
-            ...item,
-            tags: item.tags.map((tag) => (tag === previousTag ? normalizedName : tag)),
-          }))
-        }
-      } else if (!this.adminTags.some((item) => item.name === normalizedName)) {
-        this.adminTags = [...this.adminTags, { id: this.nextId(this.adminTags), name: normalizedName }]
-      }
-      this.resetTagForm()
+      this.adminActionError = 'Сохранение тегов пока недоступно.'
     },
     deleteTag(tagId) {
-      const deletedTag = this.adminTags.find((item) => item.id === tagId)
-      if (!deletedTag) {
-        return
-      }
-
-      // TODO (DB/API версия):
-      // await db.table('tags').delete().where({ id: tagId })
-      // TODO:
-      // - удалить или пересобрать связи в case_tags по удаленному тегу
-
-      this.adminTags = this.adminTags.filter((item) => item.id !== tagId)
-      this.adminCases = this.adminCases.map((item) => ({
-        ...item,
-        tags: item.tags.filter((tag) => tag !== deletedTag.name),
-      }))
-      if (this.tagForm.id === tagId) {
-        this.resetTagForm()
-      }
+      void tagId
+      this.adminActionError = 'Удаление тегов пока недоступно.'
     },
   },
 }

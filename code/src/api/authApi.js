@@ -38,7 +38,10 @@ const errors = {
   'Validation method is required': 'Выберите способ подтверждения email',
   'Verification code is required': 'Введите код из письма',
   'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
+  'Verification session expired.': 'Сессия подтверждения истекла. Начните регистрацию заново',
+  'Invalid or expired verification session.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Account is not verified': 'Подтвердите email перед входом',
+  'Backend недоступен': 'Сервис временно недоступен',
 }
 
 const httpErrors = {
@@ -256,10 +259,9 @@ export const changeUserParams = ({ firstName, lastName, middleName, nickName, bi
     body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
   })
 
-export const verifyEmail = ({ userId, verification }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify`), {
+export const verifyEmail = ({ verification }) =>
+  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify/${encodeURIComponent(verification)}`), {
     method: 'POST',
-    body: JSON.stringify({ userId, verification }),
   })
 
 export const setProfilePicture = (file) => {
@@ -295,6 +297,13 @@ export const getUserAvatarUrl = (id) =>
 
 export const listLeaderboard = async () => {
   const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))
+  return Array.isArray(users) ? users : []
+}
+
+export const listCaseLeaderboard = async (caseId) => {
+  const users = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/case/${encodeURIComponent(caseId)}/top5`)
+  )
   return Array.isArray(users) ? users : []
 }
 

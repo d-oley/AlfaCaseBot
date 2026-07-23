@@ -264,6 +264,22 @@ export default {
         region: selectedCity?.regionName || overrides.region || '',
       })
     },
+    buildPendingVerification() {
+      return {
+        username: this.registerForm.login,
+        password: this.registerForm.password,
+        email: this.registerForm.email,
+        profile: this.buildFallbackProfile({
+          username: this.registerForm.login,
+          login: this.registerForm.login,
+          nickname: this.registerForm.login,
+          email: this.registerForm.email,
+          birthDate: this.registerForm.birthDate,
+          role: this.registerForm.role,
+          cityId: this.registerForm.cityId,
+        }),
+      }
+    },
     async handleCitySearch(value) {
       this.cityLoadError = ''
 
@@ -353,23 +369,22 @@ export default {
         }
 
         this.pendingVerification = {
+          ...this.buildPendingVerification(),
           id: result.id,
-          username: this.registerForm.login,
-          password: this.registerForm.password,
-          email: this.registerForm.email,
-          profile: this.buildFallbackProfile({
-            username: this.registerForm.login,
-            login: this.registerForm.login,
-            nickname: this.registerForm.login,
-            email: this.registerForm.email,
-            birthDate: this.registerForm.birthDate,
-            role: this.registerForm.role,
-            cityId: this.registerForm.cityId,
-          }),
         }
         this.verificationCode = ''
         this.message = 'Код подтверждения отправлен на email.'
       } catch (error) {
+        const backendError = error?.body?.errorText
+        if (
+          backendError === 'This email address is already taken' ||
+          backendError === 'This username is already taken'
+        ) {
+          this.pendingVerification = this.buildPendingVerification()
+          this.verificationCode = ''
+          this.message = 'Аккаунт уже создан. Введите ранее отправленный код подтверждения.'
+          return
+        }
         const message = error?.message || 'Не удалось зарегистрироваться.'
         this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
           ? 'Не удалось зарегистрироваться. Попробуйте ещё раз.'
@@ -388,7 +403,6 @@ export default {
 
       try {
         await verifyEmail({
-          userId: this.pendingVerification.id,
           verification: Number(this.verificationCode),
         })
         await loginRequest({

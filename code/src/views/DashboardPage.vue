@@ -47,7 +47,7 @@ export default {
           }))
         )
       } catch {
-        // Если leaderboard endpoint недоступен, остаются локальные стартовые данные.
+        setLeaderboardUsers([])
       }
     },
     openCase(caseId) {

@@ -18,8 +18,8 @@
       <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
 
       <form class="chat-form" @submit.prevent="sendMessage">
-        <input v-model.trim="draft" type="text" :disabled="isSending || isHistoryLoading" placeholder="Введите сообщение..." />
-        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending || isHistoryLoading">
+        <input v-model.trim="draft" type="text" :disabled="isSending" placeholder="Введите сообщение..." />
+        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending">
           {{ isSending ? 'Отправка...' : 'Отправить' }}
         </button>
       </form>
@@ -104,7 +104,8 @@ export default {
             history.push({ id: this.nextId++, author: 'bot', text: item.solutionResponse })
           }
         })
-        this.messages = [this.messages[0], ...history]
+        const messagesAddedWhileLoading = this.messages.slice(1)
+        this.messages = [this.messages[0], ...history, ...messagesAddedWhileLoading]
       } catch (error) {
         if (Number(error?.status) === 401 || Number(error?.status) === 403) {
           this.errorMessage = 'Не удалось загрузить историю: сессия истекла.'

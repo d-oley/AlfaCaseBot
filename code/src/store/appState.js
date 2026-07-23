@@ -28,7 +28,6 @@ const cases = [
     tags: ['Бизнес-стратегия', 'SMB', 'Продукт', 'Go-to-Market'],
     difficulty: 'Средний',
     averageSolveMinutes: 185,
-    solvedScore: 87,
     pdfUrl: '/cases/vk-messenger-smb.pdf',
   },
   {
@@ -40,7 +39,6 @@ const cases = [
     tags: ['UX', 'Веб-аналитика', 'Бизнес-стратегия', 'CRO'],
     difficulty: 'Сложный',
     averageSolveMinutes: 240,
-    solvedScore: 91,
     pdfUrl: '/cases/cl-cup-ux.pdf',
   },
   {
@@ -52,7 +50,6 @@ const cases = [
     tags: ['Data Science', 'ML', 'CRM', 'Аналитика'],
     difficulty: 'Сложный',
     averageSolveMinutes: 265,
-    solvedScore: 95,
     pdfUrl: '/cases/cl-cup-ml.pdf',
   },
   {
@@ -64,7 +61,6 @@ const cases = [
     tags: ['Финтех', 'Бизнес-стратегия', 'SMB', 'Продукт'],
     difficulty: 'Сложный',
     averageSolveMinutes: 225,
-    solvedScore: 89,
     pdfUrl: '/cases/gum-cup-main.pdf',
   },
   {
@@ -76,7 +72,6 @@ const cases = [
     tags: ['Презентация', 'Коммуникация', 'Бизнес-стратегия'],
     difficulty: 'Средний',
     averageSolveMinutes: 150,
-    solvedScore: 84,
     pdfUrl: '/cases/gum-cup-final-extra.pdf',
   },
   {
@@ -88,7 +83,6 @@ const cases = [
     tags: ['HR Tech', 'Продукт', 'Исследования', 'Data Science'],
     difficulty: 'Средний',
     averageSolveMinutes: 170,
-    solvedScore: 82,
     pdfUrl: '/cases/alfa-people-qual.pdf',
   },
   {
@@ -100,81 +94,9 @@ const cases = [
     tags: ['HR Tech', 'Продукт', 'Бизнес-стратегия', 'Data Science'],
     difficulty: 'Сложный',
     averageSolveMinutes: 230,
-    solvedScore: 90,
     pdfUrl: '/cases/alfa-people-final.pdf',
   },
 ]
-
-const topUsersSeed = [
-  {
-    id: 'podium-1',
-    rank: 1,
-    login: 'PupiKapi',
-    firstName: 'Полина',
-    lastName: 'Капустина',
-    city: 'Москва',
-    points: 985,
-    avatarUrl: '',
-  },
-  {
-    id: 'podium-2',
-    rank: 2,
-    login: 'AlphaSamets',
-    firstName: 'Самуил',
-    lastName: 'Альфов',
-    city: 'Казань',
-    points: 947,
-    avatarUrl: '',
-  },
-  {
-    id: 'podium-3',
-    rank: 3,
-    login: 'Theresnohope',
-    firstName: 'Алина',
-    lastName: 'Трофимова',
-    city: 'Новосибирск',
-    points: 921,
-    avatarUrl: '',
-  },
-]
-
-const caseLeaderboardsSeed = {
-  1: [
-    { id: '1-a', login: 'PupiKapi', firstName: 'Полина', lastName: 'Капустина', city: 'Москва', score: 98 },
-    { id: '1-b', login: 'AlphaSamets', firstName: 'Самуил', lastName: 'Альфов', city: 'Казань', score: 95 },
-    { id: '1-c', login: 'case_vision', firstName: 'Мария', lastName: 'Власова', city: 'Санкт-Петербург', score: 92 },
-  ],
-  2: [
-    { id: '2-a', login: 'ux_hawk', firstName: 'Илья', lastName: 'Чернов', city: 'Екатеринбург', score: 99 },
-    { id: '2-b', login: 'AlphaSamets', firstName: 'Самуил', lastName: 'Альфов', city: 'Казань', score: 97 },
-    { id: '2-c', login: 'Theresnohope', firstName: 'Алина', lastName: 'Трофимова', city: 'Новосибирск', score: 93 },
-  ],
-  3: [
-    { id: '3-a', login: 'ml_nika', firstName: 'Ника', lastName: 'Лебедева', city: 'Томск', score: 100 },
-    { id: '3-b', login: 'data_alex', firstName: 'Алексей', lastName: 'Ершов', city: 'Москва', score: 98 },
-    { id: '3-c', login: 'PupiKapi', firstName: 'Полина', lastName: 'Капустина', city: 'Москва', score: 96 },
-  ],
-  4: [
-    { id: '4-a', login: 'biz_wolf', firstName: 'Олег', lastName: 'Серов', city: 'Самара', score: 97 },
-    { id: '4-b', login: 'PupiKapi', firstName: 'Полина', lastName: 'Капустина', city: 'Москва', score: 95 },
-    { id: '4-c', login: 'AlphaSamets', firstName: 'Самуил', lastName: 'Альфов', city: 'Казань', score: 90 },
-  ],
-  5: [
-    { id: '5-a', login: 'slides_queen', firstName: 'Елизавета', lastName: 'Орлова', city: 'Москва', score: 96 },
-    { id: '5-b', login: 'Theresnohope', firstName: 'Алина', lastName: 'Трофимова', city: 'Новосибирск', score: 94 },
-    { id: '5-c', login: 'PupiKapi', firstName: 'Полина', lastName: 'Капустина', city: 'Москва', score: 91 },
-  ],
-  6: [
-    { id: '6-a', login: 'hr_nova', firstName: 'Софья', lastName: 'Исаева', city: 'Пермь', score: 95 },
-    { id: '6-b', login: 'AlphaSamets', firstName: 'Самуил', lastName: 'Альфов', city: 'Казань', score: 89 },
-    { id: '6-c', login: 'case_vision', firstName: 'Мария', lastName: 'Власова', city: 'Санкт-Петербург', score: 87 },
-  ],
-  7: [
-    { id: '7-a', login: 'product_fox', firstName: 'Виктор', lastName: 'Мельников', city: 'Сочи', score: 99 },
-    { id: '7-b', login: 'PupiKapi', firstName: 'Полина', lastName: 'Капустина', city: 'Москва', score: 97 },
-    { id: '7-c', login: 'Theresnohope', firstName: 'Алина', lastName: 'Трофимова', city: 'Новосибирск', score: 95 },
-  ],
-}
 
 const getDefaultPreferences = () => ({ tag: '', difficulty: '' })
 
@@ -247,7 +169,7 @@ const initialBanNotice = readSessionStorage(BAN_NOTICE_STORAGE_KEY, null)
 export const appState = reactive({
   isAuthenticated: Boolean(initialSession?.isAuthenticated),
   user: initialUser,
-  topUsers: [...topUsersSeed],
+  topUsers: [],
   cases,
   cities: [],
   recommendedCaseId: null,
@@ -307,26 +229,6 @@ const persistUserData = (prevLogin = '') => {
 
 const diffDiffMap = { easy: 'Легкий', medium: 'Средний', hard: 'Сложный' }
 
-const syncTopUsers = () => {
-  const users = [...topUsersSeed]
-  if (appState.isAuthenticated && appState.user.rank > 0 && appState.user.rank <= 3) {
-    const entry = {
-      id: `podium-${appState.user.rank}`,
-      rank: appState.user.rank,
-      login: appState.user.login || appState.user.username || 'User',
-      firstName: appState.user.firstName || '',
-      lastName: appState.user.lastName || '',
-      city: appState.user.city || 'Нет города',
-      points: 900 - appState.user.rank * 5,
-      avatarUrl: appState.user.avatarUrl || '',
-    }
-    const idx = users.findIndex(u => u.rank === entry.rank)
-    if (idx >= 0) users[idx] = entry
-    else users.push(entry)
-  }
-  appState.topUsers = users.sort((a, b) => a.rank - b.rank)
-}
-
 const calcRecommendedCase = () => {
   const tag = appState.user.preferences?.tag || ''
   const diff = diffDiffMap[appState.user.preferences?.difficulty] || ''
@@ -339,10 +241,10 @@ const calcRecommendedCase = () => {
       let score = 0
       if (tag && c.tags.includes(tag)) score += 3
       if (diff && c.difficulty === diff) score += 2
-      return { id: c.id, score, solved: c.solvedScore }
+      return { id: c.id, score }
     })
     .filter(c => c.score > 0)
-    .sort((a, b) => b.score - a.score || b.solved - a.solved)
+    .sort((a, b) => b.score - a.score || a.id - b.id)
   
   return ranked[0]?.id || null
 }
@@ -376,7 +278,6 @@ export const hydrateUser = (payload, opts = {}) => {
   appState.viewedCaseIds = [...(local.viewedCaseIds || [])]
   appState.shouldShowPreferencesOnboarding = opts.onboarding || local.shouldShowPreferencesOnboarding
 
-  syncTopUsers()
   appState.recommendedCaseId = calcRecommendedCase()
   persistUserData()
 }
@@ -397,7 +298,6 @@ export const logoutUser = () => {
   appState.viewedCaseIds = []
   appState.shouldShowPreferencesOnboarding = false
   appState.recommendedCaseId = null
-  syncTopUsers()
   persistSession()
 }
 
@@ -419,15 +319,14 @@ export const setAvailableCities = (cities) => {
 }
 
 export const setLeaderboardUsers = (users) => {
-  if (Array.isArray(users) && users.length) {
-    appState.topUsers = [...users].sort((a, b) => Number(a.rank) - Number(b.rank))
-  }
+  appState.topUsers = Array.isArray(users)
+    ? [...users].sort((a, b) => Number(a.rank) - Number(b.rank))
+    : []
 }
 
 export const setUserAvatar = (url) => {
   appState.user.avatarUrl = url
   persistUserData()
-  syncTopUsers()
 }
 
 export const updateUserProfile = (payload) => {
@@ -445,7 +344,6 @@ export const updateUserProfile = (payload) => {
 
   persistUserData(prevKey)
   appState.recommendedCaseId = calcRecommendedCase()
-  syncTopUsers()
 }
 
 export const updateUserPreferences = (payload = {}) => {
@@ -522,33 +420,6 @@ export const getSolvedCases = () =>
     })
     .filter(Boolean)
 
-export const getCaseLeaderboard = (caseId) => {
-  const num = Number(caseId)
-  const entries = [...(caseLeaderboardsSeed[num] || [])]
-  const solved = appState.userSolvedCases.find(e => Number(e.caseId) === num)
-
-  if (appState.isAuthenticated && solved) {
-    const userEntry = {
-      id: `user-${num}`,
-      login: appState.user.login || appState.user.username || 'User',
-      firstName: appState.user.firstName || '',
-      lastName: appState.user.lastName || '',
-      city: appState.user.city || 'Нет города',
-      score: Number(solved.scorePercent || 0),
-      isCurrentUser: true,
-    }
-    const idx = entries.findIndex(e => e.login === userEntry.login)
-    if (idx >= 0) entries[idx] = userEntry
-    else entries.push(userEntry)
-  }
-
-  return entries.sort((a, b) => Number(b.score) - Number(a.score)).map((e, i) => ({
-    ...e,
-    rank: i + 1,
-    fullName: [e.firstName, e.lastName].filter(Boolean).join(' ').trim() || e.login,
-  }))
-}
-
 export const getRoleOptions = () => [...roleOptions]
 export const getRoleLabel = (val) => roleOptions.find(o => o.value === val)?.label || 'Не указан'
 export const getDifficultyPreferenceOptions = () => [...difficultyPreferenceOptions]
@@ -594,5 +465,4 @@ export const getFavoriteCasesForUser = () => {
 
 export const saveSolvedCaseResult = saveSolvedCase
 
-syncTopUsers()
 appState.recommendedCaseId = calcRecommendedCase()

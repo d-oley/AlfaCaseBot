@@ -55,7 +55,12 @@ export default {
       }
     },
     getDisplayName(user) {
-      return [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.login || 'Пользователь'
+      const isKnownName = (value) => {
+        const normalized = String(value || '').trim()
+        return normalized && normalized.toLowerCase() !== 'unknown'
+      }
+      const fullName = [user?.firstName, user?.lastName].filter(isKnownName).join(' ').trim()
+      return fullName || 'Таинственный пользователь'
     },
   },
 }

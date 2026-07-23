@@ -14,8 +14,6 @@
         </button>
       </div>
 
-      <p class="score">Средний балл решений: {{ caseItem.solvedScore }} / 100</p>
-
       <div class="tags">
         <span class="tag difficulty-tag">Сложность: {{ caseItem.difficulty || 'Не указана' }}</span>
         <span v-for="tag in caseItem.tags" :key="tag" class="tag">{{ tag }}</span>
@@ -31,6 +29,7 @@
       </div>
     </section>
 
+    <p v-if="leaderboardError" class="leaderboard-error">{{ leaderboardError }}</p>
     <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
 
     <section v-if="!caseItem" class="card detail-card">
@@ -44,12 +43,19 @@
 
 <script>
 import CaseLeaderboard from '@/components/CaseLeaderboard.vue'
-import { getCaseById, getCaseLeaderboard, isCaseFavorite, markCaseViewed, toggleCaseFavorite } from '@/store/appState'
+import { getUserAvatarUrl, listCaseLeaderboard } from '@/api/authApi'
+import { appState, getCaseById, isCaseFavorite, markCaseViewed, toggleCaseFavorite } from '@/store/appState'
 
 export default {
   name: 'CaseDetailPage',
   components: {
     CaseLeaderboard,
+  },
+  data() {
+    return {
+      leaderboardEntries: [],
+      leaderboardError: '',
+    }
   },
   computed: {
     caseId() {
@@ -61,21 +67,37 @@ export default {
     isFavorite() {
       return isCaseFavorite(this.caseId)
     },
-    leaderboardEntries() {
-      return getCaseLeaderboard(this.caseId)
-    },
   },
   watch: {
     caseId: {
       immediate: true,
-      handler(value) {
+      async handler(value) {
         if (value) {
           markCaseViewed(value)
+          await this.loadLeaderboard(value)
         }
       },
     },
   },
   methods: {
+    async loadLeaderboard(caseId) {
+      this.leaderboardError = ''
+      try {
+        const users = await listCaseLeaderboard(caseId)
+        this.leaderboardEntries = users.map((user, index) => ({
+          id: user.userId ?? `case-leaderboard-${index}`,
+          rank: user.placement ?? index + 1,
+          fullName: user.firstName || user.nickName || 'Пользователь',
+          city: user.cityName || '',
+          score: user.score ?? 0,
+          avatarUrl: user.userId ? getUserAvatarUrl(user.userId) : '',
+          isCurrentUser: Number(user.userId) === Number(appState.user.id),
+        }))
+      } catch (error) {
+        this.leaderboardEntries = []
+        this.leaderboardError = error?.message || 'Не удалось загрузить рейтинг по кейсу.'
+      }
+    },
     goToChat() {
       this.$router.push(`/case/${this.caseId}/chat`)
     },
@@ -94,6 +116,11 @@ export default {
 
 .detail-card {
   padding: 24px;
+}
+
+.leaderboard-error {
+  margin: 0;
+  color: #b42318;
 }
 
 .title-row {
@@ -119,12 +146,6 @@ h1 {
 
 .favorite-star.active {
   color: #f3c01c;
-}
-
-.score {
-  margin: 0 0 12px;
-  font-weight: 700;
-  color: var(--text-muted);
 }
 
 .description {
