@@ -2,7 +2,12 @@
   <div class="container chat-page">
     <section class="card chat-card">
       <header class="chat-header">
-        <h1>Чат по кейсу: {{ caseTitle }}</h1>
+        <div class="case-heading">
+          <h1>Чат по кейсу: {{ caseTitle }}</h1>
+          <span v-if="currentCaseScore !== null" class="case-score">
+            {{ currentCaseScore }} / 100
+          </span>
+        </div>
         <button class="btn btn-secondary" type="button" @click="openConditions">
           {{ casePdfUrl ? 'Полные условия (PDF)' : 'Просмотр условия' }}
         </button>
@@ -11,6 +16,9 @@
       <div class="messages">
         <div v-for="message in messages" :key="message.id" class="message" :class="message.author">
           <p>{{ message.text }}</p>
+          <span v-if="message.rating !== null && message.rating !== undefined" class="message-score">
+            Оценка: {{ message.rating }} / 100
+          </span>
         </div>
       </div>
 
@@ -93,6 +101,12 @@ export default {
     casePdfUrl() {
       return this.caseItem?.pdfUrl || ''
     },
+    currentCaseScore() {
+      const solvedCase = this.appState.userSolvedCases.find(
+        (item) => Number(item.caseId) === Number(this.caseId)
+      )
+      return solvedCase ? Number(solvedCase.scorePercent) : null
+    },
   },
   async created() {
     markCaseViewed(this.caseId)
@@ -125,7 +139,12 @@ export default {
             history.push({ id: this.nextId++, author: 'user', text: item.solutionText })
           }
           if (item.solutionResponse) {
-            history.push({ id: this.nextId++, author: 'bot', text: item.solutionResponse })
+            history.push({
+              id: this.nextId++,
+              author: 'bot',
+              text: item.solutionResponse,
+              rating: item.rating,
+            })
           }
         })
         const messagesAddedWhileLoading = this.messages.slice(1)
@@ -178,13 +197,12 @@ export default {
           id: this.nextId,
           author: 'bot',
           text: response.message || `Решение принято. Итоговая оценка: ${response.rating ?? 0}.`,
+          rating: response.rating,
         })
         this.nextId += 1
 
         this.statusMessage =
-          response.rating === null || response.rating === undefined
-            ? 'Ответ обработан.'
-            : `Рейтинг по кейсу: ${response.rating} / 100`
+          response.rating === null || response.rating === undefined ? 'Ответ обработан.' : ''
 
         if (typeof response.rating === 'number' && this.appState.isAuthenticated) {
           saveSolvedCaseResult(this.caseId, response.rating, {
@@ -244,6 +262,29 @@ export default {
   font-size: clamp(1.15rem, 2.8vw, 1.4rem);
 }
 
+.case-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.case-score,
+.message-score {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.case-score {
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
 .messages {
   min-height: clamp(220px, 40vh, 300px);
   max-height: 420px;
@@ -280,6 +321,12 @@ export default {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.4;
+}
+
+.message-score {
+  margin-top: 8px;
+  padding: 4px 9px;
+  font-size: 0.82rem;
 }
 
 .status-text,

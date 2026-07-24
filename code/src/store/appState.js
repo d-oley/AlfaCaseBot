@@ -21,78 +21,85 @@ const difficultyPreferenceOptions = [
 const cases = [
   {
     id: 1,
-    title: 'VK Мессенджер x Альфа: продукты для СМБ',
-    description: 'Разработайте стратегию роста B2B-продуктов VK Мессенджера для малого и среднего бизнеса.',
+    title: 'VK Мессенджер × Альфа-Банк',
+    description:
+      'Разработайте стратегию развития продуктов VK Мессенджера для малого и среднего бизнеса. Предложите новые решения, метрики и точки роста.',
     fullDescription:
-      'Проведите анализ сегментов СМБ, определите точки роста продукта, предложите метрики, дорожную карту и формат запуска.',
-    tags: ['Бизнес-стратегия', 'SMB', 'Продукт', 'Go-to-Market'],
-    difficulty: 'Средний',
+      'Разработайте стратегию развития продуктов VK Мессенджера для малого и среднего бизнеса. Предложите новые решения, метрики и точки роста.',
+    tags: ['Strategy', 'Product', 'Growth', 'Analytics', 'Research', 'Metrics'],
+    difficulty: 'Сложно',
     averageSolveMinutes: 185,
     pdfUrl: '/cases/vk-messenger-smb.pdf',
   },
   {
     id: 2,
-    title: 'CL Cup IT: Персонализация сайта Альфа-Банка',
-    description: 'Подберите гипотезы персонализации, которые повысят конверсию и качество пользовательского пути.',
+    title: 'Персонализация сайта Альфа-Банка',
+    description:
+      'Разработайте инициативы по персонализации сайта Альфа-Банка, чтобы повысить конверсию посетителей в клиентов. Исследуйте рынок, предложите гипотезы и оцените их эффективность.',
     fullDescription:
-      'Нужно изучить пользовательские сценарии, выбрать точки персонализации и предложить механику экспериментов с измеримым эффектом.',
-    tags: ['UX', 'Веб-аналитика', 'Бизнес-стратегия', 'CRO'],
-    difficulty: 'Сложный',
+      'Разработайте инициативы по персонализации сайта Альфа-Банка, чтобы повысить конверсию посетителей в клиентов. Исследуйте рынок, предложите гипотезы и оцените их эффективность.',
+    tags: ['Product', 'UX', 'Research', 'Analytics', 'Metrics', 'Growth'],
+    difficulty: 'Сложно',
     averageSolveMinutes: 240,
     pdfUrl: '/cases/cl-cup-ux.pdf',
   },
   {
     id: 3,
-    title: 'CL Cup Data Science: Расширяя круг',
-    description: 'Разработайте ML-подход для поиска родственников текущих клиентов Альфа-Банка.',
+    title: 'Look-alike для семейного банкинга',
+    description:
+      'Разработайте ML-модель для поиска родственников текущих клиентов Альфа-Банка. Предложите стратегию развития проекта и персонализированные сценарии привлечения.',
     fullDescription:
-      'От вас ждут логику построения data science решения, признаки, план валидации и идеи развития модели на год вперед.',
-    tags: ['Data Science', 'ML', 'CRM', 'Аналитика'],
-    difficulty: 'Сложный',
+      'Разработайте ML-модель для поиска родственников текущих клиентов Альфа-Банка. Предложите стратегию развития проекта и персонализированные сценарии привлечения.',
+    tags: ['AI', 'Analytics', 'Research', 'Product', 'Metrics'],
+    difficulty: 'Сложно',
     averageSolveMinutes: 265,
     pdfUrl: '/cases/cl-cup-ml.pdf',
   },
   {
     id: 4,
-    title: 'Gum Cup: Отраслевой банк первого клика',
-    description: 'Соберите отраслевое предложение для малого и микробизнеса с понятной ценностью и каналом роста.',
+    title: 'Отраслевой банк первого клика',
+    description:
+      'Разработайте отраслевое решение для малого и среднего бизнеса: выберите перспективную нишу, предложите комплекс продуктов и оцените эффект для Альфа-Банка.',
     fullDescription:
-      'Нужно предложить отраслевое решение, конкурентное позиционирование, набор сервисов и экономику запуска.',
-    tags: ['Финтех', 'Бизнес-стратегия', 'SMB', 'Продукт'],
-    difficulty: 'Сложный',
+      'Разработайте отраслевое решение для малого и среднего бизнеса: выберите перспективную нишу, предложите комплекс продуктов и оцените эффект для Альфа-Банка.',
+    tags: ['Strategy', 'Product', 'Research', 'Analytics', 'Growth', 'Metrics'],
+    difficulty: 'Сложно',
     averageSolveMinutes: 225,
     pdfUrl: '/cases/gum-cup-main.pdf',
   },
   {
     id: 5,
-    title: 'Gum Cup: Дополнительное задание финала',
-    description: 'Упакуйте клиентское предложение и представьте его в формате, понятном бизнесу и жюри.',
+    title: 'Отраслевое решение: выход на рынок (доп. задание)',
+    description:
+      'Доработайте отраслевое решение с учетом обратной связи и подготовьте материалы для клиентов. Покажите ценность продукта, его преимущества и стратегию продвижения.',
     fullDescription:
-      'Доработайте решение после обратной связи и превратите его в убедительный, структурный и визуально сильный финальный артефакт.',
-    tags: ['Презентация', 'Коммуникация', 'Бизнес-стратегия'],
-    difficulty: 'Средний',
+      'Доработайте отраслевое решение с учетом обратной связи и подготовьте материалы для клиентов. Покажите ценность продукта, его преимущества и стратегию продвижения.',
+    tags: ['Product', 'Marketing', 'Strategy', 'Growth', 'Research', 'UX'],
+    difficulty: 'Средне',
     averageSolveMinutes: 150,
     pdfUrl: '/cases/gum-cup-final-extra.pdf',
   },
   {
     id: 6,
-    title: 'Alfa People: Отборочный этап',
-    description: 'Предложите развитие приложения для работы с кандидатами Alfa People.',
+    title: 'Alfa People',
+    description:
+      'Предложите концепцию развития приложения Alfa People для кандидатов. Улучшите пользовательский опыт и вовлеченность на этапах найма.',
     fullDescription:
-      'Сфокусируйтесь на росте вовлеченности аудитории, проблемах кандидатов и продуктовых гипотезах, которые можно быстро проверить.',
-    tags: ['HR Tech', 'Продукт', 'Исследования', 'Data Science'],
-    difficulty: 'Средний',
+      'Предложите концепцию развития приложения Alfa People для кандидатов. Улучшите пользовательский опыт и вовлеченность на этапах найма.',
+    tags: ['Product', 'UX', 'Research', 'Analytics', 'Growth', 'MVP'],
+    difficulty: 'Средне',
     averageSolveMinutes: 170,
     pdfUrl: '/cases/alfa-people-qual.pdf',
   },
   {
     id: 7,
-    title: 'Alfa People: Финал',
-    description: 'Усилите продуктовую концепцию Alfa People и защитите ее перед жюри.',
+    title: 'Alfa People: MVP и пользовательское тестирование (финал)',
+    description:
+      'Доработайте MVP приложения Alfa People и подтвердите его эффективность пользовательскими тестами. Подготовьте решение к защите.',
     fullDescription:
-      'Нужно довести решение до финального уровня: проработать гипотезы, UX, запуск, метрики и логику внедрения.',
-    tags: ['HR Tech', 'Продукт', 'Бизнес-стратегия', 'Data Science'],
-    difficulty: 'Сложный',
+      'Доработайте MVP приложения Alfa People и подтвердите его эффективность пользовательскими тестами. Подготовьте решение к защите.',
+    tags: ['Product', 'UX', 'Research', 'Analytics', 'Metrics', 'MVP'],
+    difficulty: 'Средне',
     averageSolveMinutes: 230,
     pdfUrl: '/cases/alfa-people-final.pdf',
   },
@@ -227,7 +234,7 @@ const persistUserData = (prevLogin = '') => {
   persistSession()
 }
 
-const diffDiffMap = { easy: 'Легкий', medium: 'Средний', hard: 'Сложный' }
+const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
 
 const calcRecommendedCase = () => {
   const tag = appState.user.preferences?.tag || ''
@@ -428,10 +435,10 @@ export const getPreferenceTagOptions = () => [...new Set(appState.cases.flatMap(
 export const getAchievementsForUser = () => {
   const solved = appState.userSolvedCases
   const solvedIds = new Set(solved.map(e => Number(e.caseId)))
-  const dataSci = solved.filter(e => getCaseById(e.caseId)?.tags.includes('Data Science')).length
-  const busBiz = solved.filter(e => getCaseById(e.caseId)?.tags.includes('Бизнес-стратегия')).length
+  const dataSci = solved.filter(e => getCaseById(e.caseId)?.tags.includes('AI')).length
+  const busBiz = solved.filter(e => getCaseById(e.caseId)?.tags.includes('Strategy')).length
   const perfect = solved.filter(e => Number(e.scorePercent) === 100).length
-  const hardCases = solved.filter(e => getCaseById(e.caseId)?.difficulty === 'Сложный').length
+  const hardCases = solved.filter(e => getCaseById(e.caseId)?.difficulty === 'Сложно').length
 
   return [
     { id: 'rapid', title: '⚡ Стремительный взлёт', desc: 'Решите 5 кейсов', active: solvedIds.size >= 5, prog: `${Math.min(solvedIds.size, 5)}/5` },

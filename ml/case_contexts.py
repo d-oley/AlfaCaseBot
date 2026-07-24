@@ -1,215 +1,141 @@
-# Контексты кейсов для оценки LLM
-# Каждый кейс имеет уникальный контекст с описанием требований
+"""English case contexts used by the LLM evaluation prompt."""
+
 
 CASE_CONTEXTS = {
     1: {
-        "title": "VK Messenger x Alfa: SMB Products",
-        "context": """Case Context (Project "VK Messenger x Alfa: Products for SMB"):
+        "title": "VK Messenger x Alfa-Bank",
+        "context": """Case Context: VK Messenger x Alfa-Bank
 
-Product: VK Messenger B2B products for small and medium-sized businesses.
+Challenge: Develop a product strategy for VK Messenger solutions aimed at small and medium-sized businesses. Propose new solutions, measurable success indicators, and sustainable growth opportunities.
 
-Focus Area: Development of growth strategy for VK Messenger B2B products in the SMB segment.
+The solution should:
+1. Research and segment the SMB audience and identify its communication needs.
+2. Diagnose the strongest product and market opportunities.
+3. Propose concrete product initiatives and explain their customer value.
+4. Define acquisition, activation, engagement, retention, and business metrics.
+5. Prioritize initiatives and describe a realistic implementation roadmap.
+6. Explain how the strategy can create growth for both VK Messenger and Alfa-Bank.
 
-Main Project Goal: Increase product adoption and revenue from the SMB segment through VK Messenger.
-
-Business Objectives: Analyze SMB segments, identify product growth points, propose metrics, create a roadmap, and define launch format.
-
-Target Audience (TA): Small and medium-sized businesses across various industries seeking business communication solutions.
-
-Required Solution Components:
-The participant should have proposed a comprehensive growth strategy by completing the following tasks:
-
-1. Analyze SMB segments and their specific needs in business communication.
-2. Identify key growth points and opportunities for VK Messenger products.
-3. Develop a clear value proposition for different SMB segments.
-4. Propose measurable metrics to track product adoption and success.
-5. Create a roadmap with priorities and implementation timeline.
-6. Describe a go-to-market strategy and launch format.
-
-Evaluation Criteria: Depth of SMB analysis, clarity of value proposition, feasibility of proposed solutions, measurability of success metrics, and practical implementation approach."""
+Evaluation focus: quality of research, strategic logic, product relevance, growth potential, analytical depth, measurable metrics, prioritization, and feasibility.""",
     },
-    
     2: {
-        "title": "CL Cup IT: Personalization of Alfa-Bank Website",
-        "context": """Case Context (Project "CL Cup IT: Website Personalization"):
+        "title": "Alfa-Bank Website Personalization",
+        "context": """Case Context: Alfa-Bank Website Personalization
 
-Product: Alfa-Bank's main website serving millions of users daily.
+Challenge: Develop website personalization initiatives that increase the conversion of Alfa-Bank visitors into customers. Research the market, propose hypotheses, and estimate their effectiveness.
 
-Focus Area: Development of personalization hypotheses to improve conversion and user experience.
+The solution should:
+1. Research user segments, needs, and key website journeys.
+2. Identify high-impact personalization opportunities and touchpoints.
+3. Formulate product and UX hypotheses for relevant segments.
+4. Explain the data and decision logic required for personalization.
+5. Define experiments, control groups, and success metrics.
+6. Prioritize initiatives by expected impact, confidence, effort, and risk.
 
-Main Project Goal: Increase website conversion and improve user journey quality through personalization.
-
-Business Objectives: Study user scenarios, select personalization touchpoints, and propose experiment mechanics with measurable effects.
-
-Target Audience (TA): Current and potential Alfa-Bank clients visiting the website with different needs and contexts.
-
-Required Solution Components:
-The participant should have proposed personalization strategy by completing the following tasks:
-
-1. Analyze user journeys and identify key decision-making moments.
-2. Select optimal personalization touchpoints based on user behavior data.
-3. Develop specific personalization hypotheses with clear expected outcomes.
-4. Propose A/B testing mechanics to validate hypotheses.
-5. Define success metrics (conversion rate, bounce rate, engagement, etc.).
-6. Prioritize hypotheses based on potential impact and implementation effort.
-
-Evaluation Criteria: Understanding of user behavior, quality of personalization hypotheses, feasibility of implementation, clarity of measurement approach, and data-driven decision making."""
+Evaluation focus: user insight, product and UX quality, analytical rigor, experiment design, measurable impact, responsible data use, and implementation feasibility.""",
     },
-    
     3: {
-        "title": "CL Cup Data Science: Expanding the Circle",
-        "context": """Case Context (Project "CL Cup Data Science: Expanding the Circle"):
+        "title": "Look-alike Modeling for Family Banking",
+        "context": """Case Context: Look-alike Modeling for Family Banking
 
-Product: Alfa-Bank's customer relationship management and acquisition system.
+Challenge: Develop a machine-learning model for finding likely relatives of existing Alfa-Bank customers. Propose a development strategy and personalized acquisition scenarios.
 
-Focus Area: Development of ML approach to find relatives of current Alfa-Bank clients for customer acquisition.
+The solution should:
+1. Define the business objective, target event, and eligible audience.
+2. Propose suitable data sources and meaningful model features.
+3. Describe the modeling approach, training sample, validation, and baselines.
+4. Address privacy, consent, bias, leakage, and false-positive risks.
+5. Define technical and business metrics for offline and online evaluation.
+6. Design personalized customer scenarios and a phased product rollout.
 
-Main Project Goal: Create a data science solution to identify and acquire relatives of existing clients.
-
-Business Objectives: Build logic for data science solution, define features, create validation plan, and propose model development roadmap.
-
-Target Audience (TA): Relatives and family members of existing Alfa-Bank clients who may become new customers.
-
-Required Solution Components:
-The participant should have proposed ML solution by completing the following tasks:
-
-1. Develop the overall logic and architecture of the data science solution.
-2. Identify relevant features and data sources for relative identification.
-3. Propose ML algorithms and model selection approach.
-4. Create a validation plan to ensure model quality and ethics.
-5. Define success metrics (precision, recall, business KPIs).
-6. Propose a one-year development roadmap with enhancements.
-
-Evaluation Criteria: Technical soundness of ML approach, feature engineering quality, validation methodology, ethical considerations, scalability, and practical business value."""
+Evaluation focus: sound AI methodology, research quality, analytical depth, validation design, ethics, useful product scenarios, measurable value, and practical feasibility.""",
     },
-    
     4: {
-        "title": "Gum Cup: Industry Bank of First Click",
-        "context": """Case Context (Project "Gum Cup: Industry Bank of First Click"):
+        "title": "First-Click Industry Banking",
+        "context": """Case Context: First-Click Industry Banking
 
-Product: Alfa-Bank's industry-specific banking solutions for small and micro businesses.
+Challenge: Develop an industry-specific solution for small and medium-sized businesses. Select a promising niche, propose an integrated product offering, and estimate the effect for Alfa-Bank.
 
-Focus Area: Development of industry-specific offering for small and micro businesses with clear value proposition.
+The solution should:
+1. Select and justify an attractive industry niche.
+2. Research the niche, customer jobs, pain points, and competitive alternatives.
+3. Design an integrated set of banking and non-banking products.
+4. Explain the value proposition and customer journey.
+5. Estimate market potential, economics, risks, and expected bank impact.
+6. Define validation metrics, rollout stages, and growth opportunities.
 
-Main Project Goal: Create an industry-specific solution with competitive positioning and growth channels.
-
-Business Objectives: Propose industry solution, competitive positioning, service package, and launch economics.
-
-Target Audience (TA): Small and micro businesses in specific industries seeking specialized banking solutions.
-
-Required Solution Components:
-The participant should have proposed industry solution by completing the following tasks:
-
-1. Select a specific industry and analyze its banking needs.
-2. Develop a clear value proposition tailored to the industry.
-3. Create competitive positioning against other banks and fintech solutions.
-4. Design a comprehensive service package for the target industry.
-5. Calculate launch economics and ROI projections.
-6. Propose customer acquisition channels and growth strategy.
-
-Evaluation Criteria: Industry knowledge depth, clarity of value proposition, competitive differentiation, financial feasibility, and practical implementation roadmap."""
+Evaluation focus: strategic rationale, research depth, product coherence, analytical evidence, growth potential, measurable economics, and feasibility.""",
     },
-    
     5: {
-        "title": "Gum Cup: Final Additional Task",
-        "context": """Case Context (Project "Gum Cup: Final Additional Task"):
+        "title": "Industry Solution: Go-to-Market Additional Task",
+        "context": """Case Context: Industry Solution — Go-to-Market Additional Task
 
-Product: Enhancement and packaging of the main Gum Cup solution for final presentation.
+Challenge: Refine the industry solution using received feedback and prepare customer-facing materials. Demonstrate its value, competitive advantages, and promotion strategy.
 
-Focus Area: Refining the solution based on feedback and presenting it in a compelling format.
+The solution should:
+1. Clearly show how earlier feedback changed the product.
+2. Refine the customer value proposition and competitive positioning.
+3. Define priority customer segments and acquisition channels.
+4. Design clear customer-facing materials and a coherent UX journey.
+5. Propose a marketing and growth strategy with testable hypotheses.
+6. Define launch stages, research activities, risks, and success criteria.
 
-Main Project Goal: Transform the solution into a convincing, structured, and visually strong final deliverable.
-
-Business Objectives: Incorporate feedback, polish the solution, and present it effectively to business stakeholders and jury.
-
-Target Audience (TA): Business decision-makers, investors, and competition jury evaluating the solution.
-
-Required Solution Components:
-The participant should have refined and presented the solution by completing the following tasks:
-
-1. Incorporate feedback from previous rounds into the solution.
-2. Structure the presentation logically with clear flow.
-3. Create compelling visual materials to support key points.
-4. Articulate business value and expected outcomes clearly.
-5. Address potential objections and risks proactively.
-6. Demonstrate readiness for implementation.
-
-Evaluation Criteria: Quality of presentation, clarity of communication, incorporation of feedback, visual design, and overall persuasiveness of the solution."""
+Evaluation focus: product refinement, quality of customer communication, marketing strategy, growth logic, research support, UX clarity, and readiness for launch.""",
     },
-    
     6: {
-        "title": "Alfa People: Qualification Stage",
-        "context": """Case Context (Project "Alfa People: Qualification Stage"):
+        "title": "Alfa People",
+        "context": """Case Context: Alfa People
 
-Product: Alfa People — Alfa-Bank's digital platform for employees and candidates.
+Challenge: Propose a development concept for the Alfa People candidate application. Improve user experience and engagement throughout the hiring journey.
 
-Focus Area: Development of the "pre-login zone" of the app (an isolated area for candidates during the hiring stage).
+The solution should:
+1. Research candidate segments, needs, frustrations, and hiring journeys.
+2. Identify the most important engagement and UX problems.
+3. Propose a focused product concept and key user scenarios.
+4. Define an MVP and explain its scope and prioritization.
+5. Design validation research and product experiments.
+6. Define acquisition, engagement, retention, and hiring-funnel metrics.
 
-Main Project Goal: Increase the engagement of potential employees using the Alfa People application.
-
-Business Objectives of the Pre-login Zone: Expand the user funnel, free recruiters from routine tasks, retain candidates during the hiring process, and automate processes.
-
-Target Audience (TA): Senior students and graduates, "middle+" level specialists (IT/digital crowd), and candidates who previously failed to pass the company's selection process.
-
-Required Solution Components:
-The participant should have proposed the structure and content of the pre-login zone by completing the following tasks:
-
-1. Analyze trends in the HR-Tech industry and the recruiting of young professionals.
-2. Analyze the preferences of the target audience.
-3. Develop unique ideas to attract and retain the TA, and describe user action scenarios.
-4. Justify the effectiveness of the solutions and propose ways to evaluate user engagement using activity metrics (e.g., DAU, WAU, MAU).
-
-Evaluation Criteria: Understanding of HR-Tech trends, depth of target audience analysis, creativity of proposed features, feasibility of implementation, and clarity of success metrics."""
+Evaluation focus: candidate insight, product clarity, UX quality, research rigor, analytical thinking, growth potential, MVP focus, and feasibility.""",
     },
-    
     7: {
-        "title": "Alfa People: Final",
-        "context": """Case Context (Project "Alfa People: Final Stage"):
+        "title": "Alfa People: MVP and User Testing Final",
+        "context": """Case Context: Alfa People — MVP and User Testing Final
 
-Product: Alfa People — Alfa-Bank's digital platform for employees and candidates.
+Challenge: Refine the Alfa People MVP and validate its effectiveness through user testing. Prepare the solution for a final defense.
 
-Focus Area: Strengthening the product concept for Alfa People and defending it before the jury.
+The solution should:
+1. State the tested problem, audience, assumptions, and MVP scope.
+2. Explain what changed after earlier feedback and why.
+3. Present realistic UX flows or prototype scenarios.
+4. Design user testing with appropriate participants and tasks.
+5. Analyze evidence, define metrics, and distinguish findings from assumptions.
+6. Recommend product changes, next experiments, and an implementation plan.
 
-Main Project Goal: Bring the solution to final level with detailed hypotheses, UX, launch plan, metrics, and implementation logic.
-
-Business Objectives: Enhance the product concept with comprehensive details, defend it convincingly, and demonstrate readiness for launch.
-
-Target Audience (TA): Senior students and graduates, "middle+" level specialists (IT/digital crowd), and candidates who previously failed to pass the company's selection process.
-
-Required Solution Components:
-The participant should have developed a complete product concept by completing the following tasks:
-
-1. Refine and detail product hypotheses based on qualification feedback.
-2. Design comprehensive UX flows and interface mockups for key features.
-3. Create a detailed launch plan with phases and milestones.
-4. Define comprehensive metrics framework (DAU, WAU, MAU, retention, etc.).
-5. Develop implementation logic with technical and organizational considerations.
-6. Prepare a convincing defense addressing potential concerns and alternatives.
-
-Evaluation Criteria: Completeness of solution, UX design quality, feasibility of launch plan, comprehensiveness of metrics, clarity of implementation approach, and persuasiveness of defense."""
-    }
+Evaluation focus: MVP discipline, UX quality, research design, evidence-based decisions, analytical depth, meaningful metrics, iteration quality, and persuasiveness of the final defense.""",
+    },
 }
 
 
 def get_case_context(case_id):
-    """Получить контекст для конкретного кейса по ID"""
+    """Return the evaluation context for a case ID."""
     case_id = int(case_id)
     if case_id not in CASE_CONTEXTS:
         return {
             "title": f"Case {case_id}",
-            "context": "No specific context available for this case. Please provide a comprehensive and well-structured solution."
+            "context": (
+                "No specific context is available for this case. "
+                "Evaluate the solution for clarity, evidence, feasibility, and measurable impact."
+            ),
         }
     return CASE_CONTEXTS[case_id]
 
 
 def get_all_case_ids():
-    """Получить список всех доступных ID кейсов"""
+    """Return all configured case IDs."""
     return list(CASE_CONTEXTS.keys())
 
 
 def add_case_context(case_id, title, context):
-    """Добавить новый контекст кейса (для легкой расширяемости)"""
-    CASE_CONTEXTS[int(case_id)] = {
-        "title": title,
-        "context": context
-    }
+    """Add or replace a case context."""
+    CASE_CONTEXTS[int(case_id)] = {"title": title, "context": context}

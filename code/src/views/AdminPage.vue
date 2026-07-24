@@ -75,9 +75,9 @@
 
             <label for="case-difficulty">Сложность</label>
             <select id="case-difficulty" v-model="caseForm.difficulty">
-              <option value="Легкий">Легкий</option>
-              <option value="Средний">Средний</option>
-              <option value="Сложный">Сложный</option>
+              <option value="Легко">Легко</option>
+              <option value="Средне">Средне</option>
+              <option value="Сложно">Сложно</option>
             </select>
 
             <label for="case-tags">Теги через запятую</label>
@@ -210,7 +210,7 @@ const toCaseForm = (item = null) => ({
   title: item?.title || '',
   description: item?.description || '',
   fullDescription: item?.fullDescription || '',
-  difficulty: item?.difficulty || 'Средний',
+  difficulty: item?.difficulty || 'Средне',
   tagsText: item?.tags?.join(', ') || '',
 })
 
