@@ -18,8 +18,16 @@
       <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
 
       <form class="chat-form" @submit.prevent="sendMessage">
-        <input v-model.trim="draft" type="text" :disabled="isSending" placeholder="Введите сообщение..." />
-        <button class="btn btn-primary" type="submit" :disabled="!draft || isSending">
+        <textarea
+          ref="messageInput"
+          v-model="draft"
+          rows="1"
+          :disabled="isSending"
+          placeholder="Введите сообщение..."
+          @input="resizeMessageInput"
+          @keydown.enter.exact.prevent="sendMessage"
+        />
+        <button class="btn btn-primary" type="submit" :disabled="!draft.trim() || isSending">
           {{ isSending ? 'Отправка...' : 'Отправить' }}
         </button>
       </form>
@@ -91,6 +99,22 @@ export default {
     await this.loadChatHistory()
   },
   methods: {
+    resizeMessageInput() {
+      const input = this.$refs.messageInput
+      if (!input) {
+        return
+      }
+      input.style.height = 'auto'
+      input.style.height = `${input.scrollHeight}px`
+    },
+    resetMessageInputHeight() {
+      this.$nextTick(() => {
+        const input = this.$refs.messageInput
+        if (input) {
+          input.style.height = 'auto'
+        }
+      })
+    },
     async loadChatHistory() {
       this.isHistoryLoading = true
       try {
@@ -126,11 +150,11 @@ export default {
       return Math.max(1, Math.round(diffMs / 60000))
     },
     async sendMessage() {
-      if (!this.draft) {
+      const text = this.draft.trim()
+      if (!text || this.isSending) {
         return
       }
 
-      const text = this.draft
       this.errorMessage = ''
       this.statusMessage = ''
       this.isSending = true
@@ -142,6 +166,7 @@ export default {
       })
       this.nextId += 1
       this.draft = ''
+      this.resetMessageInputHeight()
 
       try {
         const response = await evaluateCaseSolution({
@@ -276,15 +301,21 @@ export default {
   gap: 10px;
 }
 
-.chat-form input {
+.chat-form textarea {
   flex: 1;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
+  font-family: inherit;
+  line-height: 1.4;
   color: var(--text-main);
   background: var(--input-bg);
   min-width: 0;
+  min-height: 42px;
+  max-height: 180px;
+  resize: none;
+  overflow-y: auto;
 }
 
 .condition-modal-overlay {
