@@ -18,7 +18,6 @@ from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from case_contexts import get_case_context
 from llm_service import OPENROUTER_API_KEY, evaluate_solution
 from logging_utils import configure_numbered_file_logging
 
@@ -28,6 +27,7 @@ BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_RATING_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
+CASE_PATH_TEMPLATE = os.getenv("CASE_PATH_TEMPLATE", "/api/v1/cases/{case_id}")
 BACKEND_TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {
     "1",
@@ -270,7 +270,7 @@ def is_session_error(payload: dict[str, Any]) -> bool:
     return backend_message(payload) in SESSION_ERROR_MESSAGES
 
 
-def evaluate_with_llm(text: str, case_id: int) -> dict[str, Any]:
+def evaluate_with_llm(text: str, case_id: int, case_context: str) -> dict[str, Any]:
     started_at = time.perf_counter()
     LOGGER.info(
         "llm_evaluation_started request_id=%s case_id=%s text_length=%s",
@@ -278,7 +278,6 @@ def evaluate_with_llm(text: str, case_id: int) -> dict[str, Any]:
         case_id,
         len(text),
     )
-    case_context = get_case_context(case_id).get("context", "")
     result = evaluate_solution(text, case_context)
     rating = max(0, min(100, round(float(result.get("final_score", 70)))))
     response = {
@@ -455,7 +454,45 @@ async def evaluate(payload: EvaluateRequest, request: Request):
         )
 
     try:
-        llm_result = await run_in_threadpool(evaluate_with_llm, text, case_id)
+        case_path = CASE_PATH_TEMPLATE.format(case_id=case_id)
+        case_status, case_data, _ = await backend_request(case_path, method="GET", cookie=cookie)
+    except (KeyError, ValueError):
+        LOGGER.exception("case_path_template_invalid template=%s", CASE_PATH_TEMPLATE)
+        return logged_response(
+            error_payload("CASE_API_CONFIG_ERROR", "Некорректно настроен адрес кейсов"),
+            500,
+            "evaluate_case_config_failed",
+        )
+    except RuntimeError:
+        return logged_response(
+            error_payload("BACKEND_UNAVAILABLE", "Backend недоступен"),
+            502,
+            "evaluate_case_backend_unavailable",
+        )
+
+    if case_status == 404:
+        return logged_response(
+            error_payload("CASE_NOT_FOUND", "Кейс не найден"),
+            404,
+            "evaluate_case_not_found",
+        )
+    if case_status != 200:
+        return logged_response(
+            error_payload("CASE_LOAD_FAILED", "Не удалось загрузить условие кейса"),
+            502,
+            "evaluate_case_load_failed",
+        )
+
+    case_context = str(case_data.get("promptContextEn") or "").strip()
+    if not case_context:
+        return logged_response(
+            error_payload("CASE_CONTEXT_MISSING", "Для кейса не задан контекст проверки"),
+            422,
+            "evaluate_case_context_missing",
+        )
+
+    try:
+        llm_result = await run_in_threadpool(evaluate_with_llm, text, case_id, case_context)
     except Exception:
         LOGGER.exception("llm_evaluation_failed request_id=%s case_id=%s", current_request_id(), case_id)
         return logged_response(

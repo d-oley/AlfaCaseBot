@@ -72,6 +72,7 @@
         type="button"
         @click="$emit('open-case', item.id)"
       >
+        <img v-if="item.iconUrl" class="case-icon" :src="item.iconUrl" :alt="''" />
         <h4>{{ item.title }}</h4>
         <p>{{ item.description }}</p>
         <div class="tags">
@@ -203,6 +204,13 @@ export default {
   cursor: pointer;
   display: grid;
   gap: 8px;
+}
+
+.case-icon {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 10px;
 }
 
 .case-card h4 {

@@ -1,8 +1,10 @@
 const API_URL = process.env.VUE_APP_API_BASE_URL || ''
 const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
+const CASE_ASSET_URL = process.env.VUE_APP_CASE_ASSET_BASE_URL || ''
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
+const CASE_PREFIX = '/api/v1/cases'
 const SITE_PREFIX = '/api/v1/site'
 const TEXT_PREFIX = '/api/text/v1'
 
@@ -137,9 +139,9 @@ async function mlRequest(url, opts = {}) {
   return data
 }
 
-async function multipartRequest(url, formData) {
+async function multipartRequest(url, formData, method = 'POST') {
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     credentials: 'include',
     body: formData,
   })
@@ -154,6 +156,89 @@ async function multipartRequest(url, formData) {
   }
   return data
 }
+
+const difficultyLabels = {
+  EASY: 'Легко',
+  MEDIUM: 'Средне',
+  HARD: 'Сложно',
+}
+
+const difficultyCodes = Object.fromEntries(
+  Object.entries(difficultyLabels).map(([code, label]) => [label, code])
+)
+
+export const getCaseAssetUrl = (key) => {
+  const value = String(key || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const normalizedKey = value.replace(/^\/+/, '')
+  if (!CASE_ASSET_URL) return `/${normalizedKey}`
+  return `${CASE_ASSET_URL.replace(/\/$/, '')}/${normalizedKey}`
+}
+
+const getCaseTagName = (caseTag) => {
+  if (typeof caseTag === 'string') return caseTag
+  return caseTag?.name || caseTag?.tag?.name || ''
+}
+
+export const normalizeCase = (item = {}) => {
+  const rawTags = Array.isArray(item.tags) ? item.tags : item.caseTags
+  const tags = [...new Set((rawTags || []).map(getCaseTagName).filter(Boolean))]
+  const difficultyCode = difficultyLabels[item.difficulty]
+    ? item.difficulty
+    : difficultyCodes[item.difficulty] || item.difficulty || ''
+
+  return {
+    id: Number(item.id),
+    slug: item.slug || '',
+    title: item.title || '',
+    titleEn: item.titleEn || '',
+    description: item.description || '',
+    fullDescription: item.fullDescription || item.description || '',
+    difficulty: difficultyLabels[difficultyCode] || item.difficulty || '',
+    difficultyCode,
+    tags,
+    caseTags: Array.isArray(item.caseTags) ? item.caseTags : [],
+    averageSolveMinutes: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
+    pdfKey: item.pdfUrl || '',
+    iconKey: item.iconUrl || '',
+    pdfUrl: getCaseAssetUrl(item.pdfUrl),
+    iconUrl: getCaseAssetUrl(item.iconUrl),
+    promptContextEn: item.promptContextEn || '',
+    viewsCount: Number(item.viewsCount || 0),
+    active: item.active ?? item.isActive ?? true,
+    createdAt: item.createdAt || '',
+    updatedAt: item.updatedAt || '',
+  }
+}
+
+const toCaseApiPayload = (item = {}) => ({
+  slug: item.slug || '',
+  title: item.title || '',
+  titleEn: item.titleEn || '',
+  description: item.description || '',
+  fullDescription: item.fullDescription || '',
+  difficulty: difficultyLabels[item.difficultyCode]
+    ? item.difficultyCode
+    : difficultyCodes[item.difficulty] || item.difficulty || 'MEDIUM',
+  averageSolveMin: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
+  promptContextEn: item.promptContextEn || '',
+  isActive: item.active ?? item.isActive ?? true,
+  ...(item.removePdf !== undefined ? { removePdf: Boolean(item.removePdf) } : {}),
+  ...(item.removeIcon !== undefined ? { removeIcon: Boolean(item.removeIcon) } : {}),
+})
+
+const buildCaseFormData = (item, files = {}) => {
+  const formData = new FormData()
+  formData.append(
+    'case',
+    new Blob([JSON.stringify(toCaseApiPayload(item))], { type: 'application/json' })
+  )
+  if (files.pdfFile) formData.append('pdfFile', files.pdfFile)
+  if (files.iconFile) formData.append('iconFile', files.iconFile)
+  return formData
+}
 function normalizeCity(city) {
   if (!city || city.cityName === 'not_set') {
     return { cityId: city?.id ?? city?.cityId ?? null, cityName: '', regionName: '' }
@@ -162,23 +247,6 @@ function normalizeCity(city) {
     cityId: city?.id ?? city?.cityId ?? null,
     cityName: city?.cityName || '',
     regionName: city?.regionName || '',
-  }
-}
-
-async function addCityToUser(user) {
-  if (!user?.id) {
-    return { ...user, city: '', region: '', cityId: user?.cityId || null }
-  }
-  try {
-    const city = await getUserCityById(user.id)
-    return {
-      ...user,
-      cityId: city.cityId || user.cityId || null,
-      city: city.cityName || '',
-      region: city.regionName || '',
-    }
-  } catch {
-    return { ...user, cityId: user?.cityId || null, city: '', region: '' }
   }
 }
 
@@ -192,11 +260,6 @@ export const parseBirthdateFromApi = (date) => {
   if (!date || !date.includes('.')) return date || ''
   const [day, month, year] = date.split('.')
   return `${year}-${month}-${day}`
-}
-
-export const listUsers = async () => {
-  const users = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`))
-  return Array.isArray(users) ? Promise.all(users.map(addCityToUser)) : []
 }
 
 export const mapApiProfileToState = (profile, fallback = {}) => {
@@ -219,7 +282,7 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
     creationDate: profile?.creationDate ?? fallback.creationDate ?? '',
     rank: profile?.placement ?? fallback.rank ?? 57,
     points: profile?.score ?? fallback.points ?? 0,
-    avatarUrl: profile?.id ? getUserAvatarUrl(profile.id) : '',
+    avatarUrl: getCaseAssetUrl(profile?.avatarUrl || fallback.avatarUrl),
   }
 }
 
@@ -270,6 +333,94 @@ export const setProfilePicture = (file) => {
   return multipartRequest(withBaseUrl(API_URL, `${AUTH_PREFIX}/setProfilePicture`), formData)
 }
 
+export const listCases = async () => {
+  const items = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/getAll`))
+  return Array.isArray(items) ? items.map(normalizeCase) : []
+}
+
+export const getCaseByIdRequest = async (id) => {
+  const item = await request(
+    withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}`)
+  )
+  return normalizeCase(item)
+}
+
+export const listCaseTags = async () => {
+  const tags = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/tags`))
+  return Array.isArray(tags)
+    ? tags.map((tag) => ({
+        id: tag?.id ?? null,
+        name: tag?.name || '',
+        count: Number(tag?.count || 0),
+      })).filter((tag) => tag.name)
+    : []
+}
+
+export const listAdminCases = async () => {
+  const items = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases`))
+  return Array.isArray(items) ? items.map(normalizeCase) : []
+}
+
+export const createCaseRequest = (item, files = {}) =>
+  multipartRequest(
+    withBaseUrl(API_URL, `${ADMIN_PREFIX}/createCase`),
+    buildCaseFormData(item, files),
+    'POST'
+  )
+
+export const updateCaseRequest = (id, item, files = {}) =>
+  multipartRequest(
+    withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${encodeURIComponent(id)}`),
+    buildCaseFormData(item, files),
+    'PUT'
+  )
+
+export const createAdminUser = (payload) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const updateAdminUser = (id, payload) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+
+export const deleteAdminUser = (id) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+  })
+
+export const createCaseTag = (name) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags`), {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+
+export const deactivateCaseTag = (id) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
+    method: 'PATCH',
+  })
+
+export const attachCaseTag = (caseId, tagId) =>
+  request(
+    withBaseUrl(
+      API_URL,
+      `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
+    ),
+    { method: 'POST' }
+  )
+
+export const detachCaseTag = (caseId, tagId) =>
+  request(
+    withBaseUrl(
+      API_URL,
+      `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
+    ),
+    { method: 'DELETE' }
+  )
+
 export const listCities = async (query = '') => {
   const q = String(query).trim()
   if (q.length < 2) return []
@@ -291,9 +442,6 @@ export const getUserProfileById = (id) =>
 
 export const getCurrentUserProfile = () =>
   request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
-
-export const getUserAvatarUrl = (id) =>
-  withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/avatar`)
 
 export const listLeaderboard = async () => {
   const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))

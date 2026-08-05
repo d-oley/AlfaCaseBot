@@ -1,6 +1,10 @@
 <template>
   <div class="container case-detail-page">
-    <section v-if="caseItem" class="card detail-card">
+    <section v-if="caseLoading" class="card detail-card">
+      <p>Загружаем кейс...</p>
+    </section>
+
+    <section v-else-if="caseItem" class="card detail-card">
       <div class="title-row">
         <h1>{{ caseItem.title }}</h1>
         <button
@@ -32,8 +36,9 @@
     <p v-if="leaderboardError" class="leaderboard-error">{{ leaderboardError }}</p>
     <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
 
-    <section v-if="!caseItem" class="card detail-card">
+    <section v-if="!caseLoading && !caseItem" class="card detail-card">
       <h1>Кейс не найден</h1>
+      <p v-if="caseError" class="leaderboard-error">{{ caseError }}</p>
       <button class="btn btn-secondary" type="button" @click="$router.push('/dashboard')">
         К списку кейсов
       </button>
@@ -43,8 +48,15 @@
 
 <script>
 import CaseLeaderboard from '@/components/CaseLeaderboard.vue'
-import { getUserAvatarUrl, listCaseLeaderboard } from '@/api/authApi'
-import { appState, getCaseById, isCaseFavorite, markCaseViewed, toggleCaseFavorite } from '@/store/appState'
+import { getCaseAssetUrl, getCaseByIdRequest, listCaseLeaderboard } from '@/api/authApi'
+import {
+  appState,
+  getCaseById,
+  isCaseFavorite,
+  markCaseViewed,
+  toggleCaseFavorite,
+  upsertCase,
+} from '@/store/appState'
 
 export default {
   name: 'CaseDetailPage',
@@ -55,6 +67,8 @@ export default {
     return {
       leaderboardEntries: [],
       leaderboardError: '',
+      caseLoading: false,
+      caseError: '',
     }
   },
   computed: {
@@ -74,12 +88,23 @@ export default {
       async handler(value) {
         if (value) {
           markCaseViewed(value)
-          await this.loadLeaderboard(value)
+          await Promise.all([this.loadCase(value), this.loadLeaderboard(value)])
         }
       },
     },
   },
   methods: {
+    async loadCase(caseId) {
+      this.caseLoading = true
+      this.caseError = ''
+      try {
+        upsertCase(await getCaseByIdRequest(caseId))
+      } catch (error) {
+        this.caseError = error?.message || 'Не удалось загрузить кейс.'
+      } finally {
+        this.caseLoading = false
+      }
+    },
     async loadLeaderboard(caseId) {
       this.leaderboardError = ''
       try {
@@ -90,7 +115,7 @@ export default {
           fullName: user.firstName || user.nickName || 'Пользователь',
           city: user.cityName || '',
           score: user.score ?? 0,
-          avatarUrl: user.userId ? getUserAvatarUrl(user.userId) : '',
+          avatarUrl: getCaseAssetUrl(user.avatarUrl),
           isCurrentUser: Number(user.userId) === Number(appState.user.id),
         }))
       } catch (error) {

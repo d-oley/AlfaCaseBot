@@ -170,7 +170,8 @@ import {
   changeEmail,
   changeUserParams,
   formatBirthdateForApi,
-  getUserAvatarUrl,
+  getCaseAssetUrl,
+  getCurrentUserProfile,
   listCities,
   setProfilePicture,
 } from '@/api/authApi'
@@ -387,9 +388,9 @@ export default {
 
         if (this.pendingAvatarFile) {
           await setProfilePicture(this.pendingAvatarFile)
-          const avatarUrl = this.appState.user.id
-            ? `${getUserAvatarUrl(this.appState.user.id)}?v=${Date.now()}`
-            : ''
+          const refreshedProfile = await getCurrentUserProfile()
+          const storedAvatarUrl = getCaseAssetUrl(refreshedProfile?.avatarUrl)
+          const avatarUrl = storedAvatarUrl ? `${storedAvatarUrl}?v=${Date.now()}` : ''
           setUserAvatar(avatarUrl)
           this.clearPendingAvatar()
           this.avatarLoadFailed = false

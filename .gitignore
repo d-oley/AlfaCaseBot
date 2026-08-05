@@ -32,6 +32,7 @@ back/.project
 back/.settings/
 
 # ML (ml folder)
+ml/data/
 ml/data1.csv
 ml/data2.csv
 ml/__pycache__

@@ -53,7 +53,7 @@
 
 <script>
 // CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
-import { evaluateCaseSolution, getCaseChatSequence } from '@/api/authApi'
+import { evaluateCaseSolution, getCaseByIdRequest, getCaseChatSequence } from '@/api/authApi'
 import {
   appState,
   getCaseById,
@@ -61,6 +61,7 @@ import {
   markCaseViewed,
   saveSolvedCaseResult,
   showBanNotice,
+  upsertCase,
 } from '@/store/appState'
 
 export default {
@@ -110,9 +111,17 @@ export default {
   },
   async created() {
     markCaseViewed(this.caseId)
-    await this.loadChatHistory()
+    await Promise.all([this.loadCase(), this.loadChatHistory()])
   },
   methods: {
+    async loadCase() {
+      if (this.caseItem) return
+      try {
+        upsertCase(await getCaseByIdRequest(this.caseId))
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось загрузить кейс.'
+      }
+    },
     resizeMessageInput() {
       const input = this.$refs.messageInput
       if (!input) {

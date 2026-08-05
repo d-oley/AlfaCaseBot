@@ -1,7 +1,10 @@
 ﻿<template>
   <div class="container dashboard-page">
     <user-podium :users="appState.topUsers" />
+    <p v-if="appState.casesLoading" class="case-status">Загружаем кейсы...</p>
+    <p v-else-if="appState.casesError" class="case-status error-text">{{ appState.casesError }}</p>
     <case-catalog
+      v-else
       :cases="appState.cases"
       :recommended-case-id="appState.recommendedCaseId"
       @open-case="openCase"
@@ -13,7 +16,7 @@
 // DashboardPage.vue: главная страница авторизованного пользователя (топ-3 + каталог кейсов).
 import CaseCatalog from '@/components/CaseCatalog.vue'
 import UserPodium from '@/components/UserPodium.vue'
-import { getUserAvatarUrl, listLeaderboard } from '@/api/authApi'
+import { getCaseAssetUrl, listLeaderboard } from '@/api/authApi'
 import { appState, setLeaderboardUsers } from '@/store/appState'
 
 export default {
@@ -43,7 +46,7 @@ export default {
             lastName: '',
             city: user.cityName || '',
             points: user.score ?? 0,
-            avatarUrl: user.userId ? getUserAvatarUrl(user.userId) : '',
+            avatarUrl: getCaseAssetUrl(user.avatarUrl),
           }))
         )
       } catch {
@@ -61,6 +64,10 @@ export default {
 .dashboard-page {
   display: grid;
   gap: 20px;
+}
+
+.case-status {
+  margin: 0;
 }
 </style>
 

@@ -51,7 +51,7 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
-import { getCurrentUserProfile, logoutRequest, mapApiProfileToState } from './api/authApi'
+import { getCurrentUserProfile, listCases, logoutRequest, mapApiProfileToState } from './api/authApi'
 import {
   appState,
   clearBanNotice,
@@ -63,6 +63,9 @@ import {
   updateUserPreferences,
   getDifficultyPreferenceOptions,
   getPreferenceTagOptions,
+  setCases,
+  setCasesError,
+  setCasesLoading,
 } from './store/appState'
 
 export default {
@@ -73,11 +76,13 @@ export default {
       activeModal: null,
       appState,
       theme: localStorage.getItem('theme') || 'light',
-      preferenceTagOptions: getPreferenceTagOptions(),
       difficultyPreferenceOptions: getDifficultyPreferenceOptions(),
     }
   },
   computed: {
+    preferenceTagOptions() {
+      return getPreferenceTagOptions()
+    },
     shouldShowPreferenceModal() {
       return (
         this.appState.isAuthenticated &&
@@ -88,9 +93,22 @@ export default {
   },
   created() {
     document.documentElement.setAttribute('data-theme', this.theme)
+    this.loadCases()
     this.validateStoredSession()
   },
   methods: {
+    async loadCases() {
+      setCasesLoading(true)
+      setCasesError('')
+      try {
+        setCases(await listCases())
+      } catch (error) {
+        setCases([])
+        setCasesError(error?.message || 'Не удалось загрузить кейсы.')
+      } finally {
+        setCasesLoading(false)
+      }
+    },
     async validateStoredSession() {
       try {
         const profile = await getCurrentUserProfile()

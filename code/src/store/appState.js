@@ -18,93 +18,6 @@ const difficultyPreferenceOptions = [
   { value: 'hard', label: 'Я люблю посложнее' },
 ]
 
-const cases = [
-  {
-    id: 1,
-    title: 'VK Мессенджер × Альфа-Банк',
-    description:
-      'Разработайте стратегию развития продуктов VK Мессенджера для малого и среднего бизнеса. Предложите новые решения, метрики и точки роста.',
-    fullDescription:
-      'Разработайте стратегию развития продуктов VK Мессенджера для малого и среднего бизнеса. Предложите новые решения, метрики и точки роста.',
-    tags: ['Strategy', 'Product', 'Growth', 'Analytics', 'Research', 'Metrics'],
-    difficulty: 'Сложно',
-    averageSolveMinutes: 185,
-    pdfUrl: '/cases/vk-messenger-smb.pdf',
-  },
-  {
-    id: 2,
-    title: 'Персонализация сайта Альфа-Банка',
-    description:
-      'Разработайте инициативы по персонализации сайта Альфа-Банка, чтобы повысить конверсию посетителей в клиентов. Исследуйте рынок, предложите гипотезы и оцените их эффективность.',
-    fullDescription:
-      'Разработайте инициативы по персонализации сайта Альфа-Банка, чтобы повысить конверсию посетителей в клиентов. Исследуйте рынок, предложите гипотезы и оцените их эффективность.',
-    tags: ['Product', 'UX', 'Research', 'Analytics', 'Metrics', 'Growth'],
-    difficulty: 'Сложно',
-    averageSolveMinutes: 240,
-    pdfUrl: '/cases/cl-cup-ux.pdf',
-  },
-  {
-    id: 3,
-    title: 'Look-alike для семейного банкинга',
-    description:
-      'Разработайте ML-модель для поиска родственников текущих клиентов Альфа-Банка. Предложите стратегию развития проекта и персонализированные сценарии привлечения.',
-    fullDescription:
-      'Разработайте ML-модель для поиска родственников текущих клиентов Альфа-Банка. Предложите стратегию развития проекта и персонализированные сценарии привлечения.',
-    tags: ['AI', 'Analytics', 'Research', 'Product', 'Metrics'],
-    difficulty: 'Сложно',
-    averageSolveMinutes: 265,
-    pdfUrl: '/cases/cl-cup-ml.pdf',
-  },
-  {
-    id: 4,
-    title: 'Отраслевой банк первого клика',
-    description:
-      'Разработайте отраслевое решение для малого и среднего бизнеса: выберите перспективную нишу, предложите комплекс продуктов и оцените эффект для Альфа-Банка.',
-    fullDescription:
-      'Разработайте отраслевое решение для малого и среднего бизнеса: выберите перспективную нишу, предложите комплекс продуктов и оцените эффект для Альфа-Банка.',
-    tags: ['Strategy', 'Product', 'Research', 'Analytics', 'Growth', 'Metrics'],
-    difficulty: 'Сложно',
-    averageSolveMinutes: 225,
-    pdfUrl: '/cases/gum-cup-main.pdf',
-  },
-  {
-    id: 5,
-    title: 'Отраслевое решение: выход на рынок (доп. задание)',
-    description:
-      'Доработайте отраслевое решение с учетом обратной связи и подготовьте материалы для клиентов. Покажите ценность продукта, его преимущества и стратегию продвижения.',
-    fullDescription:
-      'Доработайте отраслевое решение с учетом обратной связи и подготовьте материалы для клиентов. Покажите ценность продукта, его преимущества и стратегию продвижения.',
-    tags: ['Product', 'Marketing', 'Strategy', 'Growth', 'Research', 'UX'],
-    difficulty: 'Средне',
-    averageSolveMinutes: 150,
-    pdfUrl: '/cases/gum-cup-final-extra.pdf',
-  },
-  {
-    id: 6,
-    title: 'Alfa People',
-    description:
-      'Предложите концепцию развития приложения Alfa People для кандидатов. Улучшите пользовательский опыт и вовлеченность на этапах найма.',
-    fullDescription:
-      'Предложите концепцию развития приложения Alfa People для кандидатов. Улучшите пользовательский опыт и вовлеченность на этапах найма.',
-    tags: ['Product', 'UX', 'Research', 'Analytics', 'Growth', 'MVP'],
-    difficulty: 'Средне',
-    averageSolveMinutes: 170,
-    pdfUrl: '/cases/alfa-people-qual.pdf',
-  },
-  {
-    id: 7,
-    title: 'Alfa People: MVP и пользовательское тестирование (финал)',
-    description:
-      'Доработайте MVP приложения Alfa People и подтвердите его эффективность пользовательскими тестами. Подготовьте решение к защите.',
-    fullDescription:
-      'Доработайте MVP приложения Alfa People и подтвердите его эффективность пользовательскими тестами. Подготовьте решение к защите.',
-    tags: ['Product', 'UX', 'Research', 'Analytics', 'Metrics', 'MVP'],
-    difficulty: 'Средне',
-    averageSolveMinutes: 230,
-    pdfUrl: '/cases/alfa-people-final.pdf',
-  },
-]
-
 const getDefaultPreferences = () => ({ tag: '', difficulty: '' })
 
 const getDefaultUser = () => ({
@@ -177,7 +90,9 @@ export const appState = reactive({
   isAuthenticated: Boolean(initialSession?.isAuthenticated),
   user: initialUser,
   topUsers: [],
-  cases,
+  cases: [],
+  casesLoading: false,
+  casesError: '',
   cities: [],
   recommendedCaseId: null,
   shouldShowPreferencesOnboarding: Boolean(initialLocalUserData.shouldShowPreferencesOnboarding),
@@ -329,6 +244,31 @@ export const setLeaderboardUsers = (users) => {
   appState.topUsers = Array.isArray(users)
     ? [...users].sort((a, b) => Number(a.rank) - Number(b.rank))
     : []
+}
+
+export const setCasesLoading = (value) => {
+  appState.casesLoading = Boolean(value)
+}
+
+export const setCasesError = (message = '') => {
+  appState.casesError = String(message || '')
+}
+
+export const setCases = (items) => {
+  appState.cases = Array.isArray(items) ? [...items] : []
+  appState.casesError = ''
+  appState.recommendedCaseId = calcRecommendedCase()
+}
+
+export const upsertCase = (item) => {
+  if (!item?.id) return
+  const index = appState.cases.findIndex((caseItem) => Number(caseItem.id) === Number(item.id))
+  if (index >= 0) {
+    appState.cases[index] = item
+  } else {
+    appState.cases = [...appState.cases, item]
+  }
+  appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const setUserAvatar = (url) => {

@@ -58,11 +58,13 @@ npm run lint
 - `VUE_APP_ML_PROXY_TARGET` (для локальной разработки через proxy)
 - или `VUE_APP_API_BASE_URL` (для прямого обращения без proxy)
 - или `VUE_APP_ML_API_BASE_URL` (для прямого обращения к Python service)
+- `VUE_APP_CASE_ASSET_BASE_URL` (базовый URL MinIO для PDF и JPEG, например `http://IP:333/alfa-cases`)
 
 Пример для **Windows PowerShell**:
 ```powershell
 $env:VUE_APP_API_BASE_URL="http://localhost:8080"
 $env:VUE_APP_ML_API_BASE_URL="http://localhost:5000"
+$env:VUE_APP_CASE_ASSET_BASE_URL="http://localhost:333/alfa-cases"
 npm run serve
 ```
 
