@@ -32,6 +32,7 @@ docker run --rm -p 5000:5000 `
 
 | Переменная | Значение по умолчанию | Назначение |
 |---|---|---|
+| `ML_MODEL_PATH` | `artifacts/best_model.joblib` | Путь к joblib-артефакту модели токсичности |
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
 | `CASE_PATH_TEMPLATE` | `/api/v1/cases/{case_id}` | Шаблон запроса контекста кейса из Java |
 | `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |

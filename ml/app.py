@@ -22,7 +22,8 @@ from llm_service import OPENROUTER_API_KEY, evaluate_solution
 from logging_utils import configure_numbered_file_logging
 
 
-MODEL_PATH = Path(__file__).resolve().parent / "artifacts" / "baseline.joblib"
+DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "artifacts" / "best_model.joblib"
+MODEL_PATH = Path(os.getenv("ML_MODEL_PATH", str(DEFAULT_MODEL_PATH))).expanduser()
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
@@ -157,10 +158,12 @@ def load_model():
 VECTORIZER, MODEL, THRESHOLD = load_model()
 
 
-def clean_text(text: str) -> str:
-    text = str(text).lower()
-    text = re.sub(r"[^a-zа-яё0-9\s]", "", text)
-    return re.sub(r"\s+", " ", text).strip()
+def split_into_sentences(text: str) -> list[str]:
+    if not isinstance(text, str):
+        return []
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    return [sentence.strip() for sentence in sentences if sentence.strip()]
 
 
 def check_language(text: str):
@@ -183,17 +186,17 @@ def analyze_text(text: str) -> dict[str, Any]:
     if not ok:
         return validation_error
 
-    sentences = [clean_text(part) for part in re.split(r"(?<=[.!?])\s+", text)]
-    sentences = [sentence for sentence in sentences if len(sentence) > 2]
+    sentences = split_into_sentences(text)
     if not sentences:
         return error_payload("NO_CONTENT", "Текст пуст")
 
+    vectors = VECTORIZER.transform(sentences)
+    sentence_scores = MODEL.predict_proba(vectors)[:, 1]
+
     toxic_examples = []
-    max_confidence = 0.0
-    for index, sentence in enumerate(sentences):
-        vector = VECTORIZER.transform([sentence])
-        confidence = float(MODEL.predict_proba(vector)[0, 1])
-        max_confidence = max(max_confidence, confidence)
+    max_confidence = float(sentence_scores.max())
+    for index, (sentence, score) in enumerate(zip(sentences, sentence_scores)):
+        confidence = float(score)
         if confidence >= THRESHOLD:
             toxic_examples.append(
                 {"index": index, "text": sentence, "confidence": round(confidence, 4)}
