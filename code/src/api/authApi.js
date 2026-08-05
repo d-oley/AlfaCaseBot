@@ -170,7 +170,25 @@ const difficultyCodes = Object.fromEntries(
 export const getCaseAssetUrl = (key) => {
   const value = String(key || '').trim()
   if (!value) return ''
-  if (/^https?:\/\//i.test(value)) return value
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const absoluteUrl = new URL(value)
+      const assetPrefix = '/alfa-cases/'
+      const assetPrefixIndex = absoluteUrl.pathname.indexOf(assetPrefix)
+
+      // An absolute storage URL from Java would be blocked as mixed content on
+      // the HTTPS site. Route known storage objects through our same-origin URL.
+      if (CASE_ASSET_URL && assetPrefixIndex !== -1) {
+        const assetKey = absoluteUrl.pathname.slice(assetPrefixIndex + assetPrefix.length)
+        return `${CASE_ASSET_URL.replace(/\/$/, '')}/${assetKey}${absoluteUrl.search}`
+      }
+    } catch {
+      return ''
+    }
+
+    return value
+  }
 
   const normalizedKey = value.replace(/^\/+/, '')
   if (!CASE_ASSET_URL) return `/${normalizedKey}`

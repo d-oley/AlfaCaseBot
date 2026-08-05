@@ -54,17 +54,22 @@ npm run lint
 - проксирует запросы `/evaluate` на FastAPI service `http://localhost:5000`
 
 Если сервисы запущены на других адресах, задайте:
-- `VUE_APP_BACKEND_PROXY_TARGET` (для локальной разработки через proxy)
-- `VUE_APP_ML_PROXY_TARGET` (для локальной разработки через proxy)
-- или `VUE_APP_API_BASE_URL` (для прямого обращения без proxy)
-- или `VUE_APP_ML_API_BASE_URL` (для прямого обращения к Python service)
-- `VUE_APP_CASE_ASSET_BASE_URL` (базовый URL MinIO для PDF и JPEG, например `http://IP:333/alfa-cases`)
+- `BACKEND_PROXY_TARGET` (адрес Java для Node-прокси)
+- `ML_PROXY_TARGET` (адрес FastAPI для Node-прокси)
+- `CASE_ASSET_PROXY_TARGET` (адрес файлового сервиса для Node-прокси)
+- `VUE_APP_CASE_ASSET_BASE_URL` (same-origin путь файлов, обычно `/alfa-cases`)
+- `PUBLIC_HOSTNAME` (публичный hostname, разрешённый dev-сервером)
+
+Переменные адресов прокси не имеют префикса `VUE_APP_`, чтобы внутренние адреса
+сервисов не попадали в JavaScript браузера.
 
 Пример для **Windows PowerShell**:
 ```powershell
-$env:VUE_APP_API_BASE_URL="http://localhost:8080"
-$env:VUE_APP_ML_API_BASE_URL="http://localhost:5000"
-$env:VUE_APP_CASE_ASSET_BASE_URL="http://localhost:333/alfa-cases"
+$env:BACKEND_PROXY_TARGET="http://77.75.8.78:999"
+$env:ML_PROXY_TARGET="http://127.0.0.1:8000"
+$env:CASE_ASSET_PROXY_TARGET="http://77.75.8.78:333"
+$env:VUE_APP_CASE_ASSET_BASE_URL="/alfa-cases"
+$env:PUBLIC_HOSTNAME="alfacasebot.it-networking.ru"
 npm run serve
 ```
 

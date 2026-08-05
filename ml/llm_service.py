@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = os.getenv("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions").strip()
 DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini").strip()
+PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://alfacasebot.it-networking.ru").strip()
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 
 LOGGER = logging.getLogger("ml.llm")
@@ -132,7 +133,7 @@ def call_llm(
             url=OPENROUTER_URL,
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "HTTP-Referer": "https://alfacasebot.local",
+                "HTTP-Referer": PUBLIC_SITE_URL,
                 "X-Title": "AlfaCaseBot",
             },
             json={

@@ -52,7 +52,7 @@ SESSION_ERROR_MESSAGES = {"Please login first", "Session expired"}
 def parse_cors_origins() -> list[str]:
     configured = os.getenv(
         "ML_CORS_ORIGINS",
-        "http://localhost:8081,http://127.0.0.1:8081,http://localhost:8080,http://127.0.0.1:8080",
+        "https://alfacasebot.it-networking.ru,http://localhost:8081,http://127.0.0.1:8081,http://localhost:8080,http://127.0.0.1:8080",
     )
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
 

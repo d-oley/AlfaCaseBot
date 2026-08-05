@@ -39,8 +39,9 @@ docker run --rm -p 5000:5000 `
 | `OPENROUTER_API_KEY` | пусто | ключ OpenRouter |
 | `OPENROUTER_URL` | `https://openrouter.ai/api/v1/chat/completions` | URL OpenRouter |
 | `OPENROUTER_MODEL` | `openai/gpt-4o-mini` | модель оценки |
+| `PUBLIC_SITE_URL` | `https://alfacasebot.it-networking.ru` | публичный адрес для `HTTP-Referer` OpenRouter |
 | `SERPER_API_KEY` | пусто | ключ факт-чекинга Serper |
-| `ML_CORS_ORIGINS` | localhost на портах 8080/8081 | разрешённые origin через запятую |
+| `ML_CORS_ORIGINS` | публичный домен и localhost на портах 8080/8081 | разрешённые origin через запятую |
 | `ML_TRUST_ENV_PROXIES` | `false` | использовать proxy из окружения |
 | `ML_LOG_LEVEL` | `INFO` | уровень логирования |
 
