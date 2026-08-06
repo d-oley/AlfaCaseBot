@@ -30,6 +30,7 @@
     <auth-modal
       :mode="activeModal"
       @close="closeModal"
+      @switch-mode="openModal"
       @login-success="handleLoginSuccess"
       @register-success="handleRegisterSuccess"
       @account-banned="handleAccountBanned"

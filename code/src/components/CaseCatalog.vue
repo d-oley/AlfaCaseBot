@@ -237,6 +237,15 @@ export default {
 }
 
 .difficulty-tag {
+  display: inline-flex;
+  flex: 0 0 152px;
+  width: 152px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1.2;
+  white-space: nowrap;
   border: 1px solid var(--border);
   font-weight: 700;
 }

@@ -62,6 +62,9 @@
           <button class="btn btn-secondary" type="button" :disabled="loading" @click="resetVerification">
             Изменить данные регистрации
           </button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="switchToLogin">
+            Войти в другой аккаунт
+          </button>
         </form>
       </template>
 
@@ -139,6 +142,7 @@ import {
   listCities,
   isBannedError,
   loginRequest,
+  logoutRequest,
   mapApiProfileToState,
   registerRequest,
   verifyEmail,
@@ -159,7 +163,7 @@ export default {
       default: null,
     },
   },
-  emits: ['close', 'login-success', 'register-success', 'account-banned'],
+  emits: ['close', 'switch-mode', 'login-success', 'register-success', 'account-banned'],
   data() {
     return {
       message: '',
@@ -237,9 +241,6 @@ export default {
     mode() {
       this.message = ''
       this.errorMessage = ''
-      if (this.mode !== 'register') {
-        this.resetVerification()
-      }
     },
   },
   methods: {
@@ -252,8 +253,24 @@ export default {
       this.verificationCode = ''
     },
     handleClose() {
-      this.resetVerification()
       this.$emit('close')
+    },
+    async clearPreAuthSession() {
+      try {
+        await logoutRequest()
+      } catch {
+        // The cookie can already be expired; local flow may continue.
+      }
+    },
+    async switchToLogin() {
+      if (this.loading) return
+
+      this.loading = true
+      this.resetMessages()
+      await this.clearPreAuthSession()
+      this.resetVerification()
+      this.loading = false
+      this.$emit('switch-mode', 'login')
     },
     buildFallbackProfile(overrides = {}) {
       const selectedCity = this.cities.find((item) => Number(item.id) === Number(overrides.cityId))
@@ -313,14 +330,41 @@ export default {
         return
       }
 
+      if (
+        this.pendingVerification &&
+        this.loginForm.username === this.pendingVerification.username
+      ) {
+        this.$emit('switch-mode', 'register')
+        return
+      }
+
       this.loading = true
       this.resetMessages()
 
       try {
-        await loginRequest({
+        const credentials = {
           username: this.loginForm.username,
           password: this.loginForm.password,
-        })
+        }
+
+        if (this.pendingVerification) {
+          await this.clearPreAuthSession()
+          this.resetVerification()
+        }
+
+        try {
+          await loginRequest(credentials)
+        } catch (error) {
+          const backendError = error?.body?.errorText
+          const isStalePreAuthSession =
+            backendError === 'You are already logged in' ||
+            error?.message === 'Сначала выйдите из текущего аккаунта'
+
+          if (!isStalePreAuthSession) throw error
+
+          await this.clearPreAuthSession()
+          await loginRequest(credentials)
+        }
         const profile = await getCurrentUserProfile()
 
         this.$emit(
@@ -512,6 +556,22 @@ export default {
 
 .modal-form .btn {
   margin-top: 14px;
+}
+
+.modal-form .btn-link {
+  margin-top: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  padding: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.modal-form .btn-link:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .error-text {

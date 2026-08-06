@@ -39,6 +39,16 @@ npm run serve
 npm run build
 ```
 
+### Публичный запуск через Cloudflare Tunnel
+
+```bash
+npm run serve:public
+```
+
+Команда собирает production-версию и запускает её на порту `8081` без HMR,
+WebSocket и автоматических перезагрузок. `/api`, `/evaluate` и `/storage`
+проксируются так же, как при локальной разработке.
+
 ### Проверка линтером
 ```bash
 npm run lint
@@ -57,8 +67,9 @@ npm run lint
 - `BACKEND_PROXY_TARGET` (адрес Java для Node-прокси)
 - `ML_PROXY_TARGET` (адрес FastAPI для Node-прокси)
 - `CASE_ASSET_PROXY_TARGET` (адрес файлового сервиса для Node-прокси)
-- `VUE_APP_CASE_ASSET_BASE_URL` (same-origin путь файлов, обычно `/alfa-cases`)
+- `VUE_APP_CASE_ASSET_BASE_URL` (same-origin путь файлов, обычно `/storage/alfa-cases`)
 - `PUBLIC_HOSTNAME` (публичный hostname, разрешённый dev-сервером)
+- `DEV_SERVER_HMR` (`false` для публичного туннеля, чтобы исключить циклы reload)
 
 Переменные адресов прокси не имеют префикса `VUE_APP_`, чтобы внутренние адреса
 сервисов не попадали в JavaScript браузера.
@@ -68,8 +79,9 @@ npm run lint
 $env:BACKEND_PROXY_TARGET="http://77.75.8.78:999"
 $env:ML_PROXY_TARGET="http://127.0.0.1:8000"
 $env:CASE_ASSET_PROXY_TARGET="http://77.75.8.78:333"
-$env:VUE_APP_CASE_ASSET_BASE_URL="/alfa-cases"
+$env:VUE_APP_CASE_ASSET_BASE_URL="/storage/alfa-cases"
 $env:PUBLIC_HOSTNAME="alfacasebot.it-networking.ru"
+$env:DEV_SERVER_HMR="false"
 npm run serve
 ```
 

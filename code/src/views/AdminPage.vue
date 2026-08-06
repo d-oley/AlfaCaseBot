@@ -802,6 +802,25 @@ h2 {
   font-size: 0.95rem;
 }
 
+.checkbox-row {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-form .checkbox-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;
