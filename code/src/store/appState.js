@@ -25,11 +25,11 @@ const getDefaultUser = () => ({
   id: null, username: '', email: '', login: '', nickname: '',
   firstName: '', lastName: '', birthDate: '', role: '',
   cityId: null, city: '', region: '', creationDate: '',
-  avatarUrl: '', rank: 57, preferences: getDefaultPreferences(),
+  avatarUrl: '', rank: 0, preferences: getDefaultPreferences(),
 })
 
 const getDefaultLocalUserData = () => ({
-  firstName: '', lastName: '', rank: 57,
+  firstName: '', lastName: '', rank: 0,
   cityId: null, city: '', region: '', preferences: getDefaultPreferences(),
   userSolvedCases: [], userFavoriteCaseIds: [], viewedCaseIds: [],
   shouldShowPreferencesOnboarding: false,
@@ -135,7 +135,7 @@ const persistUserData = (prevLogin = '') => {
     ...allUsers[curKey],
     firstName: appState.user.firstName || '',
     lastName: appState.user.lastName || '',
-    rank: appState.user.rank || 57,
+    rank: appState.user.rank ?? 0,
     cityId: appState.user.cityId ?? null,
     city: appState.user.city || '',
     region: appState.user.region || '',
@@ -188,7 +188,7 @@ export const hydrateUser = (payload, opts = {}) => {
     cityId: payload.cityId ?? local.cityId ?? null,
     city: payload.city ?? local.city ?? '',
     region: payload.region ?? local.region ?? '',
-    rank: payload.rank ?? local.rank ?? 57,
+    rank: payload.rank ?? local.rank ?? 0,
     avatarUrl: payload.avatarUrl || '',
     preferences: {
       ...getDefaultPreferences(),

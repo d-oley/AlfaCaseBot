@@ -60,7 +60,7 @@
         </div>
         <div v-else class="header-actions header-actions-auth">
           <span class="user-login">{{ login || 'Пользователь' }}</span>
-          <span class="user-rank">Место: #{{ userRank }}</span>
+          <span class="user-rank">Место: {{ userRank > 0 ? `#${userRank}` : '—' }}</span>
           <button class="btn btn-secondary" type="button" @click="$emit('logout')">Выйти</button>
         </div>
       </div>

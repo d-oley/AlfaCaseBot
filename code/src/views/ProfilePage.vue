@@ -106,7 +106,7 @@
 
     <section class="card rank-card">
       <h3>Место в рейтинге</h3>
-      <p class="stat-value">#{{ appState.user.rank }}</p>
+      <p class="stat-value">{{ appState.user.rank > 0 ? `#${appState.user.rank}` : '—' }}</p>
     </section>
 
     <section class="card switchable-card">
