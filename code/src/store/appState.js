@@ -10,6 +10,7 @@ const roleOptions = [
   { value: 'UNDERGRADUATE', label: 'Студент бакалавриата' },
   { value: 'POSTGRADUATE', label: 'Студент магистратуры' },
   { value: 'WORKER', label: 'Работающий специалист' },
+  { value: 'OTHER', label: 'Другое' },
 ]
 
 const difficultyPreferenceOptions = [

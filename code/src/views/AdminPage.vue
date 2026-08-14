@@ -104,7 +104,7 @@
             </fieldset>
 
             <label for="case-average-minutes">Среднее время решения, мин.</label>
-            <input id="case-average-minutes" v-model.number="caseForm.averageSolveMinutes" type="number" min="0" />
+            <input id="case-average-minutes" v-model.number="caseForm.averageSolveMinutes" type="number" min="1" />
 
             <label for="case-prompt">Английский контекст для модели</label>
             <textarea id="case-prompt" v-model.trim="caseForm.promptContextEn" rows="4" />
@@ -314,7 +314,7 @@ const toCaseForm = (item = null) => ({
   fullDescription: item?.fullDescription || '',
   difficulty: item?.difficulty || 'Средне',
   selectedTagIds: Array.isArray(item?.tagIds) ? [...item.tagIds] : [],
-  averageSolveMinutes: item?.averageSolveMinutes ?? 0,
+  averageSolveMinutes: item?.averageSolveMinutes ?? 1,
   promptContextEn: item?.promptContextEn || '',
   active: item?.active ?? true,
 })

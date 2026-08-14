@@ -265,7 +265,7 @@ const toCaseApiPayload = (item = {}) => ({
     : difficultyCodes[item.difficulty] || item.difficulty || 'MEDIUM',
   averageSolveMin: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
   promptContextEn: item.promptContextEn || '',
-  isActive: item.active ?? item.isActive ?? true,
+  active: item.active ?? item.isActive ?? true,
   ...(item.removePdf !== undefined ? { removePdf: Boolean(item.removePdf) } : {}),
   ...(item.removeIcon !== undefined ? { removeIcon: Boolean(item.removeIcon) } : {}),
 })
