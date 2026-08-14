@@ -333,7 +333,7 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
     city: profile?.cityName ?? profile?.city ?? fallback.city ?? '',
     region: profile?.regionName ?? profile?.region ?? fallback.region ?? '',
     creationDate: profile?.creationDate ?? fallback.creationDate ?? '',
-    rank: profile?.placement ?? fallback.rank ?? 57,
+    rank: profile?.placement ?? fallback.rank ?? 0,
     points: profile?.score ?? fallback.points ?? 0,
     avatarUrl: getCaseAssetUrl(profile?.avatarUrl || fallback.avatarUrl),
   }

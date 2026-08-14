@@ -487,7 +487,8 @@ export default {
   position: relative;
   width: min(480px, 100%);
   padding: clamp(18px, 3vw, 24px);
-  border-radius: 16px;
+  border-radius: 0;
+  box-shadow: 10px 10px 0 var(--primary);
 }
 
 .modal h2 {
@@ -502,7 +503,7 @@ export default {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--secondary-bg);
   color: var(--text-main);
   cursor: pointer;
@@ -526,7 +527,7 @@ export default {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   font-size: 0.95rem;
   background: var(--input-bg);
   color: var(--text-main);
@@ -541,7 +542,7 @@ export default {
 
 .toggle-password {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--input-bg);
   width: 44px;
   height: 42px;

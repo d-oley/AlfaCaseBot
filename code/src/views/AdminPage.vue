@@ -934,4 +934,16 @@ h2 {
   margin-top: 12px;
   text-align: center;
 }
+
+/* Editorial admin workspace */
+.admin-page { gap: 24px; }
+.admin-login, .admin-console { padding: clamp(20px, 3vw, 36px); }
+h1 { font-size: clamp(2.2rem, 5vw, 5rem); line-height: 0.9; text-transform: uppercase; }
+.tabs { gap: 0; border-bottom: 1px solid var(--border); }
+.tab-btn { border-radius: 0; border-bottom: 0; }
+.tab-btn.active { border-color: var(--text-main); background: var(--text-main); color: var(--page-bg); }
+.panel-grid { gap: 20px; }
+.list { gap: 0; border-top: 1px solid var(--border); }
+.list-item { border-radius: 0; border-top: 0; }
+.admin-form input, .admin-form textarea, .admin-form select, .tag-picker { border-radius: 0; }
 </style>

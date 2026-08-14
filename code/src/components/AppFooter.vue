@@ -17,7 +17,8 @@ export default {
 <style scoped>
 .app-footer {
   width: 100%;
-  background: var(--primary);
+  background: #111;
+  border-top: 4px solid var(--primary);
   padding: 20px 24px;
 }
 
@@ -31,5 +32,9 @@ export default {
 .footer-content p {
   margin: 0;
   color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 </style>

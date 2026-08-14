@@ -106,24 +106,24 @@
 
     <section class="card rank-card">
       <h3>Место в рейтинге</h3>
-      <p class="stat-value">#{{ appState.user.rank }}</p>
+      <p class="stat-value">{{ appState.user.rank > 0 ? `#${appState.user.rank}` : '—' }}</p>
     </section>
 
     <section class="card switchable-card">
       <div class="switch-tabs">
-        <button class="switch-tab" :class="{ active: activeTab === 'solved' }" type="button" @click="activeTab = 'solved'">
-          Решенные кейсы
+        <button class="switch-tab" :class="{ active: activeTab === 'solved' }" :style="activeTab === 'solved' ? activeTabStyle : null" type="button" @click="activeTab = 'solved'">
+          <span class="switch-tab-label" :style="activeTab === 'solved' ? activeTabLabelStyle : null">Решенные кейсы</span>
         </button>
-        <button class="switch-tab" :class="{ active: activeTab === 'achievements' }" type="button" @click="activeTab = 'achievements'">
-          Достижения
+        <button class="switch-tab" :class="{ active: activeTab === 'achievements' }" :style="activeTab === 'achievements' ? activeTabStyle : null" type="button" @click="activeTab = 'achievements'">
+          <span class="switch-tab-label" :style="activeTab === 'achievements' ? activeTabLabelStyle : null">Достижения</span>
         </button>
-        <button class="switch-tab" :class="{ active: activeTab === 'favorites' }" type="button" @click="activeTab = 'favorites'">
-          Избранные кейсы
+        <button class="switch-tab" :class="{ active: activeTab === 'favorites' }" :style="activeTab === 'favorites' ? activeTabStyle : null" type="button" @click="activeTab = 'favorites'">
+          <span class="switch-tab-label" :style="activeTab === 'favorites' ? activeTabLabelStyle : null">Избранные кейсы</span>
         </button>
       </div>
 
       <div v-if="activeTab === 'solved'">
-        <h3>Решенные кейсы</h3>
+        <h3 class="active-section-title">Решенные кейсы</h3>
         <div v-if="solvedCases.length" class="solved-list">
           <button v-for="item in solvedCases" :key="item.caseId" class="solved-item" type="button" @click="openSolvedCase(item.caseId)">
             <span>{{ item.title }}</span>
@@ -134,7 +134,7 @@
       </div>
 
       <div v-else-if="activeTab === 'favorites'">
-        <h3>Избранные кейсы</h3>
+        <h3 class="active-section-title">Избранные кейсы</h3>
         <div v-if="favoriteCases.length" class="solved-list">
           <button v-for="item in favoriteCases" :key="item.id" class="solved-item" type="button" @click="openCase(item.id)">
             <span>{{ item.title }}</span>
@@ -145,15 +145,15 @@
       </div>
 
       <div v-else>
-        <h3>Достижения</h3>
+        <h3 class="active-section-title">Достижения</h3>
         <div class="achievements-grid">
           <div
-            v-for="item in achievements"
+            v-for="(item, index) in achievements"
             :key="item.id"
             class="achievement-item"
             :class="{ inactive: !item.active }"
           >
-            <div class="emoji">{{ item.emoji }}</div>
+            <div class="achievement-code">A—{{ String(index + 1).padStart(2, '0') }}</div>
             <p class="achievement-title">{{ item.title }}</p>
             <p class="achievement-description">{{ item.description }}</p>
             <p class="achievement-progress">{{ item.progress }}</p>
@@ -211,6 +211,15 @@ export default {
       isSavingProfile: false,
       isEditingProfile: false,
       activeTab: 'solved',
+      activeTabStyle: {
+        backgroundColor: '#11110f',
+        borderColor: '#11110f',
+        color: '#ffffff',
+      },
+      activeTabLabelStyle: {
+        color: '#ffffff',
+        WebkitTextFillColor: '#ffffff',
+      },
       profileForm: {
         firstName: '',
         lastName: '',
@@ -433,15 +442,21 @@ export default {
 <style scoped>
 .profile-page {
   display: grid;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
 }
 
 .profile-header,
 .rank-card,
 .switchable-card,
 .edit-card {
-  padding: 20px;
+  padding: clamp(20px, 3vw, 36px);
 }
+
+.profile-header { min-height: 230px; }
+.rank-card { background: var(--primary); color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
+.rank-card h3 { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.edit-card, .switchable-card { grid-column: 1 / -1; }
 
 .avatar-block {
   display: flex;
@@ -453,7 +468,7 @@ export default {
 .avatar-frame {
   width: 94px;
   height: 94px;
-  border-radius: 50%;
+  border-radius: 0;
   border: 2px solid var(--border);
   overflow: hidden;
   background: var(--surface-subtle);
@@ -469,6 +484,9 @@ export default {
 
 .avatar-controls h2 {
   margin: 0 0 8px;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
 }
 
 .meta-line {
@@ -512,7 +530,7 @@ export default {
 .profile-form select {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 12px;
   font-size: 0.95rem;
   background: var(--input-bg);
@@ -540,41 +558,62 @@ export default {
 
 .stat-value {
   margin: 0;
-  font-size: 1.7rem;
-  font-weight: 800;
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 900;
+  line-height: 0.8;
 }
 
 .switch-tabs {
   display: flex;
-  gap: 8px;
+  gap: 0;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
 }
 
 .switch-tab {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
+  border-bottom: 0;
   background: var(--input-bg);
   padding: 8px 12px;
   cursor: pointer;
-  color: var(--text-main);
+  color: var(--text-main) !important;
   font-weight: 600;
 }
 
 .switch-tab.active {
-  background: var(--surface-tab-active);
-  border-color: var(--tab-active-border);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff !important;
+}
+
+.switch-tab-label {
+  color: var(--text-main);
+  -webkit-text-fill-color: var(--text-main);
+}
+
+.switch-tab.active .switch-tab-label {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+.active-section-title {
+  color: var(--text-main) !important;
+  -webkit-text-fill-color: var(--text-main);
 }
 
 .solved-list {
   display: grid;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid var(--border);
 }
 
 .solved-item {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
+  border-top: 0;
   background: var(--surface-muted);
   padding: 10px 12px;
   cursor: pointer;
@@ -586,15 +625,19 @@ export default {
 
 .achievements-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .achievement-item {
-  border: 1px solid var(--success-border);
-  border-radius: 12px;
-  padding: 14px;
-  background: var(--success-bg);
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 20px;
+  background: transparent;
 }
 
 .achievement-item.inactive {
@@ -602,9 +645,11 @@ export default {
   background: var(--inactive-bg);
 }
 
-.emoji {
-  font-size: 1.8rem;
-  line-height: 1;
+.achievement-code {
+  font-family: var(--font-mono);
+  color: var(--primary);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
 }
 
 .achievement-title {
@@ -624,6 +669,10 @@ export default {
 }
 
 @media (max-width: 760px) {
+  .profile-page { grid-template-columns: 1fr; }
+  .edit-card, .switchable-card { grid-column: auto; }
+  .achievements-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .avatar-upload input {
     max-width: 160px;
   }

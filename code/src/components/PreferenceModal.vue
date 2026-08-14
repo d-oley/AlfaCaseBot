@@ -108,6 +108,8 @@ export default {
   position: relative;
   width: min(520px, 100%);
   padding: 22px;
+  border-radius: 0;
+  box-shadow: 10px 10px 0 var(--primary);
 }
 
 .modal-close {
@@ -117,7 +119,7 @@ export default {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--secondary-bg);
   color: var(--text-main);
   cursor: pointer;
@@ -141,7 +143,7 @@ export default {
 .modal-form select {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: var(--input-bg);
   color: var(--text-main);
