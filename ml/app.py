@@ -28,7 +28,7 @@ BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_RATING_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
-CASE_PATH_TEMPLATE = os.getenv("CASE_PATH_TEMPLATE", "/api/v1/cases/{case_id}")
+CASE_PATH_TEMPLATE = os.getenv("CASE_PATH_TEMPLATE", "/api/text/v1/cases/{case_id}/prompt")
 BACKEND_TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {
     "1",

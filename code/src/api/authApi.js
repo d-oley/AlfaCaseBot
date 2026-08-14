@@ -20,6 +20,11 @@ const errors = {
   'This email address is invalid': 'Некорректный email',
   'This email address is already taken': 'Email уже используется',
   'This username is already taken': 'Логин уже занят',
+  'Email is already taken': 'Email уже используется',
+  'Username is already taken': 'Логин уже занят',
+  'Tag with this name already exists': 'Тег с таким названием уже существует',
+  'Tag is already attached to this case': 'Тег уже привязан к кейсу',
+  'Tag is not attached to this case': 'Тег не привязан к кейсу',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
   'Password cannot be shorter than 8 characters': 'Пароль слишком короткий',
@@ -50,7 +55,11 @@ const httpErrors = {
   401: 'Сначала войдите в аккаунт',
   403: 'Недостаточно прав для этого действия',
   404: 'Ресурс не найден',
+  500: 'Сервис временно недоступен',
   502: 'Сервис временно недоступен',
+  503: 'Сервис временно недоступен',
+  504: 'Сервис временно недоступен',
+  530: 'Сервис временно недоступен',
 }
 
 const translateError = (message, fallback = 'Не удалось выполнить действие') => {
@@ -59,7 +68,7 @@ const translateError = (message, fallback = 'Не удалось выполни�
     return fallback
   }
 
-  if (normalized.startsWith('<!DOCTYPE') || normalized.startsWith('<html')) {
+  if (/^\s*(?:<!doctype\s+html|<html[\s>])/i.test(normalized)) {
     return fallback
   }
 
@@ -67,7 +76,9 @@ const translateError = (message, fallback = 'Не удалось выполни�
 }
 
 const buildRequestError = ({ message, status = 0, body = null, fallback }) => {
-  const error = new Error(translateError(message, fallback || httpErrors[status] || 'Не удалось выполнить действие'))
+  const statusFallback =
+    httpErrors[status] || (status >= 500 ? 'Сервис временно недоступен' : 'Не удалось выполнить действие')
+  const error = new Error(translateError(message, fallback || statusFallback))
   error.status = status
   error.body = body
   return error
@@ -200,9 +211,20 @@ const getCaseTagName = (caseTag) => {
   return caseTag?.name || caseTag?.tag?.name || ''
 }
 
+const getCaseTagId = (caseTag) => {
+  const value =
+    caseTag?.tagId ??
+    caseTag?.tag?.id ??
+    caseTag?.id?.tagId ??
+    (typeof caseTag?.id === 'number' || typeof caseTag?.id === 'string' ? caseTag.id : null)
+  const id = Number(value)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export const normalizeCase = (item = {}) => {
   const rawTags = Array.isArray(item.tags) ? item.tags : item.caseTags
   const tags = [...new Set((rawTags || []).map(getCaseTagName).filter(Boolean))]
+  const tagIds = [...new Set((rawTags || []).map(getCaseTagId).filter(Boolean))]
   const difficultyCode = difficultyLabels[item.difficulty]
     ? item.difficulty
     : difficultyCodes[item.difficulty] || item.difficulty || ''
@@ -217,6 +239,7 @@ export const normalizeCase = (item = {}) => {
     difficulty: difficultyLabels[difficultyCode] || item.difficulty || '',
     difficultyCode,
     tags,
+    tagIds,
     caseTags: Array.isArray(item.caseTags) ? item.caseTags : [],
     averageSolveMinutes: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
     pdfKey: item.pdfUrl || '',

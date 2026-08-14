@@ -78,7 +78,7 @@ npm run lint
 ```powershell
 $env:BACKEND_PROXY_TARGET="http://77.75.8.78:999"
 $env:ML_PROXY_TARGET="http://127.0.0.1:8000"
-$env:CASE_ASSET_PROXY_TARGET="http://77.75.8.78:333"
+$env:CASE_ASSET_PROXY_TARGET="http://77.75.8.78:2479"
 $env:VUE_APP_CASE_ASSET_BASE_URL="/storage/alfa-cases"
 $env:PUBLIC_HOSTNAME="alfacasebot.it-networking.ru"
 $env:DEV_SERVER_HMR="false"

@@ -34,7 +34,7 @@ docker run --rm -p 5000:5000 `
 |---|---|---|
 | `ML_MODEL_PATH` | `artifacts/best_model.joblib` | Путь к joblib-артефакту модели токсичности |
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
-| `CASE_PATH_TEMPLATE` | `/api/v1/cases/{case_id}` | Шаблон запроса контекста кейса из Java |
+| `CASE_PATH_TEMPLATE` | `/api/text/v1/cases/{case_id}/prompt` | Шаблон запроса контекста кейса из Java |
 | `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |
 | `OPENROUTER_API_KEY` | пусто | ключ OpenRouter |
 | `OPENROUTER_URL` | `https://openrouter.ai/api/v1/chat/completions` | URL OpenRouter |
@@ -91,7 +91,7 @@ docker run --rm -p 5000:5000 `
 }
 ```
 
-Перед оценкой FastAPI вызывает `GET /api/text/v1/checkCookie`, затем получает `promptContextEn` через `GET /api/v1/cases/{case_id}`. После оценки он отправляет в Java `POST /api/text/v1/addScore` со всеми обязательными полями:
+Перед оценкой FastAPI вызывает `GET /api/text/v1/checkCookie`, затем получает `promptContextEn` через защищённый `GET /api/text/v1/cases/{case_id}/prompt`. После оценки он отправляет в Java `POST /api/text/v1/addScore` со всеми обязательными полями:
 
 ```json
 {

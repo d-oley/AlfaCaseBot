@@ -56,7 +56,14 @@
               </div>
               <div class="row-actions">
                 <button class="btn btn-secondary" type="button" @click="startCaseEdit(item)">Изменить</button>
-                <button class="btn btn-secondary" type="button" @click="deleteCase(item.id)">Удалить</button>
+                <button
+                  v-if="item.active"
+                  class="btn btn-secondary"
+                  type="button"
+                  @click="deactivateCase(item.id)"
+                >
+                  Деактивировать
+                </button>
               </div>
             </div>
           </div>
@@ -87,9 +94,14 @@
               <option value="Сложно">Сложно</option>
             </select>
 
-            <label for="case-tags">Теги через запятую</label>
-            <input id="case-tags" v-model.trim="caseForm.tagsText" type="text" readonly />
-            <p class="hint">Привязка тегов к кейсу временно недоступна.</p>
+            <fieldset class="tag-picker">
+              <legend>Теги</legend>
+              <label v-for="tag in adminTags" :key="tag.id" class="checkbox-row tag-option">
+                <input v-model="caseForm.selectedTagIds" type="checkbox" :value="Number(tag.id)" />
+                {{ tag.name }}
+              </label>
+              <p v-if="!adminTags.length" class="hint">Сначала добавьте хотя бы один тег.</p>
+            </fieldset>
 
             <label for="case-average-minutes">Среднее время решения, мин.</label>
             <input id="case-average-minutes" v-model.number="caseForm.averageSolveMinutes" type="number" min="0" />
@@ -113,6 +125,9 @@
               <button class="btn btn-secondary" type="button" @click="resetCaseForm">Сбросить</button>
             </div>
           </form>
+          <p v-if="caseSaveMessage" class="success-text case-save-message">
+            {{ caseSaveMessage }}
+          </p>
         </article>
       </div>
 
@@ -242,7 +257,9 @@
               </div>
               <div class="row-actions">
                 <button class="btn btn-secondary" type="button" @click="startTagEdit(tag)">Изменить</button>
-                <button class="btn btn-secondary" type="button" @click="deleteTag(tag.id)">Удалить</button>
+                <button class="btn btn-secondary" type="button" @click="deactivateTag(tag.id)">
+                  Деактивировать
+                </button>
               </div>
             </div>
           </div>
@@ -268,10 +285,12 @@
 <script>
 import CitySelect from '@/components/CitySelect.vue'
 import {
+  attachCaseTag,
   createAdminUser,
   createCaseRequest,
   createCaseTag,
   deactivateCaseTag,
+  detachCaseTag,
   deleteAdminUser,
   getUserCityById,
   getUserProfileById,
@@ -294,7 +313,7 @@ const toCaseForm = (item = null) => ({
   description: item?.description || '',
   fullDescription: item?.fullDescription || '',
   difficulty: item?.difficulty || 'Средне',
-  tagsText: item?.tags?.join(', ') || '',
+  selectedTagIds: Array.isArray(item?.tagIds) ? [...item.tagIds] : [],
   averageSolveMinutes: item?.averageSolveMinutes ?? 0,
   promptContextEn: item?.promptContextEn || '',
   active: item?.active ?? true,
@@ -336,6 +355,7 @@ export default {
       authError: '',
       adminActionError: '',
       adminActionMessage: '',
+      caseSaveMessage: '',
       credentials: {
         login: '',
         password: '',
@@ -579,14 +599,26 @@ export default {
     startCaseEdit(item) {
       this.adminActionError = ''
       this.adminActionMessage = ''
+      this.caseSaveMessage = ''
       this.caseForm = toCaseForm(item)
+      this.caseForm.selectedTagIds = this.getCaseTagIds(item)
       this.casePdfFile = null
       this.caseIconFile = null
+    },
+    getCaseTagIds(item) {
+      const directIds = Array.isArray(item?.tagIds) ? item.tagIds : []
+      const idsByName = (item?.tags || []).map(
+        (name) => this.adminTags.find((tag) => tag.name === name)?.id
+      )
+      return [...new Set([...directIds, ...idsByName].map(Number))].filter(
+        (id) => Number.isFinite(id) && id > 0
+      )
     },
     resetCaseForm() {
       this.caseForm = toCaseForm()
       this.casePdfFile = null
       this.caseIconFile = null
+      this.caseSaveMessage = ''
     },
     handleCasePdfChange(event) {
       this.casePdfFile = event.target.files?.[0] || null
@@ -597,6 +629,7 @@ export default {
     async saveCase() {
       this.adminActionError = ''
       this.adminActionMessage = ''
+      this.caseSaveMessage = ''
       if (!this.caseForm.slug || !this.caseForm.title || !this.caseForm.description) {
         this.adminActionError = 'Заполните slug, название и краткое описание.'
         return
@@ -604,21 +637,44 @@ export default {
 
       try {
         const files = { pdfFile: this.casePdfFile, iconFile: this.caseIconFile }
+        const previousTagIds = this.caseForm.id
+          ? this.getCaseTagIds(
+              this.adminCases.find((item) => Number(item.id) === Number(this.caseForm.id))
+            )
+          : []
+        let caseId = this.caseForm.id
         if (this.caseForm.id) {
           await updateCaseRequest(this.caseForm.id, this.caseForm, files)
         } else {
-          await createCaseRequest(this.caseForm, files)
+          const result = await createCaseRequest(this.caseForm, files)
+          caseId = Number(result?.id)
+          if (!Number.isFinite(caseId) || caseId <= 0) {
+            throw new Error('Кейс создан, но сервер не вернул его идентификатор для привязки тегов.')
+          }
         }
+        await this.syncCaseTags(caseId, previousTagIds, this.caseForm.selectedTagIds)
         await this.loadAdminCases()
         this.resetCaseForm()
-        this.adminActionMessage = 'Кейс сохранён.'
+        this.caseSaveMessage = 'Кейс сохранён.'
       } catch (error) {
         this.adminActionError = error?.message || 'Не удалось сохранить кейс.'
       }
     },
-    async deleteCase(caseId) {
+    async syncCaseTags(caseId, previousTagIds, selectedTagIds) {
+      const previous = new Set((previousTagIds || []).map(Number).filter(Number.isFinite))
+      const selected = new Set((selectedTagIds || []).map(Number).filter(Number.isFinite))
+      const toAttach = [...selected].filter((tagId) => !previous.has(tagId))
+      const toDetach = [...previous].filter((tagId) => !selected.has(tagId))
+
+      await Promise.all([
+        ...toAttach.map((tagId) => attachCaseTag(caseId, tagId)),
+        ...toDetach.map((tagId) => detachCaseTag(caseId, tagId)),
+      ])
+    },
+    async deactivateCase(caseId) {
       this.adminActionError = ''
       this.adminActionMessage = ''
+      this.caseSaveMessage = ''
       const item = this.adminCases.find((caseItem) => Number(caseItem.id) === Number(caseId))
       if (!item) return
       try {
@@ -651,7 +707,7 @@ export default {
         this.adminActionError = error?.message || 'Не удалось создать тег.'
       }
     },
-    async deleteTag(tagId) {
+    async deactivateTag(tagId) {
       this.adminActionError = ''
       this.adminActionMessage = ''
       if (!Number.isFinite(Number(tagId))) {
@@ -821,6 +877,30 @@ h2 {
   cursor: pointer;
 }
 
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.tag-picker legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.tag-picker .tag-option {
+  margin-top: 0;
+}
+
+.tag-picker .hint {
+  width: 100%;
+  margin: 0;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;
@@ -848,5 +928,10 @@ h2 {
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+.case-save-message {
+  margin-top: 12px;
+  text-align: center;
 }
 </style>
