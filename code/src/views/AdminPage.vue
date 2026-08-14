@@ -941,7 +941,7 @@ h2 {
 h1 { font-size: clamp(2.2rem, 5vw, 5rem); line-height: 0.9; text-transform: uppercase; }
 .tabs { gap: 0; border-bottom: 1px solid var(--border); }
 .tab-btn { border-radius: 0; border-bottom: 0; }
-.tab-btn.active { border-color: var(--text-main); background: var(--text-main); color: var(--page-bg); }
+.tab-btn.active { border-color: var(--primary); background: var(--primary); color: #fff !important; }
 .panel-grid { gap: 20px; }
 .list { gap: 0; border-top: 1px solid var(--border); }
 .list-item { border-radius: 0; border-top: 0; }

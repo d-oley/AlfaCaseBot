@@ -63,7 +63,7 @@ export default {
 <style scoped>
 .dashboard-page {
   display: grid;
-  gap: 20px;
+  gap: 36px;
 }
 
 .case-status {

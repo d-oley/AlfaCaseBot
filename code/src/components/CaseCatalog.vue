@@ -2,7 +2,7 @@
   <section class="catalog">
     <div class="recommendation">
       <p class="section-code">Персональный выбор / 01</p>
-      <h2>Рекомендуемый<br />кейс</h2>
+      <h2>Ваш<br />кейс</h2>
       <button
         v-if="recommendedCase"
         class="recommended-case"
@@ -109,7 +109,7 @@ export default {
 <style scoped>
 .catalog {
   display: grid;
-  grid-template-columns: minmax(220px, 0.34fr) 1fr;
+  grid-template-columns: minmax(270px, 0.38fr) minmax(0, 1fr);
   border-top: 4px solid var(--border);
   background: var(--card-bg);
 }
@@ -124,9 +124,11 @@ export default {
 .section-code { margin: 0 0 22px; color: var(--primary); }
 .recommendation h2 {
   margin: 0;
-  font-size: clamp(2.5rem, 5vw, 5rem);
+  max-width: 100%;
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
   line-height: 0.88;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 .recommended-case {
   width: 100%;
@@ -172,7 +174,7 @@ export default {
   text-align: left;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) 130px 30px;
+  grid-template-columns: 52px minmax(0, 1fr) 105px 24px;
   gap: 18px;
   align-items: center;
   transition: background 0.15s ease, color 0.15s ease;
@@ -180,7 +182,7 @@ export default {
 .case-row:hover { background: var(--primary); color: #fff; }
 .case-number { font-family: var(--display-font); font-size: 3rem; line-height: 1; }
 .case-main { display: grid; gap: 6px; }
-.case-main strong { font-family: var(--display-font); font-size: clamp(1.45rem, 2.5vw, 2.4rem); text-transform: uppercase; line-height: 1; }
+.case-main strong { font-family: var(--display-font); font-size: clamp(1.35rem, 2vw, 2.15rem); text-transform: uppercase; line-height: 1; }
 .case-description { color: var(--text-muted); max-width: 740px; }
 .case-row:hover .case-description { color: rgba(255, 255, 255, 0.78); }
 .case-meta { display: grid; gap: 7px; }
@@ -194,5 +196,12 @@ export default {
   .case-meta { grid-column: 2; display: flex; gap: 14px; }
   .case-arrow { grid-column: 3; grid-row: 1 / span 2; }
   .case-number { font-size: 2rem; }
+}
+
+@media (min-width: 801px) and (max-width: 1080px) {
+  .catalog { grid-template-columns: 240px minmax(0, 1fr); }
+  .recommendation, .filters { padding: 18px; }
+  .recommendation h2 { font-size: 3rem; }
+  .case-row { padding: 18px; gap: 12px; }
 }
 </style>

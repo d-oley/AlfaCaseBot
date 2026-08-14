@@ -1,8 +1,8 @@
 <template>
   <section class="podium">
     <div class="podium-heading">
-      <p>Общий рейтинг / Live</p>
-      <h2>Лидеры недели</h2>
+      <p>Все участники / общий зачёт</p>
+      <h2>Глобальные лидеры</h2>
     </div>
     <div class="podium-grid">
       <article v-for="user in orderedUsers" :key="user.id" class="podium-user">
