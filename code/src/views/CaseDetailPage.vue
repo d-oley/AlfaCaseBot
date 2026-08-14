@@ -5,6 +5,7 @@
     </section>
 
     <section v-else-if="caseItem" class="card detail-card">
+      <p class="case-code">Кейс / {{ caseItem.id }} / {{ caseItem.difficulty || 'Без уровня' }}</p>
       <div class="title-row">
         <h1>{{ caseItem.title }}</h1>
         <button
@@ -23,7 +24,10 @@
         <span v-for="tag in caseItem.tags" :key="tag" class="tag">{{ tag }}</span>
       </div>
 
-      <p class="description">{{ caseItem.fullDescription }}</p>
+      <div class="description-block">
+        <span class="description-label">Задача</span>
+        <p class="description">{{ caseItem.fullDescription }}</p>
+      </div>
 
       <div class="actions">
         <button class="btn btn-primary" type="button" @click="goToChat">Решать</button>
@@ -136,12 +140,20 @@ export default {
 <style scoped>
 .case-detail-page {
   display: grid;
-  gap: 16px;
+  gap: 28px;
 }
 
 .detail-card {
-  padding: 24px;
+  padding: clamp(24px, 5vw, 64px);
+  border-top-width: 5px;
 }
+.case-code, .description-label {
+  font-family: var(--mono-font);
+  font-size: .74rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.case-code { margin: 0 0 28px; color: var(--primary); }
 
 .leaderboard-error {
   margin: 0;
@@ -156,12 +168,18 @@ export default {
 }
 
 h1 {
-  margin: 0 0 12px;
+  margin: 0 0 22px;
+  max-width: 1000px;
+  font-size: clamp(3rem, 7vw, 7rem);
+  line-height: .87;
+  text-transform: uppercase;
 }
 
 .favorite-star {
-  border: 0;
-  background: transparent;
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
   cursor: pointer;
   font-size: 2rem;
   line-height: 1;
@@ -174,8 +192,19 @@ h1 {
 }
 
 .description {
-  margin: 0 0 20px;
-  line-height: 1.5;
+  margin: 0;
+  max-width: 850px;
+  font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+  line-height: 1.55;
+}
+.description-block {
+  margin: 34px 0;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 24px;
 }
 
 .actions {
@@ -194,8 +223,16 @@ h1 {
 .tag {
   font-size: 0.82rem;
   padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--surface-subtle);
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-family: var(--mono-font);
+  text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .description-block { grid-template-columns: 1fr; gap: 10px; }
+  h1 { font-size: clamp(2.6rem, 14vw, 5rem); }
 }
 
 .difficulty-tag {

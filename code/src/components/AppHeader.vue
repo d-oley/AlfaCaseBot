@@ -3,8 +3,7 @@
     <div class="container header-inner">
       <router-link class="brand" :to="homeRoute">
         <img class="brand-logo" :src="logoSrc" alt="Логотип Alfa" />
-        <span class="brand-text">ALFA/CASE</span>
-        <span class="brand-year">2026</span>
+        <span class="brand-text">AlfaCaseBot</span>
       </router-link>
 
       <nav class="nav">
@@ -144,14 +143,6 @@ export default {
   font-weight: 800;
   font-size: 1rem;
   letter-spacing: 0.08em;
-}
-
-.brand-year {
-  padding-left: 9px;
-  border-left: 1px solid currentColor;
-  font-family: var(--mono-font);
-  font-size: 0.7rem;
-  opacity: 0.66;
 }
 
 .nav {
