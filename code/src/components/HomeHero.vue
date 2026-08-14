@@ -1,18 +1,24 @@
 ﻿<template>
-  <section class="hero card">
-    <p class="badge">ИИ-тренажер с бизнес-кейсами</p>
-    <h1>Прокачивай проектное мышление на реальных задачах</h1>
-    <p class="hero-text">
-      AlfaCaseBot помогает школьникам и студентам разбирать кейсы, получать структурную обратную
-      связь и постепенно повышать уровень решений.
-    </p>
-    <div class="hero-actions">
-      <button class="btn btn-primary" type="button" @click="$emit('open-register')">
-        Начать
-      </button>
-      <button class="btn btn-ghost" type="button" @click="$emit('open-login')">
-        У меня уже есть аккаунт
-      </button>
+  <section class="hero">
+    <div class="hero-index" aria-hidden="true">
+      <span>01</span>
+      <span>CASE TRAINING</span>
+    </div>
+    <div class="hero-content">
+      <p class="badge">Практика / Аналитика / Решения</p>
+      <h1>Решай реальные задачи.<br /><em>Доказывай</em> свою идею.</h1>
+      <p class="hero-text">
+        Тренажёр бизнес-кейсов для тех, кто хочет мыслить структурно, проверять гипотезы и видеть
+        прогресс без готовых ответов.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" type="button" @click="$emit('open-register')">
+          Начать практику ↗
+        </button>
+        <button class="btn btn-ghost" type="button" @click="$emit('open-login')">
+          Войти
+        </button>
+      </div>
     </div>
   </section>
 </template>
@@ -27,38 +33,68 @@ export default {
 
 <style scoped>
 .hero {
-  padding: 36px;
-  backdrop-filter: blur(4px);
+  min-height: min(620px, 70vh);
+  display: grid;
+  grid-template-columns: minmax(180px, 0.34fr) 1fr;
+  border: 1px solid var(--border);
   background: var(--hero-bg);
 }
 
+.hero-index {
+  padding: 24px;
+  border-right: 1px solid var(--border);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--mono-font);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hero-index span:first-child {
+  font-family: var(--display-font);
+  font-size: clamp(5rem, 12vw, 11rem);
+  line-height: 0.75;
+  letter-spacing: -0.08em;
+  writing-mode: vertical-rl;
+}
+
+.hero-content {
+  padding: clamp(28px, 6vw, 76px);
+  align-self: center;
+}
+
 .badge {
-  display: inline-block;
-  margin: 0 0 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--secondary-bg);
-  color: var(--text-main);
-  font-weight: 600;
-  font-size: 0.9rem;
+  margin: 0 0 28px;
+  font-family: var(--mono-font);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 h1 {
-  margin: 0 0 12px;
-  font-size: clamp(1.9rem, 3vw, 2.8rem);
-  line-height: 1.15;
+  margin: 0 0 28px;
+  max-width: 950px;
+  font-size: clamp(3rem, 7.2vw, 7.4rem);
+  line-height: 0.86;
+  text-transform: uppercase;
 }
+
+h1 em { color: var(--primary); font-style: normal; }
 
 .hero-text {
   margin: 0;
-  max-width: 740px;
+  max-width: 620px;
   color: var(--text-muted);
-  font-size: 1.05rem;
-  line-height: 1.6;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  line-height: 1.45;
 }
 
 .hero-actions {
-  margin-top: 24px;
+  margin-top: 34px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -66,7 +102,18 @@ h1 {
 
 @media (max-width: 760px) {
   .hero {
-    padding: 24px;
+    min-height: auto;
+    grid-template-columns: 1fr;
   }
+  .hero-index {
+    min-height: 72px;
+    padding: 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+  }
+  .hero-index span:first-child { font-size: 3.4rem; writing-mode: initial; }
+  .hero-content { padding: 28px 20px 36px; }
+  h1 { font-size: clamp(2.7rem, 15vw, 5rem); }
 }
 </style>

@@ -1,12 +1,24 @@
+import mockData from '@/mocks/mockData.json'
+
 const API_URL = process.env.VUE_APP_API_BASE_URL || ''
 const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 const CASE_ASSET_URL = process.env.VUE_APP_CASE_ASSET_BASE_URL || ''
+const USE_MOCK_API = String(process.env.VUE_APP_USE_MOCK_API || '').toLowerCase() === 'true'
+const MOCK_SESSION_KEY = 'alfacasebot-mock-session'
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
 const CASE_PREFIX = '/api/v1/cases'
 const SITE_PREFIX = '/api/v1/site'
 const TEXT_PREFIX = '/api/text/v1'
+
+const mockClone = (value) => JSON.parse(JSON.stringify(value))
+const hasMockSession = () => localStorage.getItem(MOCK_SESSION_KEY) === 'active'
+const requireMockSession = () => {
+  if (!hasMockSession()) {
+    throw buildRequestError({ message: 'Please login first', status: 401 })
+  }
+}
 
 const withBaseUrl = (baseUrl, path) => `${String(baseUrl || '').replace(/\/$/, '')}${path}`
 
@@ -328,58 +340,91 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
 }
 
 export const checkSession = () =>
-  request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        requireMockSession()
+        return { success: true, errorText: '', id: mockData.profile.id }
+      })
+    : request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
 
 export const resetPassword = ({ oldPassword, newPassword }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, oldPassword, newPassword })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
     method: 'POST',
     body: JSON.stringify({ oldPassword, newPassword }),
   })
 
 export const registerRequest = ({ username, email, password, birthdate, status, cityId, validationMethod }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
     body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
   })
 
 export const loginRequest = ({ username, password }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/login`), {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        if (!username || !password) throw new Error('Введите логин и пароль')
+        localStorage.setItem(MOCK_SESSION_KEY, 'active')
+        return { success: true, errorText: '', id: mockData.profile.id }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/login`), {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      })
 
 export const logoutRequest = () =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/logout`), { method: 'GET' })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        localStorage.removeItem(MOCK_SESSION_KEY)
+        return { success: true, errorText: '' }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/logout`), { method: 'GET' })
 
 export const changeEmail = ({ email }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
 
 export const changeUserParams = ({ firstName, lastName, middleName, nickName, birthdate, status, cityId }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
     method: 'POST',
     body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
   })
 
 export const verifyEmail = ({ verification }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify/${encodeURIComponent(verification)}`), {
-    method: 'POST',
-  })
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify/${encodeURIComponent(verification)}`), {
+        method: 'POST',
+      })
 
 export const setProfilePicture = (file) => {
+  if (USE_MOCK_API) return Promise.resolve({ success: true, fileName: file?.name || '' })
   const formData = new FormData()
   formData.append('file', file)
   return multipartRequest(withBaseUrl(API_URL, `${AUTH_PREFIX}/setProfilePicture`), formData)
 }
 
 export const listCases = async () => {
+  if (USE_MOCK_API) return mockData.cases.map(normalizeCase)
   const items = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/getAll`))
   return Array.isArray(items) ? items.map(normalizeCase) : []
 }
 
 export const getCaseByIdRequest = async (id) => {
+  if (USE_MOCK_API) {
+    const item = mockData.cases.find((caseItem) => Number(caseItem.id) === Number(id))
+    if (!item) throw buildRequestError({ message: 'Кейс не найден', status: 404 })
+    return normalizeCase(mockClone(item))
+  }
   const item = await request(
     withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}`)
   )
@@ -387,6 +432,17 @@ export const getCaseByIdRequest = async (id) => {
 }
 
 export const listCaseTags = async () => {
+  if (USE_MOCK_API) {
+    const tags = new Map()
+    mockData.cases.forEach((item) => {
+      item.tags.forEach((tag) => {
+        const current = tags.get(tag.id) || { ...tag, count: 0 }
+        current.count += 1
+        tags.set(tag.id, current)
+      })
+    })
+    return [...tags.values()]
+  }
   const tags = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/tags`))
   return Array.isArray(tags)
     ? tags.map((tag) => ({
@@ -398,54 +454,74 @@ export const listCaseTags = async () => {
 }
 
 export const listAdminCases = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return mockData.cases.map(normalizeCase)
+  }
   const items = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases`))
   return Array.isArray(items) ? items.map(normalizeCase) : []
 }
 
 export const createCaseRequest = (item, files = {}) =>
-  multipartRequest(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Math.max(...mockData.cases.map(({ id }) => id)) + 1 })
+    : multipartRequest(
     withBaseUrl(API_URL, `${ADMIN_PREFIX}/createCase`),
     buildCaseFormData(item, files),
     'POST'
   )
 
 export const updateCaseRequest = (id, item, files = {}) =>
-  multipartRequest(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), item, files })
+    : multipartRequest(
     withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${encodeURIComponent(id)}`),
     buildCaseFormData(item, files),
     'PUT'
   )
 
 export const createAdminUser = (payload) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: 202, payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`), {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
 export const updateAdminUser = (id, payload) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
 
 export const deleteAdminUser = (id) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
     method: 'DELETE',
   })
 
 export const createCaseTag = (name) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Date.now(), name })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags`), {
     method: 'POST',
     body: JSON.stringify({ name }),
   })
 
 export const deactivateCaseTag = (id) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
     method: 'PATCH',
   })
 
 export const attachCaseTag = (caseId, tagId) =>
-  request(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), tagId: Number(tagId) })
+    : request(
     withBaseUrl(
       API_URL,
       `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
@@ -454,7 +530,9 @@ export const attachCaseTag = (caseId, tagId) =>
   )
 
 export const detachCaseTag = (caseId, tagId) =>
-  request(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), tagId: Number(tagId) })
+    : request(
     withBaseUrl(
       API_URL,
       `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
@@ -465,6 +543,11 @@ export const detachCaseTag = (caseId, tagId) =>
 export const listCities = async (query = '') => {
   const q = String(query).trim()
   if (q.length < 2) return []
+  if (USE_MOCK_API) {
+    return mockClone(
+      mockData.cities.filter((city) => city.cityName.toLowerCase().includes(q.toLowerCase()))
+    )
+  }
   const cities = await request(
     withBaseUrl(API_URL, `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}`)
   )
@@ -472,6 +555,10 @@ export const listCities = async (query = '') => {
 }
 
 export const getUserCityById = async (id) => {
+  if (USE_MOCK_API) {
+    const city = mockData.cities.find((item) => Number(item.id) === Number(mockData.profile.cityId))
+    return normalizeCity(city)
+  }
   const city = await request(
     withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/city`)
   )
@@ -479,17 +566,34 @@ export const getUserCityById = async (id) => {
 }
 
 export const getUserProfileById = (id) =>
-  request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
+  USE_MOCK_API
+    ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
 
-export const getCurrentUserProfile = () =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
+export const getCurrentUserProfile = () => {
+  if (USE_MOCK_API) {
+    return Promise.resolve().then(() => {
+      requireMockSession()
+      return mockClone(mockData.profile)
+    })
+  }
+  return request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
+}
 
 export const listLeaderboard = async () => {
+  if (USE_MOCK_API) return mockClone(mockData.leaderboard)
   const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))
   return Array.isArray(users) ? users : []
 }
 
 export const listCaseLeaderboard = async (caseId) => {
+  if (USE_MOCK_API) {
+    return mockData.leaderboard.map((user) => ({
+      ...mockClone(user),
+      score: Math.max(40, user.score % 101),
+      caseId: Number(caseId),
+    }))
+  }
   const users = await request(
     withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/case/${encodeURIComponent(caseId)}/top5`)
   )
@@ -497,6 +601,10 @@ export const listCaseLeaderboard = async (caseId) => {
 }
 
 export const getCaseChatSequence = async (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return mockClone(mockData.chat).map((item) => ({ ...item, caseId: Number(caseId) }))
+  }
   const sequence = await request(
     withBaseUrl(API_URL, `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`)
   )
@@ -504,10 +612,17 @@ export const getCaseChatSequence = async (caseId) => {
 }
 
 export const evaluateCaseSolution = ({ text, caseId }) =>
-  mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
-    method: 'POST',
-    body: JSON.stringify({ text, case_id: caseId }),
-  })
+  USE_MOCK_API
+    ? Promise.resolve({
+        status: 'accepted',
+        message: 'Структура решения понятна. Добавьте метрики успеха и риски внедрения.',
+        case_id: Number(caseId),
+        rating: Math.min(96, 68 + Math.round(String(text).length / 20)),
+      })
+    : mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
+        method: 'POST',
+        body: JSON.stringify({ text, case_id: caseId }),
+      })
 
 export const isNotFoundError = (error) => {
   const message = error?.message || ''

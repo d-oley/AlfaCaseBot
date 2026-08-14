@@ -3,7 +3,8 @@
     <div class="container header-inner">
       <router-link class="brand" :to="homeRoute">
         <img class="brand-logo" :src="logoSrc" alt="Логотип Alfa" />
-        <span class="brand-text">AlfaCaseBot</span>
+        <span class="brand-text">ALFA/CASE</span>
+        <span class="brand-year">2026</span>
       </router-link>
 
       <nav class="nav">
@@ -60,7 +61,7 @@
         </div>
         <div v-else class="header-actions header-actions-auth">
           <span class="user-login">{{ login || 'Пользователь' }}</span>
-          <span class="user-rank">Место: #{{ userRank }}</span>
+          <span class="user-rank">Место: {{ userRank > 0 ? `#${userRank}` : '—' }}</span>
           <button class="btn btn-secondary" type="button" @click="$emit('logout')">Выйти</button>
         </div>
       </div>
@@ -111,13 +112,13 @@ export default {
 
 <style scoped>
 .header {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 4px solid var(--primary);
   background: var(--header-bg);
-  backdrop-filter: blur(5px);
+  color: #fff;
 }
 
 .header-inner {
-  min-height: 74px;
+  min-height: 70px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -127,19 +128,30 @@ export default {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   text-decoration: none;
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   object-fit: cover;
+  filter: grayscale(1) contrast(1.4);
 }
 
 .brand-text {
-  font-weight: 700;
-  font-size: 1.08rem;
+  font-family: var(--mono-font);
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+
+.brand-year {
+  padding-left: 9px;
+  border-left: 1px solid currentColor;
+  font-family: var(--mono-font);
+  font-size: 0.7rem;
+  opacity: 0.66;
 }
 
 .nav {
@@ -150,12 +162,20 @@ export default {
 
 .nav-link {
   text-decoration: none;
-  color: var(--text-muted);
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .nav-link.router-link-exact-active {
-  color: var(--text-main);
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 7px;
+  text-decoration-thickness: 3px;
 }
 
 .header-controls {
@@ -168,9 +188,9 @@ export default {
   width: 40px;
   height: 40px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--input-bg);
-  color: var(--text-main);
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -197,12 +217,21 @@ export default {
 
 .user-rank {
   padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-subtle);
+  border-radius: 0;
+  border: 1px solid currentColor;
+  background: transparent;
   font-size: 0.85rem;
   font-weight: 700;
+  font-family: var(--mono-font);
 }
+
+.header .btn-secondary {
+  color: #fff;
+  border-color: #fff;
+  background: transparent;
+}
+
+.header .btn-primary { border-color: var(--primary); }
 
 @media (max-width: 900px) {
   .header-inner {

@@ -177,10 +177,7 @@ export default {
 
 .app-main {
   flex: 1;
-  padding: clamp(12px, 3vw, 24px) 0;
-  background:
-    radial-gradient(circle at top right, var(--bg-accent), transparent 35%),
-    linear-gradient(160deg, var(--bg-main) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
+  padding: clamp(22px, 4vw, 56px) 0;
 }
 
 .ban-notice {
@@ -188,7 +185,7 @@ export default {
   margin: 14px auto 0;
   padding: 12px 14px;
   border: 1px solid #f5a3a3;
-  border-radius: 12px;
+  border-radius: 0;
   background: #fff1f0;
   color: #7a1212;
   display: flex;
