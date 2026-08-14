@@ -25,7 +25,6 @@
     <section v-else class="card admin-console">
       <header class="admin-topbar">
         <h1>Админ-панель</h1>
-        <button class="btn btn-secondary" type="button" @click="logoutAdmin">Выйти из админки</button>
       </header>
 
       <div class="tabs">
@@ -431,17 +430,6 @@ export default {
       } finally {
         this.isAdminAuthLoading = false
       }
-    },
-    async logoutAdmin() {
-      try {
-        await logoutRequest()
-      } catch {
-        // Локальное состояние админки очищаем и при истекшей backend-сессии.
-      }
-      this.isAdminAuthorized = false
-      this.credentials.login = ''
-      this.credentials.password = ''
-      this.authError = ''
     },
     async loadAdminCases() {
       this.adminActionError = ''
@@ -946,4 +934,21 @@ h1 { font-size: clamp(2.2rem, 5vw, 5rem); line-height: 0.9; text-transform: uppe
 .list { gap: 0; border-top: 1px solid var(--border); }
 .list-item { border-radius: 0; border-top: 0; }
 .admin-form input, .admin-form textarea, .admin-form select, .tag-picker { border-radius: 0; }
+.list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 378px;
+  gap: 20px;
+}
+.list-item > .row-actions {
+  display: grid;
+  grid-template-columns: 150px 220px;
+  gap: 8px;
+  justify-content: end;
+}
+.list-item > .row-actions .btn { width: 100%; }
+
+@media (max-width: 700px) {
+  .list-item { grid-template-columns: 1fr; }
+  .list-item > .row-actions { grid-template-columns: 1fr; justify-content: stretch; }
+}
 </style>

@@ -52,13 +52,12 @@
 
     <div class="cases-list">
       <button
-        v-for="(item, index) in filteredCases"
+        v-for="item in filteredCases"
         :key="item.id"
         class="case-row"
         type="button"
         @click="$emit('open-case', item.id)"
       >
-        <span class="case-number">{{ String(index + 1).padStart(2, '0') }}</span>
         <span class="case-main">
           <span class="case-kicker">{{ item.tags.join(' / ') || 'Без категории' }}</span>
           <strong>{{ item.title }}</strong>
@@ -174,13 +173,12 @@ export default {
   text-align: left;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 105px 24px;
+  grid-template-columns: minmax(0, 1fr) 105px 24px;
   gap: 18px;
   align-items: center;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .case-row:hover { background: var(--primary); color: #fff; }
-.case-number { font-family: var(--display-font); font-size: 3rem; line-height: 1; }
 .case-main { display: grid; gap: 6px; }
 .case-main strong { font-family: var(--display-font); font-size: clamp(1.35rem, 2vw, 2.15rem); text-transform: uppercase; line-height: 1; }
 .case-description { color: var(--text-muted); max-width: 740px; }
@@ -192,10 +190,9 @@ export default {
   .catalog { grid-template-columns: 1fr; }
   .recommendation { grid-row: auto; border-right: 0; }
   .cases-list { grid-column: 1; }
-  .case-row { grid-template-columns: 44px 1fr 24px; padding: 18px 12px; }
-  .case-meta { grid-column: 2; display: flex; gap: 14px; }
-  .case-arrow { grid-column: 3; grid-row: 1 / span 2; }
-  .case-number { font-size: 2rem; }
+  .case-row { grid-template-columns: 1fr 24px; padding: 18px 12px; }
+  .case-meta { grid-column: 1; display: flex; gap: 14px; }
+  .case-arrow { grid-column: 2; grid-row: 1 / span 2; }
 }
 
 @media (min-width: 801px) and (max-width: 1080px) {

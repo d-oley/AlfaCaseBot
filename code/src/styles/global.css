@@ -77,7 +77,11 @@ body {
 }
 
 button, input, select, textarea { font: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 78%, transparent);
+  outline-offset: -4px;
+}
+a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
 }
