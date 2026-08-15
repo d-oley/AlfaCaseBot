@@ -24,8 +24,8 @@
       "fullDescription": "Изучите исходный клиентский путь, найдите основные точки потери пользователей и предложите новую структуру онбординга. Обоснуйте приоритеты и метрики успеха.",
       "difficulty": "MEDIUM",
       "averageSolveMin": 45,
-      "pdfUrl": "",
-      "iconUrl": "",
+      "pdfUrl": "/cases/cl-cup-ux.pdf",
+      "iconUrl": "/cases/mock-case-product.svg",
       "viewsCount": 148,
       "active": true,
       "tags": [{"id": 1, "name": "Продукт"}, {"id": 2, "name": "UX"}]
@@ -39,8 +39,8 @@
       "fullDescription": "Предложите признаки, схему разметки, метрики и план внедрения модели, которая определяет приоритет клиентского обращения.",
       "difficulty": "HARD",
       "averageSolveMin": 90,
-      "pdfUrl": "",
-      "iconUrl": "",
+      "pdfUrl": "/cases/cl-cup-ml.pdf",
+      "iconUrl": "/cases/mock-case-ml.svg",
       "viewsCount": 96,
       "active": true,
       "tags": [{"id": 3, "name": "ML"}, {"id": 4, "name": "Аналитика"}]
@@ -54,8 +54,8 @@
       "fullDescription": "Определите сегменты, ключевые потребности, каналы привлечения и первые продуктовые эксперименты.",
       "difficulty": "EASY",
       "averageSolveMin": 30,
-      "pdfUrl": "",
-      "iconUrl": "",
+      "pdfUrl": "/cases/gum-cup-main.pdf",
+      "iconUrl": "/cases/mock-case-marketing.svg",
       "viewsCount": 213,
       "active": true,
       "tags": [{"id": 1, "name": "Продукт"}, {"id": 5, "name": "Маркетинг"}]
@@ -69,8 +69,8 @@
       "fullDescription": "Опишите систему показателей, необходимые данные и подход к сравнению отделений между собой.",
       "difficulty": "MEDIUM",
       "averageSolveMin": 60,
-      "pdfUrl": "",
-      "iconUrl": "",
+      "pdfUrl": "/cases/alfa-people-final.pdf",
+      "iconUrl": "/cases/mock-case-analytics.svg",
       "viewsCount": 74,
       "active": true,
       "tags": [{"id": 4, "name": "Аналитика"}, {"id": 6, "name": "Стратегия"}]

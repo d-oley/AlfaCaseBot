@@ -58,6 +58,10 @@
         type="button"
         @click="$emit('open-case', item.id)"
       >
+        <span class="case-visual" aria-hidden="true">
+          <img v-if="item.iconUrl" :src="item.iconUrl" alt="" />
+          <span v-else>CASE</span>
+        </span>
         <span class="case-main">
           <span class="case-kicker">{{ item.tags.join(' / ') || 'Без категории' }}</span>
           <strong>{{ item.title }}</strong>
@@ -173,12 +177,26 @@ export default {
   text-align: left;
   cursor: pointer;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 105px 24px;
+  grid-template-columns: 96px minmax(0, 1fr) 105px 24px;
   gap: 18px;
   align-items: center;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .case-row:hover { background: var(--primary); color: #fff; }
+.case-visual {
+  width: 96px;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: var(--mono-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+.case-visual img { width: 100%; height: 100%; object-fit: cover; }
+.case-row:hover .case-visual { border-color: #fff; }
 .case-main { display: grid; gap: 6px; }
 .case-main strong { font-family: var(--display-font); font-size: clamp(1.35rem, 2vw, 2.15rem); text-transform: uppercase; line-height: 1; }
 .case-description { color: var(--text-muted); max-width: 740px; }
@@ -190,9 +208,10 @@ export default {
   .catalog { grid-template-columns: 1fr; }
   .recommendation { grid-row: auto; border-right: 0; }
   .cases-list { grid-column: 1; }
-  .case-row { grid-template-columns: 1fr 24px; padding: 18px 12px; }
-  .case-meta { grid-column: 1; display: flex; gap: 14px; }
-  .case-arrow { grid-column: 2; grid-row: 1 / span 2; }
+  .case-row { grid-template-columns: 72px 1fr 24px; padding: 18px 12px; }
+  .case-visual { width: 72px; }
+  .case-meta { grid-column: 2; display: flex; gap: 14px; }
+  .case-arrow { grid-column: 3; grid-row: 1 / span 2; }
 }
 
 @media (min-width: 801px) and (max-width: 1080px) {
