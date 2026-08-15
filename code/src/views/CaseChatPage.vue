@@ -1,6 +1,9 @@
 ﻿<template>
   <div class="container chat-page">
     <section class="card chat-card">
+      <router-link class="back-link" :to="`/case/${caseId}`">
+        <span aria-hidden="true">←</span> К описанию кейса
+      </router-link>
       <header class="chat-header">
         <div class="case-heading">
           <h1>Чат по кейсу: {{ caseTitle }}</h1>
@@ -273,6 +276,20 @@ export default {
   line-height: .95;
   text-transform: uppercase;
 }
+
+.back-link {
+  width: fit-content;
+  color: var(--text-main);
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.back-link span { margin-right: 8px; color: var(--primary); font-size: 1.2rem; }
+.back-link:hover { text-decoration: underline; text-underline-offset: 5px; }
 
 .case-heading {
   display: flex;

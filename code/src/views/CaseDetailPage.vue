@@ -5,6 +5,9 @@
     </section>
 
     <section v-else-if="caseItem" class="card detail-card">
+      <router-link class="back-link" to="/dashboard">
+        <span aria-hidden="true">←</span> К каталогу кейсов
+      </router-link>
       <p class="case-code">Кейс / {{ caseItem.id }} / {{ caseItem.difficulty || 'Без уровня' }}</p>
       <div class="title-row">
         <h1>{{ caseItem.title }}</h1>
@@ -147,6 +150,23 @@ export default {
   padding: clamp(24px, 5vw, 64px);
   border-top-width: 5px;
 }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 26px;
+  color: var(--text-main);
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.back-link span { margin-right: 8px; color: var(--primary); font-size: 1.2rem; }
+.back-link:hover { text-decoration: underline; text-underline-offset: 5px; }
 .case-code, .description-label {
   font-family: var(--mono-font);
   font-size: .74rem;
