@@ -135,7 +135,7 @@ const persistUserData = (prevLogin = '') => {
     ...allUsers[curKey],
     firstName: appState.user.firstName || '',
     lastName: appState.user.lastName || '',
-    rank: appState.user.rank || 0,
+    rank: appState.user.rank ?? 0,
     cityId: appState.user.cityId ?? null,
     city: appState.user.city || '',
     region: appState.user.region || '',
