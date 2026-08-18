@@ -462,6 +462,53 @@ export const listAdminCases = async () => {
   return Array.isArray(items) ? items.map(normalizeCase) : []
 }
 
+const normalizePageResponse = (payload, fallbackItems = []) => ({
+  items: Array.isArray(payload?.items) ? payload.items : fallbackItems,
+  page: Number(payload?.page ?? 0),
+  size: Number(payload?.size ?? fallbackItems.length),
+  totalElements: Number(payload?.totalElements ?? fallbackItems.length),
+  totalPages: Number(payload?.totalPages ?? (fallbackItems.length ? 1 : 0)),
+})
+
+const buildAdminPageQuery = ({ page = 0, size = 25, search = '', sort = 'createdAt,desc' } = {}) => {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort })
+  if (String(search).trim()) params.set('search', String(search).trim())
+  return params.toString()
+}
+
+export const listAdminUsers = async (options = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const user = { ...mockClone(mockData.profile), username: mockData.profile.nickName, role: 'USER' }
+    return normalizePageResponse({ items: [user], page: 0, size: 25, totalElements: 1, totalPages: 1 })
+  }
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users?${buildAdminPageQuery(options)}`))
+  )
+}
+
+export const getAdminUserById = (id) =>
+  USE_MOCK_API
+    ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id), username: mockData.profile.nickName, role: 'USER' })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`))
+
+export const listAdminTags = async (options = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const items = await listCaseTags()
+    return normalizePageResponse({
+      items: items.map((tag) => ({ ...tag, active: true, caseCount: tag.count })),
+      page: 0,
+      size: items.length,
+      totalElements: items.length,
+      totalPages: items.length ? 1 : 0,
+    })
+  }
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags?${buildAdminPageQuery(options)}`))
+  )
+}
+
 export const createCaseRequest = (item, files = {}) =>
   USE_MOCK_API
     ? Promise.resolve({ success: true, id: Math.max(...mockData.cases.map(({ id }) => id)) + 1 })
@@ -516,6 +563,21 @@ export const deactivateCaseTag = (id) =>
     ? Promise.resolve({ success: true, id: Number(id) })
     : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
     method: 'PATCH',
+  })
+
+export const activateCaseTag = (id) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/activate`), {
+    method: 'PATCH',
+  })
+
+export const updateCaseTag = (id, payload) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
   })
 
 export const attachCaseTag = (caseId, tagId) =>

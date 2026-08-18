@@ -95,7 +95,7 @@
 
             <fieldset class="tag-picker">
               <legend>Теги</legend>
-              <label v-for="tag in adminTags" :key="tag.id" class="checkbox-row tag-option">
+              <label v-for="tag in caseTagOptions" :key="tag.id" class="checkbox-row tag-option">
                 <input v-model="caseForm.selectedTagIds" type="checkbox" :value="Number(tag.id)" />
                 {{ tag.name }}
               </label>
@@ -130,7 +130,41 @@
         </article>
       </div>
 
-      <div v-else-if="activeTab === 'users'" class="panel-grid single-panel">
+      <div v-else-if="activeTab === 'users'" class="panel-grid">
+        <article class="card panel-card">
+          <div class="section-topbar">
+            <h2>Пользователи</h2>
+            <span class="meta">Всего: {{ usersPage.totalElements }}</span>
+          </div>
+          <form class="user-search" @submit.prevent="searchUsers">
+            <input v-model.trim="userSearch" type="search" placeholder="Логин, никнейм или email" />
+            <button class="btn btn-secondary" type="submit" :disabled="isUsersListLoading">
+              Найти
+            </button>
+          </form>
+          <div class="list users-list">
+            <button
+              v-for="user in adminUsers"
+              :key="user.id"
+              class="user-list-item"
+              type="button"
+              @click="selectUser(user.id)"
+            >
+              <span>
+                <strong>{{ user.nickName || user.username || `ID ${user.id}` }}</strong>
+                <small>{{ user.email || 'Email не указан' }}</small>
+              </span>
+              <span class="user-list-meta">{{ user.role || 'USER' }} · {{ user.status || '—' }}</span>
+            </button>
+          </div>
+          <p v-if="!isUsersListLoading && !adminUsers.length" class="hint">Пользователи не найдены.</p>
+          <div class="pagination-actions">
+            <button class="btn btn-secondary" type="button" :disabled="usersPage.page <= 0 || isUsersListLoading" @click="changeUsersPage(-1)">←</button>
+            <span>{{ usersPage.totalPages ? usersPage.page + 1 : 0 }} / {{ usersPage.totalPages }}</span>
+            <button class="btn btn-secondary" type="button" :disabled="usersPage.page + 1 >= usersPage.totalPages || isUsersListLoading" @click="changeUsersPage(1)">→</button>
+          </div>
+        </article>
+
         <article class="card panel-card">
           <h2>{{ userForm.id ? 'Изменить пользователя' : 'Добавить пользователя' }}</h2>
           <p class="hint">Для изменения или удаления введите ID пользователя.</p>
@@ -253,11 +287,14 @@
             <div v-for="tag in adminTags" :key="tag.id" class="list-item">
               <div>
                 <p class="title">{{ tag.name }}</p>
+                <p class="meta">
+                  {{ tag.active === false ? 'Неактивен' : 'Активен' }} · Кейсов: {{ tag.caseCount ?? tag.count ?? 0 }}
+                </p>
               </div>
               <div class="row-actions">
                 <button class="btn btn-secondary" type="button" @click="startTagEdit(tag)">Изменить</button>
-                <button class="btn btn-secondary" type="button" @click="deactivateTag(tag.id)">
-                  Деактивировать
+                <button class="btn btn-secondary" type="button" @click="toggleTagActive(tag)">
+                  {{ tag.active === false ? 'Активировать' : 'Деактивировать' }}
                 </button>
               </div>
             </div>
@@ -284,6 +321,7 @@
 <script>
 import CitySelect from '@/components/CitySelect.vue'
 import {
+  activateCaseTag,
   attachCaseTag,
   createAdminUser,
   createCaseRequest,
@@ -292,14 +330,16 @@ import {
   detachCaseTag,
   deleteAdminUser,
   getUserCityById,
-  getUserProfileById,
+  getAdminUserById,
   loginRequest,
   listAdminCases,
-  listCaseTags,
+  listAdminTags,
+  listAdminUsers,
   listCities,
   logoutRequest,
   parseBirthdateFromApi,
   updateAdminUser,
+  updateCaseTag,
   updateCaseRequest,
 } from '@/api/authApi'
 import { appState, getRoleOptions, setCases } from '@/store/appState'
@@ -367,8 +407,12 @@ export default {
       cityLoadError: '',
       isUserLoading: false,
       isUserSaving: false,
+      isUsersListLoading: false,
       userError: '',
       userMessage: '',
+      userSearch: '',
+      adminUsers: [],
+      usersPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
       adminTags: tags.map((name, index) => ({ id: index + 1, name })),
       caseForm: toCaseForm(),
       casePdfFile: null,
@@ -380,7 +424,16 @@ export default {
   created() {
     this.restoreAdminSession()
   },
+  watch: {
+    activeTab(value) {
+      if (value === 'users' && this.isAdminAuthorized) this.loadAdminUsers(0)
+    },
+  },
   computed: {
+    caseTagOptions() {
+      const selected = new Set(this.caseForm.selectedTagIds.map(Number))
+      return this.adminTags.filter((tag) => tag.active !== false || selected.has(Number(tag.id)))
+    },
     selectedCityLabel() {
       const selectedCity = this.cities.find((item) => Number(item.id) === Number(this.userForm.cityId))
       if (selectedCity) {
@@ -444,11 +497,46 @@ export default {
     },
     async loadTagsFromApi() {
       try {
-        const tags = await listCaseTags()
+        const firstPage = await listAdminTags({ page: 0, size: 100, sort: 'name,asc' })
+        const remainingPages = await Promise.all(
+          Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
+            listAdminTags({ page: index + 1, size: 100, sort: 'name,asc' })
+          )
+        )
+        const tags = [firstPage, ...remainingPages].flatMap((page) => page.items)
         this.adminTags = tags.map((tag, index) => ({ ...tag, id: tag.id ?? `tag-${index}` }))
       } catch (error) {
         this.adminActionError = error?.message || 'Не удалось загрузить теги.'
       }
+    },
+    async loadAdminUsers(page = this.usersPage.page) {
+      this.isUsersListLoading = true
+      this.userError = ''
+      try {
+        const result = await listAdminUsers({ page, size: this.usersPage.size, search: this.userSearch })
+        this.adminUsers = result.items
+        this.usersPage = {
+          page: result.page,
+          size: result.size,
+          totalElements: result.totalElements,
+          totalPages: result.totalPages,
+        }
+      } catch (error) {
+        this.adminUsers = []
+        this.userError = error?.message || 'Не удалось загрузить список пользователей.'
+      } finally {
+        this.isUsersListLoading = false
+      }
+    },
+    searchUsers() {
+      this.loadAdminUsers(0)
+    },
+    changeUsersPage(offset) {
+      this.loadAdminUsers(this.usersPage.page + offset)
+    },
+    selectUser(id) {
+      this.userForm.id = Number(id)
+      this.loadUserById()
     },
     async loadUserById() {
       const userId = Number(this.userForm.id)
@@ -459,7 +547,7 @@ export default {
       this.userMessage = ''
       try {
         const [profile, city] = await Promise.all([
-          getUserProfileById(userId),
+          getAdminUserById(userId),
           getUserCityById(userId).catch(() => null),
         ])
         this.userForm = toUserForm({
@@ -470,6 +558,7 @@ export default {
           cityId: city?.cityId ?? profile?.cityId ?? null,
           city: city?.cityName || profile?.cityName || '',
           region: city?.regionName || profile?.regionName || '',
+          accountRole: profile?.role || '',
         })
         this.userMessage = 'Профиль загружен.'
       } catch (error) {
@@ -532,7 +621,8 @@ export default {
             ...(this.userForm.bannedUntil ? { bannedUntil: this.userForm.bannedUntil } : {}),
             ...(this.userForm.cityId ? { cityId: this.userForm.cityId } : {}),
           }
-          await updateAdminUser(this.userForm.id, payload)
+        await updateAdminUser(this.userForm.id, payload)
+          await this.loadAdminUsers()
           this.userMessage = 'Изменения сохранены.'
         } else {
           const response = await createAdminUser({
@@ -554,6 +644,7 @@ export default {
           this.userMessage = this.userForm.id
             ? `Пользователь создан. ID: ${this.userForm.id}`
             : 'Пользователь создан.'
+          await this.loadAdminUsers(0)
         }
       } catch (error) {
         this.userError = error?.message || 'Не удалось сохранить пользователя.'
@@ -573,6 +664,7 @@ export default {
         await deleteAdminUser(userId)
         this.resetUserForm()
         this.userMessage = 'Пользователь удалён.'
+        await this.loadAdminUsers()
       } catch (error) {
         this.userError = error?.message || 'Не удалось удалить пользователя.'
       } finally {
@@ -682,18 +774,32 @@ export default {
     async saveTag() {
       this.adminActionError = ''
       this.adminActionMessage = ''
-      if (this.tagForm.id) {
-        this.adminActionError = 'Переименование тегов пока недоступно.'
-        return
-      }
+      const isEditing = Boolean(this.tagForm.id)
       try {
-        await createCaseTag(this.tagForm.name)
+        if (isEditing) {
+          await updateCaseTag(this.tagForm.id, { name: this.tagForm.name })
+        } else {
+          await createCaseTag(this.tagForm.name)
+        }
         await this.loadTagsFromApi()
         this.resetTagForm()
-        this.adminActionMessage = 'Тег создан.'
+        this.adminActionMessage = isEditing ? 'Тег изменён.' : 'Тег создан.'
       } catch (error) {
-        this.adminActionError = error?.message || 'Не удалось создать тег.'
+        this.adminActionError = error?.message || 'Не удалось сохранить тег.'
       }
+    },
+    async toggleTagActive(tag) {
+      if (tag.active === false) {
+        try {
+          await activateCaseTag(tag.id)
+          await this.loadTagsFromApi()
+          this.adminActionMessage = 'Тег активирован.'
+        } catch (error) {
+          this.adminActionError = error?.message || 'Не удалось активировать тег.'
+        }
+        return
+      }
+      await this.deactivateTag(tag.id)
     },
     async deactivateTag(tagId) {
       this.adminActionError = ''
@@ -946,9 +1052,38 @@ h1 { font-size: clamp(2.2rem, 5vw, 5rem); line-height: 0.9; text-transform: uppe
   justify-content: end;
 }
 .list-item > .row-actions .btn { width: 100%; }
+.user-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.user-search input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); }
+.users-list { margin-top: 0; }
+.user-list-item {
+  width: 100%;
+  padding: 14px 12px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  background: var(--surface-muted);
+  color: var(--text-main);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.user-list-item > span:first-child { display: grid; gap: 3px; }
+.user-list-item small, .user-list-meta { color: var(--text-muted); }
+.user-list-meta { text-align: right; }
+.pagination-actions { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 12px; font-family: var(--mono-font); }
+.pagination-actions .btn { min-width: 48px; }
 
 @media (max-width: 700px) {
   .list-item { grid-template-columns: 1fr; }
   .list-item > .row-actions { grid-template-columns: 1fr; justify-content: stretch; }
+  .user-search { grid-template-columns: 1fr; }
+  .user-list-item { align-items: start; flex-direction: column; }
+  .user-list-meta { text-align: left; }
 }
 </style>
