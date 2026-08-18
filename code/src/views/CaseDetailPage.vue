@@ -15,12 +15,14 @@
           class="favorite-star"
           :class="{ active: isFavorite }"
           type="button"
+          :disabled="favoriteSaving"
           :aria-label="isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'"
           @click="toggleFavorite"
         >
           ★
         </button>
       </div>
+      <p v-if="favoriteError" class="leaderboard-error" role="alert">{{ favoriteError }}</p>
 
       <div class="tags">
         <span class="tag difficulty-tag">Сложность: {{ caseItem.difficulty || 'Не указана' }}</span>
@@ -55,13 +57,19 @@
 
 <script>
 import CaseLeaderboard from '@/components/CaseLeaderboard.vue'
-import { getCaseAssetUrl, getCaseByIdRequest, listCaseLeaderboard } from '@/api/authApi'
+import {
+  addFavoriteCase,
+  getCaseAssetUrl,
+  getCaseByIdRequest,
+  listCaseLeaderboard,
+  removeFavoriteCase,
+} from '@/api/authApi'
 import {
   appState,
   getCaseById,
   isCaseFavorite,
   markCaseViewed,
-  toggleCaseFavorite,
+  setCaseFavorite,
   upsertCase,
 } from '@/store/appState'
 
@@ -76,6 +84,8 @@ export default {
       leaderboardError: '',
       caseLoading: false,
       caseError: '',
+      favoriteSaving: false,
+      favoriteError: '',
     }
   },
   computed: {
@@ -133,8 +143,20 @@ export default {
     goToChat() {
       this.$router.push(`/case/${this.caseId}/chat`)
     },
-    toggleFavorite() {
-      toggleCaseFavorite(this.caseId)
+    async toggleFavorite() {
+      if (this.favoriteSaving) return
+      this.favoriteSaving = true
+      this.favoriteError = ''
+      const shouldBeFavorite = !this.isFavorite
+      try {
+        if (shouldBeFavorite) await addFavoriteCase(this.caseId)
+        else await removeFavoriteCase(this.caseId)
+        setCaseFavorite(this.caseId, shouldBeFavorite)
+      } catch (error) {
+        this.favoriteError = error?.message || 'Не удалось изменить избранное.'
+      } finally {
+        this.favoriteSaving = false
+      }
     },
   },
 }

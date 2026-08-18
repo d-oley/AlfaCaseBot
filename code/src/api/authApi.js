@@ -37,6 +37,10 @@ const errors = {
   'Tag with this name already exists': 'Тег с таким названием уже существует',
   'Tag is already attached to this case': 'Тег уже привязан к кейсу',
   'Tag is not attached to this case': 'Тег не привязан к кейсу',
+  'this case is already in your favourites': 'Кейс уже добавлен в избранное',
+  'this case is not in your favourites': 'Кейса уже нет в избранном',
+  'Case is not active': 'Этот кейс сейчас недоступен',
+  'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
   'Password cannot be shorter than 8 characters': 'Пароль слишком короткий',
@@ -266,6 +270,53 @@ export const normalizeCase = (item = {}) => {
   }
 }
 
+const normalizeTag = (tag = {}) => ({
+  id: Number(tag?.id) || null,
+  name: tag?.name || '',
+  count: Number(tag?.count ?? tag?.caseCount ?? 0),
+  active: tag?.active ?? true,
+})
+
+const normalizePageResponse = (payload, fallbackItems = []) => ({
+  items: Array.isArray(payload?.items) ? payload.items : fallbackItems,
+  page: Number(payload?.page ?? 0),
+  size: Number(payload?.size ?? fallbackItems.length),
+  totalElements: Number(payload?.totalElements ?? fallbackItems.length),
+  totalPages: Number(payload?.totalPages ?? (fallbackItems.length ? 1 : 0)),
+})
+
+const buildPageQuery = ({ page = 0, size = 100, search = '', sort = '' } = {}) => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (String(search).trim()) params.set('search', String(search).trim())
+  if (String(sort).trim()) params.set('sort', String(sort).trim())
+  return params.toString()
+}
+
+const loadAllPages = async ({ path, search = '', sort = '', normalizeItem = (item) => item }) => {
+  const loadPage = (page) => request(
+    withBaseUrl(API_URL, `${path}?${buildPageQuery({ page, size: 100, search, sort })}`)
+  )
+  const firstPage = normalizePageResponse(await loadPage(0))
+  const remainingPages = firstPage.totalPages > 1
+    ? await Promise.all(
+      Array.from({ length: firstPage.totalPages - 1 }, (_, index) => loadPage(index + 1))
+    )
+    : []
+
+  return [firstPage, ...remainingPages.map((page) => normalizePageResponse(page))]
+    .flatMap((page) => page.items)
+    .map(normalizeItem)
+}
+
+export const normalizeUserPreferences = (payload = {}) => {
+  const preferredTags = Array.isArray(payload.preferredTags) ? payload.preferredTags : []
+  return {
+    tagIds: preferredTags.map((tag) => Number(tag?.id)).filter((id) => Number.isFinite(id) && id > 0),
+    tags: preferredTags.map((tag) => tag?.name || '').filter(Boolean),
+    difficulty: String(payload.preferredDifficulty || '').toLowerCase(),
+  }
+}
+
 const toCaseApiPayload = (item = {}) => ({
   slug: item.slug || '',
   title: item.title || '',
@@ -415,8 +466,7 @@ export const setProfilePicture = (file) => {
 
 export const listCases = async () => {
   if (USE_MOCK_API) return mockData.cases.map(normalizeCase)
-  const items = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/getAll`))
-  return Array.isArray(items) ? items.map(normalizeCase) : []
+  return loadAllPages({ path: `${CASE_PREFIX}/getAll`, normalizeItem: normalizeCase })
 }
 
 export const getCaseByIdRequest = async (id) => {
@@ -443,14 +493,8 @@ export const listCaseTags = async () => {
     })
     return [...tags.values()]
   }
-  const tags = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/tags`))
-  return Array.isArray(tags)
-    ? tags.map((tag) => ({
-        id: tag?.id ?? null,
-        name: tag?.name || '',
-        count: Number(tag?.count || 0),
-      })).filter((tag) => tag.name)
-    : []
+  const tags = await loadAllPages({ path: `${CASE_PREFIX}/tags`, normalizeItem: normalizeTag })
+  return tags.filter((tag) => tag.name)
 }
 
 export const listAdminCases = async () => {
@@ -458,17 +502,12 @@ export const listAdminCases = async () => {
     requireMockSession()
     return mockData.cases.map(normalizeCase)
   }
-  const items = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases`))
-  return Array.isArray(items) ? items.map(normalizeCase) : []
+  return loadAllPages({
+    path: `${ADMIN_PREFIX}/cases`,
+    sort: 'createdAt,desc',
+    normalizeItem: normalizeCase,
+  })
 }
-
-const normalizePageResponse = (payload, fallbackItems = []) => ({
-  items: Array.isArray(payload?.items) ? payload.items : fallbackItems,
-  page: Number(payload?.page ?? 0),
-  size: Number(payload?.size ?? fallbackItems.length),
-  totalElements: Number(payload?.totalElements ?? fallbackItems.length),
-  totalPages: Number(payload?.totalPages ?? (fallbackItems.length ? 1 : 0)),
-})
 
 const buildAdminPageQuery = ({ page = 0, size = 25, search = '', sort = 'createdAt,desc' } = {}) => {
   const params = new URLSearchParams({ page: String(page), size: String(size), sort })
@@ -611,9 +650,79 @@ export const listCities = async (query = '') => {
     )
   }
   const cities = await request(
-    withBaseUrl(API_URL, `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}`)
+    withBaseUrl(
+      API_URL,
+      `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}?${buildPageQuery({ size: 25 })}`
+    )
   )
-  return Array.isArray(cities) ? cities : []
+  return normalizePageResponse(cities).items
+}
+
+export const listFavoriteCases = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return []
+  }
+  return loadAllPages({
+    path: `${SITE_PREFIX}/me/favorites`,
+    sort: 'added_at,desc',
+    normalizeItem: normalizeCase,
+  })
+}
+
+export const addFavoriteCase = (caseId) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/favorites/${encodeURIComponent(caseId)}`), {
+      method: 'POST',
+    })
+
+export const removeFavoriteCase = (caseId) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/favorites/${encodeURIComponent(caseId)}`), {
+      method: 'DELETE',
+    })
+
+export const getUserPreferences = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return normalizeUserPreferences()
+  }
+  return normalizeUserPreferences(
+    await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/preferences`))
+  )
+}
+
+export const saveUserPreferences = async ({ tagIds = [], difficulty = '' } = {}) => {
+  const normalizedTagIds = [...new Set(
+    tagIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+  )]
+  const normalizedDifficulty = String(difficulty || '').trim().toUpperCase()
+
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return {
+      tagIds: normalizedTagIds,
+      tags: [],
+      difficulty: normalizedDifficulty.toLowerCase(),
+    }
+  }
+
+  await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/preferences`), {
+    method: 'PATCH',
+    body: JSON.stringify({
+      preferredDifficulty: normalizedDifficulty || null,
+      preferredTags: normalizedTagIds,
+      removeDifficulty: !normalizedDifficulty,
+      removeTags: normalizedTagIds.length === 0,
+    }),
+  })
+  return {
+    tagIds: normalizedTagIds,
+    tags: [],
+    difficulty: normalizedDifficulty.toLowerCase(),
+  }
 }
 
 export const getUserCityById = async (id) => {
@@ -667,10 +776,9 @@ export const getCaseChatSequence = async (caseId) => {
     requireMockSession()
     return mockClone(mockData.chat).map((item) => ({ ...item, caseId: Number(caseId) }))
   }
-  const sequence = await request(
-    withBaseUrl(API_URL, `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`)
-  )
-  return Array.isArray(sequence) ? sequence : []
+  return loadAllPages({
+    path: `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`,
+  })
 }
 
 export const evaluateCaseSolution = ({ text, caseId }) =>

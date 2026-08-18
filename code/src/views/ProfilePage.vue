@@ -73,13 +73,18 @@
           @search-change="handleCitySearch"
         />
 
-        <label for="profile-tag">Я предпочитаю...</label>
-        <select id="profile-tag" v-model="profileForm.preferenceTag">
-          <option value="">Пока без предпочтений</option>
-          <option v-for="tag in preferenceTagOptions" :key="tag" :value="tag">
-            {{ tag }}
-          </option>
-        </select>
+        <fieldset class="profile-tag-picker">
+          <legend>Мне интересны...</legend>
+          <label v-for="tag in preferenceTagOptions" :key="tag.id" class="profile-tag-option">
+            <input
+              v-model="profileForm.preferenceTagIds"
+              type="checkbox"
+              :value="Number(tag.id)"
+              :disabled="isSavingProfile"
+            >
+            <span>{{ tag.name }}</span>
+          </label>
+        </fieldset>
 
         <label for="profile-difficulty">По сложности...</label>
         <select id="profile-difficulty" v-model="profileForm.preferenceDifficulty">
@@ -173,6 +178,7 @@ import {
   getCaseAssetUrl,
   getCurrentUserProfile,
   listCities,
+  saveUserPreferences,
   setProfilePicture,
 } from '@/api/authApi'
 import {
@@ -187,6 +193,7 @@ import {
   getSolvedCasesForUser,
   setAvailableCities,
   setUserAvatar,
+  updateUserPreferences,
   updateUserProfile,
 } from '@/store/appState'
 
@@ -227,7 +234,7 @@ export default {
         birthDate: '',
         role: '',
         cityId: null,
-        preferenceTag: '',
+        preferenceTagIds: [],
         preferenceDifficulty: '',
       },
     }
@@ -310,7 +317,7 @@ export default {
       this.profileForm.birthDate = this.appState.user.birthDate || ''
       this.profileForm.role = this.appState.user.role || ''
       this.profileForm.cityId = this.appState.user.cityId ?? null
-      this.profileForm.preferenceTag = this.appState.user.preferences?.tag || ''
+      this.profileForm.preferenceTagIds = [...(this.appState.user.preferences?.tagIds || [])]
       this.profileForm.preferenceDifficulty = this.appState.user.preferences?.difficulty || ''
     },
     startProfileEdit() {
@@ -405,6 +412,18 @@ export default {
           this.avatarLoadFailed = false
         }
 
+        const preferences = await saveUserPreferences({
+          tagIds: this.profileForm.preferenceTagIds,
+          difficulty: this.profileForm.preferenceDifficulty,
+        })
+        const selectedPreferenceNames = this.preferenceTagOptions
+          .filter((tag) => preferences.tagIds.includes(Number(tag.id)))
+          .map((tag) => tag.name)
+        updateUserPreferences({
+          ...preferences,
+          tags: preferences.tags.length ? preferences.tags : selectedPreferenceNames,
+        })
+
         updateUserProfile({
           firstName: this.profileForm.firstName,
           lastName: this.profileForm.lastName,
@@ -414,10 +433,6 @@ export default {
           cityId: selectedCity?.id ?? previousUser.cityId ?? null,
           city: selectedCity?.cityName || previousUser.city || '',
           region: selectedCity?.regionName || previousUser.region || '',
-          preferences: {
-            tag: this.profileForm.preferenceTag,
-            difficulty: this.profileForm.preferenceDifficulty,
-          },
         })
 
         this.profileMessage = 'Изменения сохранены.'
@@ -535,6 +550,40 @@ export default {
   font-size: 0.95rem;
   background: var(--input-bg);
   color: var(--text-main);
+}
+
+.profile-tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 0;
+  border: 0;
+}
+
+.profile-tag-picker legend {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.profile-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--secondary-bg);
+  cursor: pointer;
+}
+
+.profile-tag-option input {
+  width: auto;
+  padding: 0;
+}
+
+.profile-tag-option:has(input:checked) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--secondary-bg));
 }
 
 .profile-actions {

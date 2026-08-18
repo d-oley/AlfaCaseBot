@@ -41,6 +41,8 @@
       :initial-preferences="appState.user.preferences"
       :tag-options="preferenceTagOptions"
       :difficulty-options="difficultyPreferenceOptions"
+      :saving="preferenceSaving"
+      :error-message="preferenceError"
       @save="handlePreferenceSave"
       @skip="handlePreferenceSkip"
     />
@@ -52,7 +54,15 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
-import { getCurrentUserProfile, listCases, logoutRequest, mapApiProfileToState } from './api/authApi'
+import {
+  getCurrentUserProfile,
+  getUserPreferences,
+  listCases,
+  listFavoriteCases,
+  logoutRequest,
+  mapApiProfileToState,
+  saveUserPreferences,
+} from './api/authApi'
 import {
   appState,
   clearBanNotice,
@@ -60,6 +70,7 @@ import {
   logoutUser,
   registerUser,
   skipUserPreferences,
+  setUserFavoriteCases,
   showBanNotice,
   updateUserPreferences,
   getDifficultyPreferenceOptions,
@@ -78,6 +89,8 @@ export default {
       appState,
       theme: localStorage.getItem('theme') || 'light',
       difficultyPreferenceOptions: getDifficultyPreferenceOptions(),
+      preferenceSaving: false,
+      preferenceError: '',
     }
   },
   computed: {
@@ -114,6 +127,7 @@ export default {
       try {
         const profile = await getCurrentUserProfile()
         loginUser(mapApiProfileToState(profile, this.appState.user))
+        await this.loadPersonalization()
       } catch {
         if (this.appState.isAuthenticated) {
           logoutUser()
@@ -134,26 +148,64 @@ export default {
     closeModal() {
       this.activeModal = null
     },
-    handleLoginSuccess(payload) {
+    async handleLoginSuccess(payload) {
       clearBanNotice()
       loginUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
+      await this.loadPersonalization()
     },
-    handleRegisterSuccess(payload) {
+    async handleRegisterSuccess(payload) {
       registerUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
+      await this.loadPersonalization({ preserveOnboarding: true })
     },
     handleAccountBanned(message) {
       showBanNotice(message)
       this.closeModal()
     },
-    handlePreferenceSave(payload) {
-      updateUserPreferences(payload)
+    async loadPersonalization({ preserveOnboarding = false } = {}) {
+      const [preferencesResult, favoritesResult] = await Promise.allSettled([
+        getUserPreferences(),
+        listFavoriteCases(),
+      ])
+      if (preferencesResult.status === 'fulfilled') {
+        updateUserPreferences(preferencesResult.value, { closeOnboarding: !preserveOnboarding })
+      }
+      if (favoritesResult.status === 'fulfilled') {
+        setUserFavoriteCases(favoritesResult.value)
+      }
     },
-    handlePreferenceSkip() {
-      skipUserPreferences()
+    async handlePreferenceSave(payload) {
+      this.preferenceSaving = true
+      this.preferenceError = ''
+      try {
+        const preferences = await saveUserPreferences(payload)
+        const selectedNames = this.preferenceTagOptions
+          .filter((tag) => preferences.tagIds.includes(Number(tag.id)))
+          .map((tag) => tag.name)
+        updateUserPreferences({
+          ...preferences,
+          tags: preferences.tags.length ? preferences.tags : selectedNames,
+        })
+      } catch (error) {
+        this.preferenceError = error?.message || 'Не удалось сохранить предпочтения.'
+      } finally {
+        this.preferenceSaving = false
+      }
+    },
+    async handlePreferenceSkip() {
+      this.preferenceSaving = true
+      this.preferenceError = ''
+      try {
+        await saveUserPreferences()
+        skipUserPreferences()
+      } catch (error) {
+        this.preferenceError = error?.message || 'Не удалось сохранить предпочтения.'
+      } finally {
+        this.preferenceSaving = false
+      }
     },
     async handleLogout() {
       try {
