@@ -2,7 +2,12 @@
   <header class="header">
     <div class="container header-inner">
       <router-link class="brand" :to="homeRoute">
-        <img class="brand-logo" :src="logoSrc" alt="Логотип Alfa" />
+        <img
+          class="brand-logo"
+          :class="{ 'brand-logo-light': theme === 'light' }"
+          :src="logoSrc"
+          alt="Логотип Alfa"
+        />
         <span class="brand-text">AlfaCaseBot</span>
       </router-link>
 
@@ -136,6 +141,10 @@ export default {
   height: 30px;
   object-fit: cover;
   filter: grayscale(1) contrast(1.4);
+}
+
+.brand-logo-light {
+  filter: none;
 }
 
 .brand-text {

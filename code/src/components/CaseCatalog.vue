@@ -129,7 +129,7 @@ export default {
   margin: 0;
   max-width: 100%;
   font-size: clamp(2.5rem, 4vw, 4.5rem);
-  line-height: 0.88;
+  line-height: 1;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }

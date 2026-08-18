@@ -1,8 +1,8 @@
 ﻿<template>
   <section class="hero">
     <div class="hero-index" aria-hidden="true">
-      <span>01</span>
-      <span>CASE TRAINING</span>
+      <span class="hero-wordmark">CASE</span>
+      <span>ALFA CASE BOT</span>
     </div>
     <div class="hero-content">
       <p class="badge">Практика / Аналитика / Решения</p>
@@ -53,12 +53,11 @@ export default {
   letter-spacing: 0.08em;
 }
 
-.hero-index span:first-child {
+.hero-wordmark {
   font-family: var(--display-font);
-  font-size: clamp(5rem, 12vw, 11rem);
-  line-height: 0.75;
-  letter-spacing: -0.08em;
-  writing-mode: vertical-rl;
+  font-size: clamp(3.2rem, 5vw, 4.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
 }
 
 .hero-content {
@@ -112,7 +111,7 @@ h1 em { color: var(--primary); font-style: normal; }
     border-bottom: 1px solid var(--border);
     flex-direction: row;
   }
-  .hero-index span:first-child { font-size: 3.4rem; writing-mode: initial; }
+  .hero-wordmark { font-size: 2.6rem; }
   .hero-content { padding: 28px 20px 36px; }
   h1 { font-size: clamp(2.7rem, 15vw, 5rem); }
 }
