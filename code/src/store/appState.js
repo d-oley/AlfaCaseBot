@@ -163,26 +163,28 @@ const persistUserData = (prevLogin = '') => {
 }
 
 const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
+const normalizeTagName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU')
 
 const calcRecommendedCase = () => {
-  const tagIds = new Set(appState.user.preferences?.tagIds || [])
-  const tags = new Set(appState.user.preferences?.tags || [])
+  const tagIds = new Set((appState.user.preferences?.tagIds || []).map(Number))
+  const tags = new Set((appState.user.preferences?.tags || []).map(normalizeTagName).filter(Boolean))
   const diff = diffDiffMap[appState.user.preferences?.difficulty] || ''
   if (!tagIds.size && !tags.size && !diff) return null
 
   const solved = new Set(appState.userSolvedCases.map(e => Number(e.caseId)))
   const ranked = appState.cases
-    .filter(c => !solved.has(c.id))
     .map(c => {
       let score = 0
-      const matchingTags = (c.tags || []).filter((tag) => tags.has(tag)).length
+      const matchingTags = (c.tags || [])
+        .map(normalizeTagName)
+        .filter((tag) => tags.has(tag)).length
       const matchingTagIds = (c.tagIds || []).filter((id) => tagIds.has(Number(id))).length
       score += Math.max(matchingTags, matchingTagIds) * 3
       if (diff && c.difficulty === diff) score += 2
-      return { id: c.id, score }
+      return { id: c.id, score, solved: solved.has(Number(c.id)) }
     })
     .filter(c => c.score > 0)
-    .sort((a, b) => b.score - a.score || a.id - b.id)
+    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.score - a.score || a.id - b.id)
   
   return ranked[0]?.id || null
 }
@@ -382,6 +384,7 @@ export const saveSolvedCase = (id, score, extra = {}) => {
     appState.userSolvedCases = [...appState.userSolvedCases, entry]
   }
   persistUserData()
+  appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const getSolvedCases = () =>
