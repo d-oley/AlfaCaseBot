@@ -1,6 +1,9 @@
 ﻿<template>
   <div class="container chat-page">
     <section class="card chat-card">
+      <router-link class="back-link" :to="`/case/${caseId}`">
+        <span aria-hidden="true">←</span> К описанию кейса
+      </router-link>
       <header class="chat-header">
         <div class="case-heading">
           <h1>Чат по кейсу: {{ caseTitle }}</h1>
@@ -253,9 +256,10 @@ export default {
 
 <style scoped>
 .chat-card {
-  padding: clamp(14px, 2.8vw, 20px);
+  padding: clamp(18px, 3vw, 32px);
   display: grid;
   gap: 14px;
+  border-top-width: 5px;
 }
 
 .chat-header {
@@ -268,8 +272,24 @@ export default {
 
 .chat-header h1 {
   margin: 0;
-  font-size: clamp(1.15rem, 2.8vw, 1.4rem);
+  font-size: clamp(1.7rem, 4vw, 3.8rem);
+  line-height: .95;
+  text-transform: uppercase;
 }
+
+.back-link {
+  width: fit-content;
+  color: var(--text-main);
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.back-link span { margin-right: 8px; color: var(--primary); font-size: 1.2rem; }
+.back-link:hover { text-decoration: underline; text-underline-offset: 5px; }
 
 .case-heading {
   display: flex;
@@ -283,7 +303,7 @@ export default {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--primary);
   color: #fff;
   font-weight: 700;
@@ -299,8 +319,8 @@ export default {
   max-height: 420px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 0;
+  padding: 18px;
   display: grid;
   gap: 8px;
   background: var(--chat-bg);
@@ -311,14 +331,16 @@ export default {
   width: fit-content;
   max-width: min(80%, 560px);
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 0;
+  border: 1px solid var(--border);
   background: var(--surface-bot-message);
   justify-self: start;
 }
 
 .message.user {
   justify-self: end;
-  background: var(--surface-user-message);
+  background: var(--primary);
+  color: #fff;
 }
 
 .message.bot {
@@ -360,7 +382,7 @@ export default {
 .chat-form textarea {
   flex: 1;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 12px;
   font-size: 0.95rem;
   font-family: inherit;
@@ -405,7 +427,7 @@ export default {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--secondary-bg);
   color: var(--text-main);
   cursor: pointer;

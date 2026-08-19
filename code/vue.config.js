@@ -15,6 +15,11 @@ module.exports = defineConfig({
   devServer: {
     port: Number(process.env.PORT || 8081),
     allowedHosts: ['localhost', '127.0.0.1', publicHostname],
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
     // HMR through a public tunnel may reconnect as a page reload loop. It is
     // disabled for the public demo and remains available for localhost work.
     hot: hmrEnabled,

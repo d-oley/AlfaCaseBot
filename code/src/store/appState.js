@@ -19,7 +19,20 @@ const difficultyPreferenceOptions = [
   { value: 'hard', label: 'Я люблю посложнее' },
 ]
 
-const getDefaultPreferences = () => ({ tag: '', difficulty: '' })
+const getDefaultPreferences = () => ({ tagIds: [], tags: [], difficulty: '' })
+
+const normalizePreferences = (value = {}) => ({
+  tagIds: [...new Set(
+    (Array.isArray(value.tagIds) ? value.tagIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+  )],
+  tags: [...new Set([
+    ...(Array.isArray(value.tags) ? value.tags : []),
+    ...(value.tag ? [value.tag] : []),
+  ].filter(Boolean))],
+  difficulty: value.difficulty || '',
+})
 
 const getDefaultUser = () => ({
   id: null, username: '', email: '', login: '', nickname: '',
@@ -58,7 +71,7 @@ const getLocalUserData = (userLike) => {
   return {
     ...getDefaultLocalUserData(),
     ...saved,
-    preferences: { ...getDefaultPreferences(), ...saved.preferences },
+    preferences: normalizePreferences(saved.preferences),
     userSolvedCases: [...(saved.userSolvedCases || [])],
     userFavoriteCaseIds: [...(saved.userFavoriteCaseIds || [])],
     viewedCaseIds: [...(saved.viewedCaseIds || [])],
@@ -74,11 +87,10 @@ const buildUserFromSession = () => {
     ...getDefaultUser(),
     ...session.user,
     ...local,
-    preferences: {
-      ...getDefaultPreferences(),
+    preferences: normalizePreferences({
       ...session.user?.preferences,
       ...local.preferences,
-    },
+    }),
   }
 }
 
@@ -139,7 +151,7 @@ const persistUserData = (prevLogin = '') => {
     cityId: appState.user.cityId ?? null,
     city: appState.user.city || '',
     region: appState.user.region || '',
-    preferences: { ...getDefaultPreferences(), ...appState.user.preferences },
+    preferences: normalizePreferences(appState.user.preferences),
     userSolvedCases: [...appState.userSolvedCases],
     userFavoriteCaseIds: [...appState.userFavoriteCaseIds],
     viewedCaseIds: [...appState.viewedCaseIds],
@@ -151,23 +163,28 @@ const persistUserData = (prevLogin = '') => {
 }
 
 const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
+const normalizeTagName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU')
 
 const calcRecommendedCase = () => {
-  const tag = appState.user.preferences?.tag || ''
+  const tagIds = new Set((appState.user.preferences?.tagIds || []).map(Number))
+  const tags = new Set((appState.user.preferences?.tags || []).map(normalizeTagName).filter(Boolean))
   const diff = diffDiffMap[appState.user.preferences?.difficulty] || ''
-  if (!tag && !diff) return null
+  if (!tagIds.size && !tags.size && !diff) return null
 
   const solved = new Set(appState.userSolvedCases.map(e => Number(e.caseId)))
   const ranked = appState.cases
-    .filter(c => !solved.has(c.id))
     .map(c => {
       let score = 0
-      if (tag && c.tags.includes(tag)) score += 3
+      const matchingTags = (c.tags || [])
+        .map(normalizeTagName)
+        .filter((tag) => tags.has(tag)).length
+      const matchingTagIds = (c.tagIds || []).filter((id) => tagIds.has(Number(id))).length
+      score += Math.max(matchingTags, matchingTagIds) * 3
       if (diff && c.difficulty === diff) score += 2
-      return { id: c.id, score }
+      return { id: c.id, score, solved: solved.has(Number(c.id)) }
     })
     .filter(c => c.score > 0)
-    .sort((a, b) => b.score - a.score || a.id - b.id)
+    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.score - a.score || a.id - b.id)
   
   return ranked[0]?.id || null
 }
@@ -190,11 +207,10 @@ export const hydrateUser = (payload, opts = {}) => {
     region: payload.region ?? local.region ?? '',
     rank: payload.rank ?? local.rank ?? 0,
     avatarUrl: payload.avatarUrl || '',
-    preferences: {
-      ...getDefaultPreferences(),
+    preferences: normalizePreferences({
       ...payload.preferences,
       ...local.preferences,
-    },
+    }),
   }
   appState.userSolvedCases = [...(local.userSolvedCases || [])]
   appState.userFavoriteCaseIds = [...(local.userFavoriteCaseIds || [])]
@@ -287,16 +303,16 @@ export const updateUserProfile = (payload) => {
     login: nextLogin || '',
     nickname: payload.nickname ?? nextLogin ?? '',
     username: payload.username ?? appState.user.username ?? '',
-    preferences: { ...getDefaultPreferences(), ...appState.user.preferences, ...payload.preferences },
+    preferences: normalizePreferences({ ...appState.user.preferences, ...payload.preferences }),
   }
 
   persistUserData(prevKey)
   appState.recommendedCaseId = calcRecommendedCase()
 }
 
-export const updateUserPreferences = (payload = {}) => {
-  appState.user.preferences = { ...getDefaultPreferences(), ...appState.user.preferences, ...payload }
-  appState.shouldShowPreferencesOnboarding = false
+export const updateUserPreferences = (payload = {}, { closeOnboarding = true } = {}) => {
+  appState.user.preferences = normalizePreferences(payload)
+  if (closeOnboarding) appState.shouldShowPreferencesOnboarding = false
   persistUserData()
   appState.recommendedCaseId = calcRecommendedCase()
 }
@@ -325,15 +341,26 @@ export const markCaseViewed = (id) => {
 
 export const isCaseFavorite = (id) => appState.userFavoriteCaseIds.includes(Number(id))
 
-export const toggleCaseFavorite = (id) => {
+export const setUserFavoriteCases = (cases = []) => {
+  appState.userFavoriteCaseIds = [...new Set(
+    cases.map((item) => Number(item?.id ?? item)).filter((id) => Number.isFinite(id) && id > 0)
+  )]
+  persistUserData()
+}
+
+export const setCaseFavorite = (id, favorite) => {
   const num = Number(id)
-  if (isCaseFavorite(num)) {
-    appState.userFavoriteCaseIds = appState.userFavoriteCaseIds.filter(x => x !== num)
-  } else {
-    appState.userFavoriteCaseIds = [...appState.userFavoriteCaseIds, num]
-  }
+  if (!Number.isFinite(num) || num <= 0) return false
+  const ids = new Set(appState.userFavoriteCaseIds)
+  if (favorite) ids.add(num)
+  else ids.delete(num)
+  appState.userFavoriteCaseIds = [...ids]
   persistUserData()
   return isCaseFavorite(num)
+}
+
+export const toggleCaseFavorite = (id) => {
+  return setCaseFavorite(id, !isCaseFavorite(id))
 }
 
 export const getFavoriteCases = () =>
@@ -357,6 +384,7 @@ export const saveSolvedCase = (id, score, extra = {}) => {
     appState.userSolvedCases = [...appState.userSolvedCases, entry]
   }
   persistUserData()
+  appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const getSolvedCases = () =>
@@ -371,7 +399,16 @@ export const getSolvedCases = () =>
 export const getRoleOptions = () => [...roleOptions]
 export const getRoleLabel = (val) => roleOptions.find(o => o.value === val)?.label || 'Не указан'
 export const getDifficultyPreferenceOptions = () => [...difficultyPreferenceOptions]
-export const getPreferenceTagOptions = () => [...new Set(appState.cases.flatMap(c => c.tags))].sort()
+export const getPreferenceTagOptions = () => {
+  const tags = new Map()
+  appState.cases.forEach((caseItem) => {
+    (caseItem.tags || []).forEach((name, index) => {
+      const id = Number(caseItem.tagIds?.[index])
+      if (name && Number.isFinite(id) && id > 0) tags.set(id, { id, name })
+    })
+  })
+  return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+}
 
 export const getAchievementsForUser = () => {
   const solved = appState.userSolvedCases

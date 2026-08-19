@@ -46,7 +46,8 @@ export default {
 
 <style scoped>
 .leaderboard {
-  padding: 20px;
+  padding: 24px;
+  border-top-width: 4px;
 }
 
 .header-row {
@@ -64,6 +65,7 @@ export default {
   letter-spacing: 0.08em;
   font-size: 0.75rem;
   color: var(--text-muted);
+  font-family: var(--mono-font);
 }
 
 .header-row h2 {
@@ -77,7 +79,8 @@ export default {
 
 .table {
   display: grid;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid var(--border);
 }
 
 .row {
@@ -85,23 +88,26 @@ export default {
   grid-template-columns: 92px minmax(0, 1.6fr) minmax(0, 1fr) 110px;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
   align-items: center;
 }
 
 .row-head {
   background: transparent;
-  border: 0;
-  padding: 0 2px;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 14px;
+  font-family: var(--mono-font);
+  text-transform: uppercase;
   font-size: 0.82rem;
   color: var(--text-muted);
 }
 
 .row.current {
-  border-color: var(--primary);
-  background: var(--surface-tab-active);
+  background: var(--primary);
+  color: #fff;
 }
 
 .empty-state {

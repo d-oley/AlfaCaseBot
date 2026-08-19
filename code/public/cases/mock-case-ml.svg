@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#11110f"/>
+  <path d="M0 70h400M320 0v300" stroke="#ed2c20" stroke-width="4"/>
+  <text x="34" y="155" fill="#fff" font-family="Arial,sans-serif" font-size="64" font-weight="700">ML</text>
+  <text x="34" y="192" fill="#ed2c20" font-family="monospace" font-size="18">SCORING</text>
+</svg>
