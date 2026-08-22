@@ -728,6 +728,27 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .switchable-card {
+    padding-inline: 16px;
+  }
+
+  .switch-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .switch-tab {
+    min-width: 0;
+    min-height: 58px;
+    padding: 8px 5px;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .switch-tab + .switch-tab {
+    border-left: 0;
+  }
+
   .achievements-grid {
     grid-template-columns: 1fr;
   }

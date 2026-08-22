@@ -247,17 +247,85 @@ export default {
 }
 
 @media (max-width: 560px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 14px 12px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .brand-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .header-controls {
-    width: 100%;
-    flex-wrap: wrap;
+    display: contents;
+  }
+
+  .theme-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .header-actions {
-    width: 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: auto;
   }
 
   .header-actions .btn {
-    flex: 1;
+    min-width: 0;
+    padding-inline: 10px;
+  }
+
+  .header-actions-auth {
+    grid-template-columns: auto auto minmax(90px, 1fr);
+  }
+
+  .user-login,
+  .user-rank {
+    align-self: center;
+  }
+
+  .user-login {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-rank {
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .header-actions-auth {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .header-actions-auth .btn {
+    grid-column: 1 / -1;
   }
 }
 </style>

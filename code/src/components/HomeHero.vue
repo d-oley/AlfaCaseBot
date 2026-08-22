@@ -112,7 +112,33 @@ h1 em { color: var(--primary); font-style: normal; }
     flex-direction: row;
   }
   .hero-wordmark { font-size: 2.6rem; }
-  .hero-content { padding: 28px 20px 36px; }
-  h1 { font-size: clamp(2.7rem, 15vw, 5rem); }
+  .hero-content {
+    min-width: 0;
+    padding: 28px 20px 36px;
+  }
+  h1 {
+    font-size: clamp(2.35rem, 11.5vw, 3.7rem);
+    line-height: 0.9;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero-index {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-index > span:last-child {
+    font-size: 0.72rem;
+    text-align: right;
+  }
+
+  .hero-content {
+    padding-inline: 16px;
+  }
+
+  h1 {
+    font-size: clamp(2.1rem, 11.2vw, 2.7rem);
+  }
 }
 </style>
