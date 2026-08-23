@@ -63,6 +63,8 @@ const errors = {
   'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
   'Verification session expired.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Invalid or expired verification session.': 'Сессия подтверждения истекла. Начните регистрацию заново',
+  'Account is already verified': 'Аккаунт уже подтверждён. Войдите в него',
+  'Invalid email or username': 'Неверно указан email или логин',
   'Account is not verified': 'Подтвердите email перед входом',
   'Backend недоступен': 'Сервис временно недоступен',
 }
@@ -414,6 +416,38 @@ export const registerRequest = ({ username, email, password, birthdate, status, 
     body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
   })
 
+export const resendVerificationEmail = ({ username, email, password, validationMethod = 'EMAIL' }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resendEmail`), {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password, validationMethod }),
+    })
+
+export const forgotUsername = ({ email }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotUsername`), {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+
+export const forgotPasswordInit = ({ email, username }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email, username })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/init`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username }),
+    })
+
+export const forgotPasswordConfirm = ({ email, username, code, newPassword }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/confirm`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username, code, newPassword }),
+    })
+
 export const loginRequest = ({ username, password }) =>
   USE_MOCK_API
     ? Promise.resolve().then(() => {
@@ -741,6 +775,30 @@ export const getUserProfileById = (id) =>
     ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id) })
     : request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
 
+const normalizeAchievement = (item = {}) => ({
+  id: Number(item.id),
+  title: item.name || '',
+  description: item.description || '',
+  iconUrl: getCaseAssetUrl(item.iconUrl),
+  obtainedAt: item.obtainedAt || null,
+  active: Boolean(item.obtainedAt),
+  progress: item.obtainedAt ? 'Получено' : 'Пока не получено',
+})
+
+export const listMyAchievements = async () => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/achievements`))
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
+export const listUserAchievements = async (id) => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/${encodeURIComponent(id)}/achievements`)
+  )
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
 export const getCurrentUserProfile = () => {
   if (USE_MOCK_API) {
     return Promise.resolve().then(() => {
@@ -781,7 +839,7 @@ export const getCaseChatSequence = async (caseId) => {
   })
 }
 
-export const evaluateCaseSolution = ({ text, caseId }) =>
+export const evaluateCaseSolution = ({ text, caseId, solveMinutes }) =>
   USE_MOCK_API
     ? Promise.resolve({
         status: 'accepted',
@@ -791,7 +849,7 @@ export const evaluateCaseSolution = ({ text, caseId }) =>
       })
     : mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
         method: 'POST',
-        body: JSON.stringify({ text, case_id: caseId }),
+        body: JSON.stringify({ text, case_id: caseId, solved_min: solveMinutes }),
       })
 
 export const isNotFoundError = (error) => {

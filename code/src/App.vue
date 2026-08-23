@@ -59,6 +59,7 @@ import {
   getUserPreferences,
   listCases,
   listFavoriteCases,
+  listMyAchievements,
   logoutRequest,
   mapApiProfileToState,
   saveUserPreferences,
@@ -71,6 +72,7 @@ import {
   registerUser,
   skipUserPreferences,
   setUserFavoriteCases,
+  setUserAchievements,
   showBanNotice,
   updateUserPreferences,
   getDifficultyPreferenceOptions,
@@ -166,15 +168,19 @@ export default {
       this.closeModal()
     },
     async loadPersonalization({ preserveOnboarding = false } = {}) {
-      const [preferencesResult, favoritesResult] = await Promise.allSettled([
+      const [preferencesResult, favoritesResult, achievementsResult] = await Promise.allSettled([
         getUserPreferences(),
         listFavoriteCases(),
+        listMyAchievements(),
       ])
       if (preferencesResult.status === 'fulfilled') {
         updateUserPreferences(preferencesResult.value, { closeOnboarding: !preserveOnboarding })
       }
       if (favoritesResult.status === 'fulfilled') {
         setUserFavoriteCases(favoritesResult.value)
+      }
+      if (achievementsResult.status === 'fulfilled') {
+        setUserAchievements(achievementsResult.value)
       }
     },
     async handlePreferenceSave(payload) {

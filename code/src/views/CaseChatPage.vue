@@ -200,9 +200,11 @@ export default {
       this.resetMessageInputHeight()
 
       try {
+        const solveMinutes = this.buildSolveMinutes()
         const response = await evaluateCaseSolution({
           text,
           caseId: this.caseId,
+          solveMinutes,
         })
 
         this.messages.push({
@@ -218,7 +220,7 @@ export default {
 
         if (typeof response.rating === 'number' && this.appState.isAuthenticated) {
           saveSolvedCaseResult(this.caseId, response.rating, {
-            solveMinutes: this.buildSolveMinutes(),
+            solveMinutes,
           })
         }
       } catch (error) {
