@@ -51,7 +51,7 @@ h2 {
   padding: 18px 0;
   border-top: 4px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: clamp(1.8rem, 3.2vw, 3.2rem);
   text-transform: uppercase;
 }
 
@@ -62,7 +62,7 @@ h2 {
 }
 
 .benefit-card {
-  min-height: 220px;
+  min-height: 180px;
   padding: 24px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -76,7 +76,7 @@ h2 {
 
 h3 {
   margin: 0 0 8px;
-  font-size: clamp(1.35rem, 2.5vw, 2.2rem);
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
   text-transform: uppercase;
 }
 

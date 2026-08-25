@@ -59,6 +59,9 @@
           <button class="btn btn-primary" type="submit" :disabled="!isVerificationCodeValid || loading">
             {{ loading ? 'Проверяем...' : 'Подтвердить и войти' }}
           </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="handleResendVerification">
+            Отправить код ещё раз
+          </button>
           <button class="btn btn-secondary" type="button" :disabled="loading" @click="resetVerification">
             Изменить данные регистрации
           </button>
@@ -145,6 +148,7 @@ import {
   logoutRequest,
   mapApiProfileToState,
   registerRequest,
+  resendVerificationEmail,
   verifyEmail,
 } from '@/api/authApi'
 import { getRoleOptions } from '@/store/appState'
@@ -464,6 +468,29 @@ export default {
         this.errorMessage = message.includes('CORS') || message.includes('ERR_')
           ? 'Не удалось подтвердить email. Попробуйте ещё раз.'
           : message
+      } finally {
+        this.loading = false
+      }
+    },
+    async handleResendVerification() {
+      if (!this.pendingVerification || this.loading) return
+
+      this.loading = true
+      this.resetMessages()
+      try {
+        const result = await resendVerificationEmail({
+          username: this.pendingVerification.username,
+          email: this.pendingVerification.email,
+          password: this.pendingVerification.password,
+        })
+        this.pendingVerification = {
+          ...this.pendingVerification,
+          id: result?.id || this.pendingVerification.id,
+        }
+        this.verificationCode = ''
+        this.message = 'Новый код подтверждения отправлен на email.'
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось повторно отправить код.'
       } finally {
         this.loading = false
       }

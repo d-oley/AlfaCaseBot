@@ -33,7 +33,7 @@ export default {
 
 <style scoped>
 .hero {
-  min-height: min(620px, 70vh);
+  min-height: min(520px, 64vh);
   display: grid;
   grid-template-columns: minmax(180px, 0.34fr) 1fr;
   border: 1px solid var(--border);
@@ -55,13 +55,13 @@ export default {
 
 .hero-wordmark {
   font-family: var(--display-font);
-  font-size: clamp(3.2rem, 5vw, 4.5rem);
+  font-size: clamp(2.7rem, 4vw, 3.7rem);
   line-height: 0.9;
   letter-spacing: -0.04em;
 }
 
 .hero-content {
-  padding: clamp(28px, 6vw, 76px);
+  padding: clamp(24px, 4.5vw, 56px);
   align-self: center;
 }
 
@@ -77,7 +77,7 @@ export default {
 h1 {
   margin: 0 0 28px;
   max-width: 950px;
-  font-size: clamp(3rem, 7.2vw, 7.4rem);
+  font-size: clamp(2.7rem, 5.8vw, 5.9rem);
   line-height: 0.86;
   text-transform: uppercase;
 }
@@ -88,7 +88,7 @@ h1 em { color: var(--primary); font-style: normal; }
   margin: 0;
   max-width: 620px;
   color: var(--text-muted);
-  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  font-size: clamp(1rem, 1.45vw, 1.15rem);
   line-height: 1.45;
 }
 
@@ -112,7 +112,33 @@ h1 em { color: var(--primary); font-style: normal; }
     flex-direction: row;
   }
   .hero-wordmark { font-size: 2.6rem; }
-  .hero-content { padding: 28px 20px 36px; }
-  h1 { font-size: clamp(2.7rem, 15vw, 5rem); }
+  .hero-content {
+    min-width: 0;
+    padding: 28px 20px 36px;
+  }
+  h1 {
+    font-size: clamp(2.35rem, 11.5vw, 3.7rem);
+    line-height: 0.9;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero-index {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-index > span:last-child {
+    font-size: 0.72rem;
+    text-align: right;
+  }
+
+  .hero-content {
+    padding-inline: 16px;
+  }
+
+  h1 {
+    font-size: clamp(2.1rem, 11.2vw, 2.7rem);
+  }
 }
 </style>

@@ -87,7 +87,7 @@ export default {
   border-bottom: 1px solid var(--border);
 }
 .podium-heading p { margin: 0; color: var(--primary); font-family: var(--mono-font); font-size: .72rem; text-transform: uppercase; }
-.podium h2 { margin: 0; font-size: clamp(2rem, 4vw, 4rem); text-transform: uppercase; line-height: .9; }
+.podium h2 { margin: 0; font-size: clamp(1.8rem, 3.2vw, 3.2rem); text-transform: uppercase; line-height: .9; }
 
 .podium-grid {
   display: grid;
@@ -95,7 +95,7 @@ export default {
 }
 
 .podium-user {
-  min-height: 88px;
+  min-height: 74px;
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
   background: transparent;
@@ -126,7 +126,7 @@ export default {
 .points {
   margin: 0;
 }
-.place { font-family: var(--display-font); font-size: 2.6rem; color: var(--primary); }
+.place { font-family: var(--display-font); font-size: 2.1rem; color: var(--primary); }
 
 .name {
   font-weight: 700;
@@ -138,7 +138,7 @@ export default {
   color: var(--text-muted);
 }
 .login { font-family: var(--mono-font); font-size: .78rem; }
-.points { color: var(--text-main); font-family: var(--display-font); font-size: 1.8rem; text-align: right; }
+.points { color: var(--text-main); font-family: var(--display-font); font-size: 1.5rem; text-align: right; }
 .points small { font-family: Arial, sans-serif; font-size: .7rem; text-transform: uppercase; }
 
 @media (max-width: 700px) {

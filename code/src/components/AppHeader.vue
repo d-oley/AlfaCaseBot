@@ -122,7 +122,7 @@ export default {
 }
 
 .header-inner {
-  min-height: 70px;
+  min-height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -137,8 +137,8 @@ export default {
 }
 
 .brand-logo {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   object-fit: cover;
   filter: grayscale(1) contrast(1.4);
 }
@@ -157,7 +157,7 @@ export default {
 .nav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .nav-link {
@@ -185,8 +185,8 @@ export default {
 }
 
 .theme-toggle {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
@@ -198,8 +198,8 @@ export default {
 }
 
 .theme-toggle svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .header-actions {
@@ -247,17 +247,85 @@ export default {
 }
 
 @media (max-width: 560px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 14px 12px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .brand-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .header-controls {
-    width: 100%;
-    flex-wrap: wrap;
+    display: contents;
+  }
+
+  .theme-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .header-actions {
-    width: 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: auto;
   }
 
   .header-actions .btn {
-    flex: 1;
+    min-width: 0;
+    padding-inline: 10px;
+  }
+
+  .header-actions-auth {
+    grid-template-columns: auto auto minmax(90px, 1fr);
+  }
+
+  .user-login,
+  .user-rank {
+    align-self: center;
+  }
+
+  .user-login {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-rank {
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .header-actions-auth {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .header-actions-auth .btn {
+    grid-column: 1 / -1;
   }
 }
 </style>

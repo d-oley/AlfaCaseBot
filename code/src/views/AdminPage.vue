@@ -595,8 +595,10 @@ export default {
       if (this.isUserSaving) return
 
       const isEditing = Boolean(this.userForm.id)
-      if (!isEditing && (!this.userForm.login || !this.userForm.email || !this.userForm.password)) {
-        this.userError = 'Для нового пользователя заполните логин, email и пароль.'
+      if (!this.userForm.email || (!isEditing && (!this.userForm.login || !this.userForm.password))) {
+        this.userError = isEditing
+          ? 'Для сохранения пользователя укажите email.'
+          : 'Для нового пользователя заполните логин, email и пароль.'
         return
       }
 
@@ -606,7 +608,7 @@ export default {
       try {
         if (isEditing) {
           const payload = {
-            ...(this.userForm.email ? { email: this.userForm.email } : {}),
+            email: this.userForm.email,
             ...(this.userForm.firstName ? { firstName: this.userForm.firstName } : {}),
             ...(this.userForm.lastName ? { lastName: this.userForm.lastName } : {}),
             ...(this.userForm.middleName ? { middleName: this.userForm.middleName } : {}),
@@ -1031,8 +1033,8 @@ h2 {
 
 /* Editorial admin workspace */
 .admin-page { gap: 24px; }
-.admin-login, .admin-console { padding: clamp(20px, 3vw, 36px); }
-h1 { font-size: clamp(2.2rem, 5vw, 5rem); line-height: 0.9; text-transform: uppercase; }
+.admin-login, .admin-console { padding: clamp(18px, 2.5vw, 28px); }
+h1 { font-size: clamp(2rem, 4vw, 4rem); line-height: 0.9; text-transform: uppercase; }
 .tabs { gap: 0; border-bottom: 1px solid var(--border); }
 .tab-btn { border-radius: 0; border-bottom: 0; }
 .tab-btn.active { border-color: var(--primary); background: var(--primary); color: #fff !important; }

@@ -5,6 +5,8 @@ const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 const CASE_ASSET_URL = process.env.VUE_APP_CASE_ASSET_BASE_URL || ''
 const USE_MOCK_API = String(process.env.VUE_APP_USE_MOCK_API || '').toLowerCase() === 'true'
 const MOCK_SESSION_KEY = 'alfacasebot-mock-session'
+const mockSolvingKey = (caseId) => `alfacasebot-mock-solving-${Number(caseId)}`
+const mockCompletionKey = (caseId) => `alfacasebot-mock-completed-${Number(caseId)}`
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
@@ -40,6 +42,7 @@ const errors = {
   'this case is already in your favourites': 'Кейс уже добавлен в избранное',
   'this case is not in your favourites': 'Кейса уже нет в избранном',
   'Case is not active': 'Этот кейс сейчас недоступен',
+  'Case is already solved': 'Этот кейс уже завершён',
   'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
@@ -63,6 +66,8 @@ const errors = {
   'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
   'Verification session expired.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Invalid or expired verification session.': 'Сессия подтверждения истекла. Начните регистрацию заново',
+  'Account is already verified': 'Аккаунт уже подтверждён. Войдите в него',
+  'Invalid email or username': 'Неверно указан email или логин',
   'Account is not verified': 'Подтвердите email перед входом',
   'Backend недоступен': 'Сервис временно недоступен',
 }
@@ -414,6 +419,38 @@ export const registerRequest = ({ username, email, password, birthdate, status, 
     body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
   })
 
+export const resendVerificationEmail = ({ username, email, password, validationMethod = 'EMAIL' }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resendEmail`), {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password, validationMethod }),
+    })
+
+export const forgotUsername = ({ email }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotUsername`), {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+
+export const forgotPasswordInit = ({ email, username }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email, username })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/init`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username }),
+    })
+
+export const forgotPasswordConfirm = ({ email, username, code, newPassword }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/confirm`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username, code, newPassword }),
+    })
+
 export const loginRequest = ({ username, password }) =>
   USE_MOCK_API
     ? Promise.resolve().then(() => {
@@ -741,6 +778,30 @@ export const getUserProfileById = (id) =>
     ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id) })
     : request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
 
+const normalizeAchievement = (item = {}) => ({
+  id: Number(item.id),
+  title: item.name || '',
+  description: item.description || '',
+  iconUrl: getCaseAssetUrl(item.iconUrl),
+  obtainedAt: item.obtainedAt || null,
+  active: Boolean(item.obtainedAt),
+  progress: item.obtainedAt ? 'Получено' : 'Пока не получено',
+})
+
+export const listMyAchievements = async () => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/achievements`))
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
+export const listUserAchievements = async (id) => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/${encodeURIComponent(id)}/achievements`)
+  )
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
 export const getCurrentUserProfile = () => {
   if (USE_MOCK_API) {
     return Promise.resolve().then(() => {
@@ -778,6 +839,46 @@ export const getCaseChatSequence = async (caseId) => {
   }
   return loadAllPages({
     path: `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`,
+  })
+}
+
+export const startCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    if (localStorage.getItem(mockCompletionKey(caseId))) {
+      throw buildRequestError({ message: 'Case is already solved', status: 400 })
+    }
+    const key = mockSolvingKey(caseId)
+    const timestamp = localStorage.getItem(key) || new Date().toISOString()
+    localStorage.setItem(key, timestamp)
+    return Promise.resolve({ active: true, completed: false, bestRating: 0, timestamp })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/startSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
+  })
+}
+
+export const getCaseSolvingState = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const timestamp = localStorage.getItem(mockSolvingKey(caseId))
+    const completed = localStorage.getItem(mockCompletionKey(caseId)) === 'true'
+    return Promise.resolve({ active: Boolean(timestamp), completed, bestRating: 0, timestamp })
+  }
+  return request(
+    withBaseUrl(API_URL, `${TEXT_PREFIX}/solvingState/${encodeURIComponent(caseId)}`)
+  )
+}
+
+export const finishCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    localStorage.removeItem(mockSolvingKey(caseId))
+    localStorage.setItem(mockCompletionKey(caseId), 'true')
+    return Promise.resolve({ active: false, completed: true, bestRating: 0, timestamp: null })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/finishSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
   })
 }
 
