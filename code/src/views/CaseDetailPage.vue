@@ -42,6 +42,42 @@
       </div>
     </section>
 
+    <section v-if="caseItem" class="card perfect-solution-card">
+      <p class="case-code">Эталонное решение</p>
+      <h2>Сверьте свой подход с эталоном</h2>
+
+      <p v-if="!appState.isAuthenticated" class="perfect-solution-note">
+        Эталонное решение будет доступно после входа и завершения кейса.
+      </p>
+      <p v-else-if="solvingStateLoading" class="perfect-solution-note">
+        Проверяем, завершён ли кейс...
+      </p>
+      <p v-else-if="solvingStateError" class="leaderboard-error" role="alert">
+        {{ solvingStateError }}
+      </p>
+      <p v-else-if="!isCaseCompleted" class="perfect-solution-note">
+        Эталонное решение будет доступно только после завершения кейса.
+      </p>
+      <template v-else>
+        <button
+          v-if="perfectSolution === null"
+          class="btn btn-secondary"
+          type="button"
+          :disabled="perfectSolutionLoading"
+          @click="loadPerfectSolution"
+        >
+          {{ perfectSolutionLoading ? 'Загружаем...' : 'Посмотреть эталонное решение' }}
+        </button>
+        <p v-if="perfectSolutionError" class="leaderboard-error" role="alert">
+          {{ perfectSolutionError }}
+        </p>
+        <div v-if="perfectSolution !== null" class="perfect-solution-text">
+          <p v-if="perfectSolution">{{ perfectSolution }}</p>
+          <p v-else>Для этого кейса эталонное решение пока не добавлено.</p>
+        </div>
+      </template>
+    </section>
+
     <p v-if="leaderboardError" class="leaderboard-error">{{ leaderboardError }}</p>
     <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
 
@@ -61,6 +97,8 @@ import {
   addFavoriteCase,
   getCaseAssetUrl,
   getCaseByIdRequest,
+  getCasePerfectSolution,
+  getCaseSolvingState,
   listCaseLeaderboard,
   removeFavoriteCase,
 } from '@/api/authApi'
@@ -80,12 +118,19 @@ export default {
   },
   data() {
     return {
+      appState,
       leaderboardEntries: [],
       leaderboardError: '',
       caseLoading: false,
       caseError: '',
       favoriteSaving: false,
       favoriteError: '',
+      solvingStateLoading: false,
+      solvingStateError: '',
+      isCaseCompleted: false,
+      perfectSolution: null,
+      perfectSolutionLoading: false,
+      perfectSolutionError: '',
     }
   },
   computed: {
@@ -100,17 +145,59 @@ export default {
     },
   },
   watch: {
+    'appState.isAuthenticated'(isAuthenticated) {
+      this.resetPerfectSolutionState()
+      if (isAuthenticated && this.caseId) this.loadSolvingState(this.caseId)
+    },
     caseId: {
       immediate: true,
       async handler(value) {
         if (value) {
           markCaseViewed(value)
-          await Promise.all([this.loadCase(value), this.loadLeaderboard(value)])
+          this.resetPerfectSolutionState()
+          await Promise.all([
+            this.loadCase(value),
+            this.loadLeaderboard(value),
+            this.loadSolvingState(value),
+          ])
         }
       },
     },
   },
   methods: {
+    resetPerfectSolutionState() {
+      this.solvingStateLoading = false
+      this.solvingStateError = ''
+      this.isCaseCompleted = false
+      this.perfectSolution = null
+      this.perfectSolutionError = ''
+    },
+    async loadSolvingState(caseId) {
+      if (!appState.isAuthenticated) return
+      this.solvingStateLoading = true
+      this.solvingStateError = ''
+      try {
+        const state = await getCaseSolvingState(caseId)
+        this.isCaseCompleted = Boolean(state?.completed)
+      } catch (error) {
+        this.solvingStateError = error?.message || 'Не удалось проверить состояние решения.'
+      } finally {
+        this.solvingStateLoading = false
+      }
+    },
+    async loadPerfectSolution() {
+      if (!this.isCaseCompleted || this.perfectSolutionLoading) return
+      this.perfectSolutionLoading = true
+      this.perfectSolutionError = ''
+      try {
+        const response = await getCasePerfectSolution(this.caseId)
+        this.perfectSolution = String(response?.perfectSolution || '')
+      } catch (error) {
+        this.perfectSolutionError = error?.message || 'Не удалось загрузить эталонное решение.'
+      } finally {
+        this.perfectSolutionLoading = false
+      }
+    },
     async loadCase(caseId) {
       this.caseLoading = true
       this.caseError = ''
@@ -171,6 +258,42 @@ export default {
 .detail-card {
   padding: clamp(20px, 4vw, 48px);
   border-top-width: 5px;
+}
+
+.perfect-solution-card {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+
+.perfect-solution-card .case-code,
+.perfect-solution-card h2,
+.perfect-solution-card p {
+  margin: 0;
+}
+
+.perfect-solution-card h2 {
+  font-size: clamp(1.5rem, 2.5vw, 2.4rem);
+  text-transform: uppercase;
+}
+
+.perfect-solution-note {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.perfect-solution-text {
+  width: 100%;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface-bot-message);
+}
+
+.perfect-solution-text p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
 }
 
 .back-link {

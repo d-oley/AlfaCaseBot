@@ -268,6 +268,7 @@ export const normalizeCase = (item = {}) => {
     pdfUrl: getCaseAssetUrl(item.pdfUrl),
     iconUrl: getCaseAssetUrl(item.iconUrl),
     promptContextEn: item.promptContextEn || '',
+    perfectSolution: item.perfectSolution || '',
     viewsCount: Number(item.viewsCount || 0),
     active: item.active ?? item.isActive ?? true,
     createdAt: item.createdAt || '',
@@ -334,6 +335,12 @@ const toCaseApiPayload = (item = {}) => ({
   averageSolveMin: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
   promptContextEn: item.promptContextEn || '',
   active: item.active ?? item.isActive ?? true,
+  ...(String(item.perfectSolution || '').trim()
+    ? { perfectSolution: String(item.perfectSolution).trim() }
+    : {}),
+  ...(item.removePerfectSolution !== undefined
+    ? { removePerfectSolution: Boolean(item.removePerfectSolution) }
+    : {}),
   ...(item.removePdf !== undefined ? { removePdf: Boolean(item.removePdf) } : {}),
   ...(item.removeIcon !== undefined ? { removeIcon: Boolean(item.removeIcon) } : {}),
 })
@@ -516,6 +523,24 @@ export const getCaseByIdRequest = async (id) => {
     withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}`)
   )
   return normalizeCase(item)
+}
+
+export const getCasePerfectSolution = async (id) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    if (localStorage.getItem(mockCompletionKey(id)) !== 'true') {
+      throw buildRequestError({ message: 'Case is not solved yet', status: 400 })
+    }
+    const item = mockData.cases.find((caseItem) => Number(caseItem.id) === Number(id))
+    if (!item) throw buildRequestError({ message: 'Кейс не найден', status: 404 })
+    return {
+      caseId: Number(id),
+      perfectSolution: item.perfectSolution || null,
+    }
+  }
+  return request(
+    withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}/perfectSolution`)
+  )
 }
 
 export const listCaseTags = async () => {
