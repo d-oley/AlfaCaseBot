@@ -233,6 +233,18 @@ export default {
   color: var(--text-muted);
 }
 
+@media (prefers-color-scheme: dark) {
+  .search-shell {
+    background: var(--input-bg);
+    border-color: var(--border);
+  }
+
+  .dropdown-card {
+    background: var(--card-bg);
+    border-color: var(--border);
+  }
+}
+
 .loading-badge {
   padding: 6px 10px;
   border-radius: 0;
