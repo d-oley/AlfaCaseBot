@@ -7,9 +7,6 @@
       <header class="chat-header">
         <div class="case-heading">
           <h1>Чат по кейсу: {{ caseTitle }}</h1>
-          <span v-if="currentCaseScore !== null" class="case-score">
-            {{ currentCaseScore }} / 100
-          </span>
         </div>
         <div v-if="isSolvingActive" class="chat-header-actions">
           <div class="solve-timer" role="timer" aria-label="Время решения">
@@ -22,6 +19,9 @@
           <button class="btn btn-primary" type="button" :disabled="isSending" @click="isFinishModalOpen = true">
             Завершить решение
           </button>
+          <span v-if="currentCaseScore !== null" class="case-score" aria-label="Текущая оценка">
+            Текущая оценка: {{ currentCaseScore }} / 100
+          </span>
         </div>
       </header>
 
@@ -47,6 +47,16 @@
             <span v-if="message.rating !== null && message.rating !== undefined" class="message-score">
               Оценка: {{ message.rating }} / 100
             </span>
+          </div>
+          <div
+            v-if="isSending"
+            class="message bot typing-message"
+            role="status"
+            aria-label="ИИ готовит ответ"
+          >
+            <span class="typing-dot" aria-hidden="true"></span>
+            <span class="typing-dot" aria-hidden="true"></span>
+            <span class="typing-dot" aria-hidden="true"></span>
           </div>
         </div>
 
@@ -444,7 +454,7 @@ export default {
 
 <style scoped>
 .chat-card {
-  padding: clamp(18px, 3vw, 32px);
+  padding: clamp(16px, 2.4vw, 26px);
   display: grid;
   gap: 14px;
   border-top-width: 5px;
@@ -460,7 +470,7 @@ export default {
 
 .chat-header h1 {
   margin: 0;
-  font-size: clamp(1.7rem, 4vw, 3.8rem);
+  font-size: clamp(1.6rem, 3vw, 2.9rem);
   line-height: .95;
   text-transform: uppercase;
 }
@@ -529,17 +539,22 @@ export default {
 }
 
 .case-score {
-  padding: 5px 10px;
+  min-height: 38px;
+  padding: 7px 12px;
   white-space: nowrap;
+  align-self: stretch;
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  text-transform: uppercase;
 }
 
 .messages {
-  min-height: clamp(220px, 40vh, 300px);
+  min-height: clamp(210px, 38vh, 280px);
   max-height: 420px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 0;
-  padding: 18px;
+  padding: 14px;
   display: grid;
   gap: 8px;
   background: var(--chat-bg);
@@ -585,7 +600,7 @@ export default {
 .message {
   width: fit-content;
   max-width: min(80%, 560px);
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 0;
   border: 1px solid var(--border);
   background: var(--surface-bot-message);
@@ -600,6 +615,53 @@ export default {
 
 .message.bot {
   background: var(--surface-bot-message);
+}
+
+.typing-message {
+  min-width: 58px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.28;
+  animation: typing-pulse 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes typing-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0) scale(0.85);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 .message p {
@@ -720,7 +782,8 @@ export default {
 @media (max-width: 620px) {
   .chat-header-actions,
   .chat-header-actions .btn,
-  .solve-timer {
+  .solve-timer,
+  .case-score {
     width: 100%;
   }
 

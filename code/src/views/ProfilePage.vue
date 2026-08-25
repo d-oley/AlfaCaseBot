@@ -512,10 +512,10 @@ export default {
 .rank-card,
 .switchable-card,
 .edit-card {
-  padding: clamp(20px, 3vw, 36px);
+  padding: clamp(18px, 2.5vw, 28px);
 }
 
-.profile-header { min-height: 230px; }
+.profile-header { min-height: 190px; }
 .rank-card { background: var(--primary); color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
 .rank-card h3 { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
 .edit-card, .switchable-card { grid-column: 1 / -1; }
@@ -546,7 +546,7 @@ export default {
 
 .avatar-controls h2 {
   margin: 0 0 8px;
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: clamp(1.8rem, 3.2vw, 3.2rem);
   line-height: 0.95;
   text-transform: uppercase;
 }
@@ -654,7 +654,7 @@ export default {
 
 .stat-value {
   margin: 0;
-  font-size: clamp(3rem, 7vw, 6rem);
+  font-size: clamp(2.5rem, 5.5vw, 4.8rem);
   font-weight: 900;
   line-height: 0.8;
 }

@@ -128,7 +128,7 @@ export default {
 .recommendation h2 {
   margin: 0;
   max-width: 100%;
-  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  font-size: clamp(2.1rem, 3.2vw, 3.5rem);
   line-height: 1;
   text-transform: uppercase;
   overflow-wrap: anywhere;
@@ -146,7 +146,7 @@ export default {
   display: grid;
   gap: 7px;
 }
-.recommended-case strong { font-size: 1.25rem; }
+.recommended-case strong { font-size: 1.1rem; }
 .recommended-case > span:last-child, .recommendation-empty { color: var(--text-muted); }
 .recommended-mark { color: var(--primary); font-family: var(--mono-font); font-size: 0.72rem; text-transform: uppercase; }
 .recommendation-empty { margin: 28px 0 0; }
@@ -168,7 +168,7 @@ export default {
 .tag-btn.active { color: #fff; background: var(--primary); border-color: var(--primary); }
 .cases-list { grid-column: 2; display: grid; }
 .case-row {
-  min-height: 150px;
+  min-height: 126px;
   border: 0;
   border-bottom: 1px solid var(--border);
   padding: 20px 24px;
@@ -198,7 +198,7 @@ export default {
 .case-visual img { width: 100%; height: 100%; object-fit: cover; }
 .case-row:hover .case-visual { border-color: #fff; }
 .case-main { display: grid; gap: 6px; }
-.case-main strong { font-family: var(--display-font); font-size: clamp(1.35rem, 2vw, 2.15rem); text-transform: uppercase; line-height: 1; }
+.case-main strong { font-family: var(--display-font); font-size: clamp(1.2rem, 1.65vw, 1.8rem); text-transform: uppercase; line-height: 1; }
 .case-description { color: var(--text-muted); max-width: 740px; }
 .case-row:hover .case-description { color: rgba(255, 255, 255, 0.78); }
 .case-meta { display: grid; gap: 7px; }

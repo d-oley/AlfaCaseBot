@@ -235,7 +235,7 @@ export default {
 
 .app-main {
   flex: 1;
-  padding: clamp(22px, 4vw, 56px) 0;
+  padding: clamp(18px, 3vw, 40px) 0;
 }
 
 .ban-notice {

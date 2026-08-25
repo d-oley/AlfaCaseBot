@@ -169,7 +169,7 @@ export default {
 }
 
 .detail-card {
-  padding: clamp(24px, 5vw, 64px);
+  padding: clamp(20px, 4vw, 48px);
   border-top-width: 5px;
 }
 
@@ -212,7 +212,7 @@ export default {
 h1 {
   margin: 0 0 22px;
   max-width: 1000px;
-  font-size: clamp(3rem, 7vw, 7rem);
+  font-size: clamp(2.5rem, 5.5vw, 5.5rem);
   line-height: .87;
   text-transform: uppercase;
 }
@@ -223,7 +223,7 @@ h1 {
   border: 1px solid var(--border);
   background: var(--card-bg);
   cursor: pointer;
-  font-size: 2rem;
+  font-size: 1.65rem;
   line-height: 1;
   color: #b8b8b8;
   padding: 0;
@@ -236,7 +236,7 @@ h1 {
 .description {
   margin: 0;
   max-width: 850px;
-  font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+  font-size: clamp(1rem, 1.45vw, 1.15rem);
   line-height: 1.55;
 }
 .description-block {

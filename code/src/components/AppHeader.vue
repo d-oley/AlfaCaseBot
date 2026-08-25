@@ -122,7 +122,7 @@ export default {
 }
 
 .header-inner {
-  min-height: 70px;
+  min-height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -137,8 +137,8 @@ export default {
 }
 
 .brand-logo {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   object-fit: cover;
   filter: grayscale(1) contrast(1.4);
 }
@@ -157,7 +157,7 @@ export default {
 .nav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .nav-link {
@@ -185,8 +185,8 @@ export default {
 }
 
 .theme-toggle {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
@@ -198,8 +198,8 @@ export default {
 }
 
 .theme-toggle svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .header-actions {

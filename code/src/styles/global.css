@@ -25,7 +25,7 @@
   --inactive-border: #77736b;
   --overlay-bg: rgba(17, 17, 15, 0.78);
   --tab-active-border: #11110f;
-  --container-inline: clamp(16px, 3vw, 40px);
+  --container-inline: clamp(16px, 2.5vw, 32px);
   --display-font: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
   --mono-font: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   color-scheme: light;
@@ -72,7 +72,7 @@ body {
     linear-gradient(to bottom, color-mix(in srgb, var(--text-main) 7%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
   font-family: Arial, "Segoe UI", sans-serif;
-  font-size: clamp(14px, 1.35vw, 16px);
+  font-size: clamp(14px, 1.15vw, 15px);
   line-height: 1.45;
 }
 
@@ -89,17 +89,17 @@ img { max-width: 100%; height: auto; }
 a { color: inherit; }
 
 .container {
-  width: min(1320px, 100%);
+  width: min(1180px, 100%);
   margin: 0 auto;
   padding-left: var(--container-inline);
   padding-right: var(--container-inline);
 }
 
 .btn {
-  min-height: 42px;
+  min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 0;
-  padding: 10px 16px;
+  padding: 8px 13px;
   font-family: var(--mono-font);
   font-size: 0.82rem;
   font-weight: 700;
@@ -108,7 +108,7 @@ a { color: inherit; }
   cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.btn:hover { box-shadow: 4px 4px 0 var(--border); }
+.btn:hover { box-shadow: 3px 3px 0 var(--border); }
 .btn:disabled { cursor: not-allowed; opacity: 0.45; box-shadow: none; }
 .btn-primary { color: #fff; background: var(--primary); }
 .btn-primary:hover { background: var(--primary-hover); }
@@ -119,7 +119,7 @@ a { color: inherit; }
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 0;
-  box-shadow: 7px 7px 0 color-mix(in srgb, var(--text-main) 16%, transparent);
+  box-shadow: 5px 5px 0 color-mix(in srgb, var(--text-main) 16%, transparent);
 }
 
 input, select, textarea {
