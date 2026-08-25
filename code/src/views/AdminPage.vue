@@ -108,6 +108,19 @@
             <label for="case-prompt">Английский контекст для модели</label>
             <textarea id="case-prompt" v-model.trim="caseForm.promptContextEn" rows="4" />
 
+            <label for="case-perfect-solution">Эталонное решение</label>
+            <textarea
+              id="case-perfect-solution"
+              v-model="caseForm.perfectSolution"
+              rows="6"
+              maxlength="10000"
+              placeholder="Станет доступно пользователю после завершения кейса"
+            />
+            <p class="hint case-field-hint">
+              До завершения кейса пользователь не сможет получить этот текст.
+              Чтобы удалить сохранённое решение, очистите поле и сохраните кейс.
+            </p>
+
             <label for="case-pdf">PDF</label>
             <input id="case-pdf" type="file" accept="application/pdf" @change="handleCasePdfChange" />
 
@@ -355,6 +368,8 @@ const toCaseForm = (item = null) => ({
   selectedTagIds: Array.isArray(item?.tagIds) ? [...item.tagIds] : [],
   averageSolveMinutes: item?.averageSolveMinutes ?? 1,
   promptContextEn: item?.promptContextEn || '',
+  perfectSolution: item?.perfectSolution || '',
+  hadPerfectSolution: Boolean(item?.perfectSolution),
   active: item?.active ?? true,
 })
 
@@ -719,6 +734,14 @@ export default {
 
       try {
         const files = { pdfFile: this.casePdfFile, iconFile: this.caseIconFile }
+        const casePayload = {
+          ...this.caseForm,
+          removePerfectSolution: Boolean(
+            this.caseForm.id &&
+            this.caseForm.hadPerfectSolution &&
+            !this.caseForm.perfectSolution.trim()
+          ),
+        }
         const previousTagIds = this.caseForm.id
           ? this.getCaseTagIds(
               this.adminCases.find((item) => Number(item.id) === Number(this.caseForm.id))
@@ -726,9 +749,9 @@ export default {
           : []
         let caseId = this.caseForm.id
         if (this.caseForm.id) {
-          await updateCaseRequest(this.caseForm.id, this.caseForm, files)
+          await updateCaseRequest(this.caseForm.id, casePayload, files)
         } else {
-          const result = await createCaseRequest(this.caseForm, files)
+          const result = await createCaseRequest(casePayload, files)
           caseId = Number(result?.id)
           if (!Number.isFinite(caseId) || caseId <= 0) {
             throw new Error('Кейс создан, но сервер не вернул его идентификатор для привязки тегов.')
@@ -841,6 +864,11 @@ h2 {
 .hint {
   margin: 0 0 14px;
   color: var(--text-muted);
+}
+
+.case-field-hint {
+  margin-top: -2px;
+  font-size: 0.78rem;
 }
 
 .admin-topbar {
