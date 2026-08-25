@@ -8,7 +8,6 @@
       <router-link class="back-link" to="/dashboard">
         <span aria-hidden="true">←</span> К каталогу кейсов
       </router-link>
-      <p class="case-code">Кейс / {{ caseItem.difficulty || 'Без уровня' }}</p>
       <div class="title-row">
         <h1>{{ caseItem.title }}</h1>
         <button
@@ -27,8 +26,20 @@
       <p v-if="favoriteError" class="leaderboard-error" role="alert">{{ favoriteError }}</p>
 
       <div class="tags">
-        <span class="tag difficulty-tag">Сложность: {{ caseItem.difficulty || 'Не указана' }}</span>
-        <span v-for="tag in caseItem.tags" :key="tag" class="tag">{{ tag }}</span>
+        <button
+          class="tag difficulty-tag"
+          type="button"
+          @click="openCatalog({ difficulty: caseItem.difficulty })"
+        >
+          Сложность: {{ caseItem.difficulty || 'Не указана' }}
+        </button>
+        <button
+          v-for="tag in caseItem.tags"
+          :key="tag"
+          class="tag"
+          type="button"
+          @click="openCatalog({ tag })"
+        >{{ tag }}</button>
       </div>
 
       <div class="description-block">
@@ -167,6 +178,9 @@ export default {
     },
   },
   methods: {
+    openCatalog(query) {
+      this.$router.push({ name: 'dashboard', query, hash: '#case-catalog' })
+    },
     resetPerfectSolutionState() {
       this.solvingStateLoading = false
       this.solvingStateError = ''
@@ -424,6 +438,15 @@ h1 {
   background: transparent;
   font-family: var(--mono-font);
   text-transform: uppercase;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.tag:hover {
+  color: #fff;
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 @media (max-width: 700px) {

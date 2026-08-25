@@ -1,5 +1,5 @@
 <template>
-  <section class="catalog">
+  <section id="case-catalog" class="catalog">
     <div class="recommendation">
       <p class="section-code">Персональный выбор / 01</p>
       <h2>Ваш<br />кейс</h2>
@@ -96,6 +96,20 @@ export default {
   data() {
     return { selectedTag: 'Все', selectedDifficulty: 'Все' }
   },
+  watch: {
+    '$route.query': {
+      deep: true,
+      handler() {
+        this.applyRouteFilters()
+      },
+    },
+  },
+  mounted() {
+    this.applyRouteFilters()
+    if (this.$route.hash === '#case-catalog') {
+      this.$nextTick(() => this.$el.scrollIntoView({ block: 'start' }))
+    }
+  },
   computed: {
     recommendedCase() {
       return this.cases.find((item) => item.id === this.recommendedCaseId) || null
@@ -112,6 +126,18 @@ export default {
         const difficultyMatch = this.selectedDifficulty === 'Все' || item.difficulty === this.selectedDifficulty
         return tagMatch && difficultyMatch
       })
+    },
+  },
+  methods: {
+    applyRouteFilters() {
+      const requestedTag = String(this.$route.query.tag || '').trim().toLowerCase()
+      const requestedDifficulty = String(this.$route.query.difficulty || '').trim().toLowerCase()
+      const matchedTag = this.allTags.find((tag) => tag.toLowerCase() === requestedTag)
+      const matchedDifficulty = this.allDifficulties.find(
+        (difficulty) => difficulty.toLowerCase() === requestedDifficulty
+      )
+      this.selectedTag = matchedTag || 'Все'
+      this.selectedDifficulty = matchedDifficulty || 'Все'
     },
   },
 }
