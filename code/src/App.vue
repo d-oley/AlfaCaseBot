@@ -41,6 +41,8 @@
       :initial-preferences="appState.user.preferences"
       :tag-options="preferenceTagOptions"
       :difficulty-options="difficultyPreferenceOptions"
+      :saving="preferenceSaving"
+      :error-message="preferenceError"
       @save="handlePreferenceSave"
       @skip="handlePreferenceSkip"
     />
@@ -52,7 +54,16 @@ import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
-import { getCurrentUserProfile, listCases, logoutRequest, mapApiProfileToState } from './api/authApi'
+import {
+  getCurrentUserProfile,
+  getUserPreferences,
+  listCases,
+  listFavoriteCases,
+  listMyAchievements,
+  logoutRequest,
+  mapApiProfileToState,
+  saveUserPreferences,
+} from './api/authApi'
 import {
   appState,
   clearBanNotice,
@@ -60,6 +71,8 @@ import {
   logoutUser,
   registerUser,
   skipUserPreferences,
+  setUserFavoriteCases,
+  setUserAchievements,
   showBanNotice,
   updateUserPreferences,
   getDifficultyPreferenceOptions,
@@ -78,6 +91,8 @@ export default {
       appState,
       theme: localStorage.getItem('theme') || 'light',
       difficultyPreferenceOptions: getDifficultyPreferenceOptions(),
+      preferenceSaving: false,
+      preferenceError: '',
     }
   },
   computed: {
@@ -114,6 +129,7 @@ export default {
       try {
         const profile = await getCurrentUserProfile()
         loginUser(mapApiProfileToState(profile, this.appState.user))
+        await this.loadPersonalization()
       } catch {
         if (this.appState.isAuthenticated) {
           logoutUser()
@@ -134,26 +150,68 @@ export default {
     closeModal() {
       this.activeModal = null
     },
-    handleLoginSuccess(payload) {
+    async handleLoginSuccess(payload) {
       clearBanNotice()
       loginUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
+      await this.loadPersonalization()
     },
-    handleRegisterSuccess(payload) {
+    async handleRegisterSuccess(payload) {
       registerUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
+      await this.loadPersonalization({ preserveOnboarding: true })
     },
     handleAccountBanned(message) {
       showBanNotice(message)
       this.closeModal()
     },
-    handlePreferenceSave(payload) {
-      updateUserPreferences(payload)
+    async loadPersonalization({ preserveOnboarding = false } = {}) {
+      const [preferencesResult, favoritesResult, achievementsResult] = await Promise.allSettled([
+        getUserPreferences(),
+        listFavoriteCases(),
+        listMyAchievements(),
+      ])
+      if (preferencesResult.status === 'fulfilled') {
+        updateUserPreferences(preferencesResult.value, { closeOnboarding: !preserveOnboarding })
+      }
+      if (favoritesResult.status === 'fulfilled') {
+        setUserFavoriteCases(favoritesResult.value)
+      }
+      if (achievementsResult.status === 'fulfilled') {
+        setUserAchievements(achievementsResult.value)
+      }
     },
-    handlePreferenceSkip() {
-      skipUserPreferences()
+    async handlePreferenceSave(payload) {
+      this.preferenceSaving = true
+      this.preferenceError = ''
+      try {
+        const preferences = await saveUserPreferences(payload)
+        const selectedNames = this.preferenceTagOptions
+          .filter((tag) => preferences.tagIds.includes(Number(tag.id)))
+          .map((tag) => tag.name)
+        updateUserPreferences({
+          ...preferences,
+          tags: preferences.tags.length ? preferences.tags : selectedNames,
+        })
+      } catch (error) {
+        this.preferenceError = error?.message || 'Не удалось сохранить предпочтения.'
+      } finally {
+        this.preferenceSaving = false
+      }
+    },
+    async handlePreferenceSkip() {
+      this.preferenceSaving = true
+      this.preferenceError = ''
+      try {
+        await saveUserPreferences()
+        skipUserPreferences()
+      } catch (error) {
+        this.preferenceError = error?.message || 'Не удалось сохранить предпочтения.'
+      } finally {
+        this.preferenceSaving = false
+      }
     },
     async handleLogout() {
       try {
@@ -177,10 +235,7 @@ export default {
 
 .app-main {
   flex: 1;
-  padding: clamp(12px, 3vw, 24px) 0;
-  background:
-    radial-gradient(circle at top right, var(--bg-accent), transparent 35%),
-    linear-gradient(160deg, var(--bg-main) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
+  padding: clamp(18px, 3vw, 40px) 0;
 }
 
 .ban-notice {
@@ -188,7 +243,7 @@ export default {
   margin: 14px auto 0;
   padding: 12px 14px;
   border: 1px solid #f5a3a3;
-  border-radius: 12px;
+  border-radius: 0;
   background: #fff1f0;
   color: #7a1212;
   display: flex;

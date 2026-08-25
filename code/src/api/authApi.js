@@ -1,12 +1,26 @@
+import mockData from '@/mocks/mockData.json'
+
 const API_URL = process.env.VUE_APP_API_BASE_URL || ''
 const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 const CASE_ASSET_URL = process.env.VUE_APP_CASE_ASSET_BASE_URL || ''
+const USE_MOCK_API = String(process.env.VUE_APP_USE_MOCK_API || '').toLowerCase() === 'true'
+const MOCK_SESSION_KEY = 'alfacasebot-mock-session'
+const mockSolvingKey = (caseId) => `alfacasebot-mock-solving-${Number(caseId)}`
+const mockCompletionKey = (caseId) => `alfacasebot-mock-completed-${Number(caseId)}`
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
 const CASE_PREFIX = '/api/v1/cases'
 const SITE_PREFIX = '/api/v1/site'
 const TEXT_PREFIX = '/api/text/v1'
+
+const mockClone = (value) => JSON.parse(JSON.stringify(value))
+const hasMockSession = () => localStorage.getItem(MOCK_SESSION_KEY) === 'active'
+const requireMockSession = () => {
+  if (!hasMockSession()) {
+    throw buildRequestError({ message: 'Please login first', status: 401 })
+  }
+}
 
 const withBaseUrl = (baseUrl, path) => `${String(baseUrl || '').replace(/\/$/, '')}${path}`
 
@@ -25,6 +39,11 @@ const errors = {
   'Tag with this name already exists': 'Тег с таким названием уже существует',
   'Tag is already attached to this case': 'Тег уже привязан к кейсу',
   'Tag is not attached to this case': 'Тег не привязан к кейсу',
+  'this case is already in your favourites': 'Кейс уже добавлен в избранное',
+  'this case is not in your favourites': 'Кейса уже нет в избранном',
+  'Case is not active': 'Этот кейс сейчас недоступен',
+  'Case is already solved': 'Этот кейс уже завершён',
+  'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
   'Password cannot be shorter than 8 characters': 'Пароль слишком короткий',
@@ -47,6 +66,8 @@ const errors = {
   'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
   'Verification session expired.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Invalid or expired verification session.': 'Сессия подтверждения истекла. Начните регистрацию заново',
+  'Account is already verified': 'Аккаунт уже подтверждён. Войдите в него',
+  'Invalid email or username': 'Неверно указан email или логин',
   'Account is not verified': 'Подтвердите email перед входом',
   'Backend недоступен': 'Сервис временно недоступен',
 }
@@ -254,6 +275,53 @@ export const normalizeCase = (item = {}) => {
   }
 }
 
+const normalizeTag = (tag = {}) => ({
+  id: Number(tag?.id) || null,
+  name: tag?.name || '',
+  count: Number(tag?.count ?? tag?.caseCount ?? 0),
+  active: tag?.active ?? true,
+})
+
+const normalizePageResponse = (payload, fallbackItems = []) => ({
+  items: Array.isArray(payload?.items) ? payload.items : fallbackItems,
+  page: Number(payload?.page ?? 0),
+  size: Number(payload?.size ?? fallbackItems.length),
+  totalElements: Number(payload?.totalElements ?? fallbackItems.length),
+  totalPages: Number(payload?.totalPages ?? (fallbackItems.length ? 1 : 0)),
+})
+
+const buildPageQuery = ({ page = 0, size = 100, search = '', sort = '' } = {}) => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (String(search).trim()) params.set('search', String(search).trim())
+  if (String(sort).trim()) params.set('sort', String(sort).trim())
+  return params.toString()
+}
+
+const loadAllPages = async ({ path, search = '', sort = '', normalizeItem = (item) => item }) => {
+  const loadPage = (page) => request(
+    withBaseUrl(API_URL, `${path}?${buildPageQuery({ page, size: 100, search, sort })}`)
+  )
+  const firstPage = normalizePageResponse(await loadPage(0))
+  const remainingPages = firstPage.totalPages > 1
+    ? await Promise.all(
+      Array.from({ length: firstPage.totalPages - 1 }, (_, index) => loadPage(index + 1))
+    )
+    : []
+
+  return [firstPage, ...remainingPages.map((page) => normalizePageResponse(page))]
+    .flatMap((page) => page.items)
+    .map(normalizeItem)
+}
+
+export const normalizeUserPreferences = (payload = {}) => {
+  const preferredTags = Array.isArray(payload.preferredTags) ? payload.preferredTags : []
+  return {
+    tagIds: preferredTags.map((tag) => Number(tag?.id)).filter((id) => Number.isFinite(id) && id > 0),
+    tags: preferredTags.map((tag) => tag?.name || '').filter(Boolean),
+    difficulty: String(payload.preferredDifficulty || '').toLowerCase(),
+  }
+}
+
 const toCaseApiPayload = (item = {}) => ({
   slug: item.slug || '',
   title: item.title || '',
@@ -321,65 +389,129 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
     city: profile?.cityName ?? profile?.city ?? fallback.city ?? '',
     region: profile?.regionName ?? profile?.region ?? fallback.region ?? '',
     creationDate: profile?.creationDate ?? fallback.creationDate ?? '',
-    rank: profile?.placement ?? fallback.rank ?? 57,
+    rank: profile?.placement ?? fallback.rank ?? 0,
     points: profile?.score ?? fallback.points ?? 0,
     avatarUrl: getCaseAssetUrl(profile?.avatarUrl || fallback.avatarUrl),
   }
 }
 
 export const checkSession = () =>
-  request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        requireMockSession()
+        return { success: true, errorText: '', id: mockData.profile.id }
+      })
+    : request(withBaseUrl(API_URL, `${TEXT_PREFIX}/checkCookie`), { method: 'GET' })
 
 export const resetPassword = ({ oldPassword, newPassword }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, oldPassword, newPassword })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
     method: 'POST',
     body: JSON.stringify({ oldPassword, newPassword }),
   })
 
 export const registerRequest = ({ username, email, password, birthdate, status, cityId, validationMethod }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
     body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
   })
 
+export const resendVerificationEmail = ({ username, email, password, validationMethod = 'EMAIL' }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resendEmail`), {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password, validationMethod }),
+    })
+
+export const forgotUsername = ({ email }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotUsername`), {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+
+export const forgotPasswordInit = ({ email, username }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email, username })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/init`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username }),
+    })
+
+export const forgotPasswordConfirm = ({ email, username, code, newPassword }) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: mockData.profile.id })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/forgotPassword/confirm`), {
+      method: 'POST',
+      body: JSON.stringify({ email, username, code, newPassword }),
+    })
+
 export const loginRequest = ({ username, password }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/login`), {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        if (!username || !password) throw new Error('Введите логин и пароль')
+        localStorage.setItem(MOCK_SESSION_KEY, 'active')
+        return { success: true, errorText: '', id: mockData.profile.id }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/login`), {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      })
 
 export const logoutRequest = () =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/logout`), { method: 'GET' })
+  USE_MOCK_API
+    ? Promise.resolve().then(() => {
+        localStorage.removeItem(MOCK_SESSION_KEY)
+        return { success: true, errorText: '' }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/logout`), { method: 'GET' })
 
 export const changeEmail = ({ email }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, email })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
 
 export const changeUserParams = ({ firstName, lastName, middleName, nickName, birthdate, status, cityId }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
     method: 'POST',
     body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
   })
 
 export const verifyEmail = ({ verification }) =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify/${encodeURIComponent(verification)}`), {
-    method: 'POST',
-  })
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, verification })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/verify/${encodeURIComponent(verification)}`), {
+        method: 'POST',
+      })
 
 export const setProfilePicture = (file) => {
+  if (USE_MOCK_API) return Promise.resolve({ success: true, fileName: file?.name || '' })
   const formData = new FormData()
   formData.append('file', file)
   return multipartRequest(withBaseUrl(API_URL, `${AUTH_PREFIX}/setProfilePicture`), formData)
 }
 
 export const listCases = async () => {
-  const items = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/getAll`))
-  return Array.isArray(items) ? items.map(normalizeCase) : []
+  if (USE_MOCK_API) return mockData.cases.map(normalizeCase)
+  return loadAllPages({ path: `${CASE_PREFIX}/getAll`, normalizeItem: normalizeCase })
 }
 
 export const getCaseByIdRequest = async (id) => {
+  if (USE_MOCK_API) {
+    const item = mockData.cases.find((caseItem) => Number(caseItem.id) === Number(id))
+    if (!item) throw buildRequestError({ message: 'Кейс не найден', status: 404 })
+    return normalizeCase(mockClone(item))
+  }
   const item = await request(
     withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}`)
   )
@@ -387,65 +519,147 @@ export const getCaseByIdRequest = async (id) => {
 }
 
 export const listCaseTags = async () => {
-  const tags = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/tags`))
-  return Array.isArray(tags)
-    ? tags.map((tag) => ({
-        id: tag?.id ?? null,
-        name: tag?.name || '',
-        count: Number(tag?.count || 0),
-      })).filter((tag) => tag.name)
-    : []
+  if (USE_MOCK_API) {
+    const tags = new Map()
+    mockData.cases.forEach((item) => {
+      item.tags.forEach((tag) => {
+        const current = tags.get(tag.id) || { ...tag, count: 0 }
+        current.count += 1
+        tags.set(tag.id, current)
+      })
+    })
+    return [...tags.values()]
+  }
+  const tags = await loadAllPages({ path: `${CASE_PREFIX}/tags`, normalizeItem: normalizeTag })
+  return tags.filter((tag) => tag.name)
 }
 
 export const listAdminCases = async () => {
-  const items = await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases`))
-  return Array.isArray(items) ? items.map(normalizeCase) : []
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return mockData.cases.map(normalizeCase)
+  }
+  return loadAllPages({
+    path: `${ADMIN_PREFIX}/cases`,
+    sort: 'createdAt,desc',
+    normalizeItem: normalizeCase,
+  })
+}
+
+const buildAdminPageQuery = ({ page = 0, size = 25, search = '', sort = 'createdAt,desc' } = {}) => {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort })
+  if (String(search).trim()) params.set('search', String(search).trim())
+  return params.toString()
+}
+
+export const listAdminUsers = async (options = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const user = { ...mockClone(mockData.profile), username: mockData.profile.nickName, role: 'USER' }
+    return normalizePageResponse({ items: [user], page: 0, size: 25, totalElements: 1, totalPages: 1 })
+  }
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users?${buildAdminPageQuery(options)}`))
+  )
+}
+
+export const getAdminUserById = (id) =>
+  USE_MOCK_API
+    ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id), username: mockData.profile.nickName, role: 'USER' })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`))
+
+export const listAdminTags = async (options = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const items = await listCaseTags()
+    return normalizePageResponse({
+      items: items.map((tag) => ({ ...tag, active: true, caseCount: tag.count })),
+      page: 0,
+      size: items.length,
+      totalElements: items.length,
+      totalPages: items.length ? 1 : 0,
+    })
+  }
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags?${buildAdminPageQuery(options)}`))
+  )
 }
 
 export const createCaseRequest = (item, files = {}) =>
-  multipartRequest(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Math.max(...mockData.cases.map(({ id }) => id)) + 1 })
+    : multipartRequest(
     withBaseUrl(API_URL, `${ADMIN_PREFIX}/createCase`),
     buildCaseFormData(item, files),
     'POST'
   )
 
 export const updateCaseRequest = (id, item, files = {}) =>
-  multipartRequest(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), item, files })
+    : multipartRequest(
     withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${encodeURIComponent(id)}`),
     buildCaseFormData(item, files),
     'PUT'
   )
 
 export const createAdminUser = (payload) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: 202, payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users`), {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
 export const updateAdminUser = (id, payload) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
 
 export const deleteAdminUser = (id) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`), {
     method: 'DELETE',
   })
 
 export const createCaseTag = (name) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Date.now(), name })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags`), {
     method: 'POST',
     body: JSON.stringify({ name }),
   })
 
 export const deactivateCaseTag = (id) =>
-  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/deactivate`), {
     method: 'PATCH',
   })
 
+export const activateCaseTag = (id) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id) })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}/activate`), {
+    method: 'PATCH',
+  })
+
+export const updateCaseTag = (id, payload) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, id: Number(id), payload })
+    : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/tags/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+
 export const attachCaseTag = (caseId, tagId) =>
-  request(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), tagId: Number(tagId) })
+    : request(
     withBaseUrl(
       API_URL,
       `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
@@ -454,7 +668,9 @@ export const attachCaseTag = (caseId, tagId) =>
   )
 
 export const detachCaseTag = (caseId, tagId) =>
-  request(
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), tagId: Number(tagId) })
+    : request(
     withBaseUrl(
       API_URL,
       `${ADMIN_PREFIX}/cases/${encodeURIComponent(caseId)}/tags/${encodeURIComponent(tagId)}`
@@ -465,13 +681,92 @@ export const detachCaseTag = (caseId, tagId) =>
 export const listCities = async (query = '') => {
   const q = String(query).trim()
   if (q.length < 2) return []
+  if (USE_MOCK_API) {
+    return mockClone(
+      mockData.cities.filter((city) => city.cityName.toLowerCase().includes(q.toLowerCase()))
+    )
+  }
   const cities = await request(
-    withBaseUrl(API_URL, `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}`)
+    withBaseUrl(
+      API_URL,
+      `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}?${buildPageQuery({ size: 25 })}`
+    )
   )
-  return Array.isArray(cities) ? cities : []
+  return normalizePageResponse(cities).items
+}
+
+export const listFavoriteCases = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return []
+  }
+  return loadAllPages({
+    path: `${SITE_PREFIX}/me/favorites`,
+    sort: 'added_at,desc',
+    normalizeItem: normalizeCase,
+  })
+}
+
+export const addFavoriteCase = (caseId) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/favorites/${encodeURIComponent(caseId)}`), {
+      method: 'POST',
+    })
+
+export const removeFavoriteCase = (caseId) =>
+  USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/favorites/${encodeURIComponent(caseId)}`), {
+      method: 'DELETE',
+    })
+
+export const getUserPreferences = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return normalizeUserPreferences()
+  }
+  return normalizeUserPreferences(
+    await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/preferences`))
+  )
+}
+
+export const saveUserPreferences = async ({ tagIds = [], difficulty = '' } = {}) => {
+  const normalizedTagIds = [...new Set(
+    tagIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+  )]
+  const normalizedDifficulty = String(difficulty || '').trim().toUpperCase()
+
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return {
+      tagIds: normalizedTagIds,
+      tags: [],
+      difficulty: normalizedDifficulty.toLowerCase(),
+    }
+  }
+
+  await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/preferences`), {
+    method: 'PATCH',
+    body: JSON.stringify({
+      preferredDifficulty: normalizedDifficulty || null,
+      preferredTags: normalizedTagIds,
+      removeDifficulty: !normalizedDifficulty,
+      removeTags: normalizedTagIds.length === 0,
+    }),
+  })
+  return {
+    tagIds: normalizedTagIds,
+    tags: [],
+    difficulty: normalizedDifficulty.toLowerCase(),
+  }
 }
 
 export const getUserCityById = async (id) => {
+  if (USE_MOCK_API) {
+    const city = mockData.cities.find((item) => Number(item.id) === Number(mockData.profile.cityId))
+    return normalizeCity(city)
+  }
   const city = await request(
     withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/city`)
   )
@@ -479,17 +774,58 @@ export const getUserCityById = async (id) => {
 }
 
 export const getUserProfileById = (id) =>
-  request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
+  USE_MOCK_API
+    ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id) })
+    : request(withBaseUrl(API_URL, `${SITE_PREFIX}/user/${encodeURIComponent(id)}/profile`))
 
-export const getCurrentUserProfile = () =>
-  request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
+const normalizeAchievement = (item = {}) => ({
+  id: Number(item.id),
+  title: item.name || '',
+  description: item.description || '',
+  iconUrl: getCaseAssetUrl(item.iconUrl),
+  obtainedAt: item.obtainedAt || null,
+  active: Boolean(item.obtainedAt),
+  progress: item.obtainedAt ? 'Получено' : 'Пока не получено',
+})
+
+export const listMyAchievements = async () => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/me/achievements`))
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
+export const listUserAchievements = async (id) => {
+  if (USE_MOCK_API) return []
+  const achievements = await request(
+    withBaseUrl(API_URL, `${SITE_PREFIX}/${encodeURIComponent(id)}/achievements`)
+  )
+  return Array.isArray(achievements) ? achievements.map(normalizeAchievement) : []
+}
+
+export const getCurrentUserProfile = () => {
+  if (USE_MOCK_API) {
+    return Promise.resolve().then(() => {
+      requireMockSession()
+      return mockClone(mockData.profile)
+    })
+  }
+  return request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
+}
 
 export const listLeaderboard = async () => {
+  if (USE_MOCK_API) return mockClone(mockData.leaderboard)
   const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))
   return Array.isArray(users) ? users : []
 }
 
 export const listCaseLeaderboard = async (caseId) => {
+  if (USE_MOCK_API) {
+    return mockData.leaderboard.map((user) => ({
+      ...mockClone(user),
+      score: Math.max(40, user.score % 101),
+      caseId: Number(caseId),
+    }))
+  }
   const users = await request(
     withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/case/${encodeURIComponent(caseId)}/top5`)
   )
@@ -497,17 +833,67 @@ export const listCaseLeaderboard = async (caseId) => {
 }
 
 export const getCaseChatSequence = async (caseId) => {
-  const sequence = await request(
-    withBaseUrl(API_URL, `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`)
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return mockClone(mockData.chat).map((item) => ({ ...item, caseId: Number(caseId) }))
+  }
+  return loadAllPages({
+    path: `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`,
+  })
+}
+
+export const startCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    if (localStorage.getItem(mockCompletionKey(caseId))) {
+      throw buildRequestError({ message: 'Case is already solved', status: 400 })
+    }
+    const key = mockSolvingKey(caseId)
+    const timestamp = localStorage.getItem(key) || new Date().toISOString()
+    localStorage.setItem(key, timestamp)
+    return Promise.resolve({ active: true, completed: false, bestRating: 0, timestamp })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/startSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
+  })
+}
+
+export const getCaseSolvingState = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const timestamp = localStorage.getItem(mockSolvingKey(caseId))
+    const completed = localStorage.getItem(mockCompletionKey(caseId)) === 'true'
+    return Promise.resolve({ active: Boolean(timestamp), completed, bestRating: 0, timestamp })
+  }
+  return request(
+    withBaseUrl(API_URL, `${TEXT_PREFIX}/solvingState/${encodeURIComponent(caseId)}`)
   )
-  return Array.isArray(sequence) ? sequence : []
+}
+
+export const finishCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    localStorage.removeItem(mockSolvingKey(caseId))
+    localStorage.setItem(mockCompletionKey(caseId), 'true')
+    return Promise.resolve({ active: false, completed: true, bestRating: 0, timestamp: null })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/finishSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
+  })
 }
 
 export const evaluateCaseSolution = ({ text, caseId }) =>
-  mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
-    method: 'POST',
-    body: JSON.stringify({ text, case_id: caseId }),
-  })
+  USE_MOCK_API
+    ? Promise.resolve({
+        status: 'accepted',
+        message: 'Структура решения понятна. Добавьте метрики успеха и риски внедрения.',
+        case_id: Number(caseId),
+        rating: Math.min(96, 68 + Math.round(String(text).length / 20)),
+      })
+    : mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
+        method: 'POST',
+        body: JSON.stringify({ text, case_id: caseId }),
+      })
 
 export const isNotFoundError = (error) => {
   const message = error?.message || ''

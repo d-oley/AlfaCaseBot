@@ -1,0 +1,92 @@
+{
+  "profile": {
+    "id": 101,
+    "nickName": "dasha.case",
+    "email": "dasha@example.com",
+    "firstName": "Дарья",
+    "lastName": "Олейникова",
+    "birthdate": "14.08.2002",
+    "status": "UNDERGRADUATE",
+    "cityId": 1,
+    "cityName": "Москва",
+    "regionName": "Москва",
+    "score": 284,
+    "placement": 12,
+    "avatarUrl": ""
+  },
+  "cases": [
+    {
+      "id": 1,
+      "slug": "client-path",
+      "title": "Новый клиентский путь",
+      "titleEn": "Customer Journey",
+      "description": "Пересоберите путь нового клиента от первого касания до активного использования продукта.",
+      "fullDescription": "Изучите исходный клиентский путь, найдите основные точки потери пользователей и предложите новую структуру онбординга. Обоснуйте приоритеты и метрики успеха.",
+      "difficulty": "MEDIUM",
+      "averageSolveMin": 45,
+      "pdfUrl": "/cases/cl-cup-ux.pdf",
+      "iconUrl": "/cases/mock-case-product.svg",
+      "viewsCount": 148,
+      "active": true,
+      "tags": [{"id": 1, "name": "Продукт"}, {"id": 2, "name": "UX"}]
+    },
+    {
+      "id": 2,
+      "slug": "support-scoring",
+      "title": "Скоринг обращений",
+      "titleEn": "Support Scoring",
+      "description": "Спроектируйте ML-подход к приоритизации обращений клиентов.",
+      "fullDescription": "Предложите признаки, схему разметки, метрики и план внедрения модели, которая определяет приоритет клиентского обращения.",
+      "difficulty": "HARD",
+      "averageSolveMin": 90,
+      "pdfUrl": "/cases/cl-cup-ml.pdf",
+      "iconUrl": "/cases/mock-case-ml.svg",
+      "viewsCount": 96,
+      "active": true,
+      "tags": [{"id": 3, "name": "ML"}, {"id": 4, "name": "Аналитика"}]
+    },
+    {
+      "id": 3,
+      "slug": "youth-product",
+      "title": "Продукт для новой аудитории",
+      "titleEn": "Youth Product",
+      "description": "Сформулируйте ценностное предложение и сценарий запуска продукта для молодой аудитории.",
+      "fullDescription": "Определите сегменты, ключевые потребности, каналы привлечения и первые продуктовые эксперименты.",
+      "difficulty": "EASY",
+      "averageSolveMin": 30,
+      "pdfUrl": "/cases/gum-cup-main.pdf",
+      "iconUrl": "/cases/mock-case-marketing.svg",
+      "viewsCount": 213,
+      "active": true,
+      "tags": [{"id": 1, "name": "Продукт"}, {"id": 5, "name": "Маркетинг"}]
+    },
+    {
+      "id": 4,
+      "slug": "branch-analytics",
+      "title": "Аналитика сети отделений",
+      "titleEn": "Branch Analytics",
+      "description": "Найдите способ оценить эффективность сети и определить точки роста.",
+      "fullDescription": "Опишите систему показателей, необходимые данные и подход к сравнению отделений между собой.",
+      "difficulty": "MEDIUM",
+      "averageSolveMin": 60,
+      "pdfUrl": "/cases/alfa-people-final.pdf",
+      "iconUrl": "/cases/mock-case-analytics.svg",
+      "viewsCount": 74,
+      "active": true,
+      "tags": [{"id": 4, "name": "Аналитика"}, {"id": 6, "name": "Стратегия"}]
+    }
+  ],
+  "leaderboard": [
+    {"userId": 22, "placement": 1, "score": 960, "firstName": "Анна", "nickName": "ann.works", "cityName": "Казань", "avatarUrl": ""},
+    {"userId": 35, "placement": 2, "score": 910, "firstName": "Максим", "nickName": "max.product", "cityName": "Москва", "avatarUrl": ""},
+    {"userId": 41, "placement": 3, "score": 875, "firstName": "Софья", "nickName": "sofia.data", "cityName": "Самара", "avatarUrl": ""}
+  ],
+  "chat": [
+    {"solutionText": "Предлагаю начать с сегментации пользователей и анализа точек оттока.", "solutionResponse": "Хорошее начало. Добавьте измеримые критерии выбора приоритетного сегмента.", "rating": 72}
+  ],
+  "cities": [
+    {"id": 1, "cityName": "Москва", "regionName": "Москва"},
+    {"id": 2, "cityName": "Санкт-Петербург", "regionName": "Санкт-Петербург"},
+    {"id": 3, "cityName": "Казань", "regionName": "Республика Татарстан"}
+  ]
+}

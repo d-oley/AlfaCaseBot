@@ -1,26 +1,26 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="$emit('skip')">
+  <div v-if="isOpen" class="modal-overlay" @click.self="skip">
     <div class="modal card">
-      <button class="modal-close" type="button" aria-label="Закрыть" @click="$emit('skip')">
+      <button class="modal-close" type="button" aria-label="Закрыть" :disabled="saving" @click="skip">
         ×
       </button>
 
       <h2>Подскажем, с чего начать</h2>
       <p class="intro">
-        Вы можете выбрать любимый тег и желаемую сложность. Если пока не хотите, просто пропустите этот шаг.
+        Вы можете выбрать интересные вам теги и желаемую сложность. Если пока не хотите, просто пропустите этот шаг.
       </p>
 
       <form class="modal-form" @submit.prevent="submitPreferences">
-        <label for="preference-tag">Я предпочитаю...</label>
-        <select id="preference-tag" v-model="form.tag">
-          <option value="">Пока без предпочтений</option>
-          <option v-for="tag in tagOptions" :key="tag" :value="tag">
-            {{ tag }}
-          </option>
-        </select>
+        <fieldset class="tag-picker">
+          <legend>Мне интересны...</legend>
+          <label v-for="tag in tagOptions" :key="tag.id" class="tag-option">
+            <input v-model="form.tagIds" type="checkbox" :value="Number(tag.id)" :disabled="saving">
+            <span>{{ tag.name }}</span>
+          </label>
+        </fieldset>
 
         <label for="preference-difficulty">По сложности...</label>
-        <select id="preference-difficulty" v-model="form.difficulty">
+        <select id="preference-difficulty" v-model="form.difficulty" :disabled="saving">
           <option value="">Пока без предпочтений</option>
           <option v-for="item in difficultyOptions" :key="item.value" :value="item.value">
             {{ item.label }}
@@ -28,13 +28,14 @@
         </select>
 
         <div class="actions">
-          <button class="btn btn-primary" type="submit">
-            Сохранить предпочтения
+          <button class="btn btn-primary" type="submit" :disabled="saving">
+            {{ saving ? 'Сохраняем...' : 'Сохранить предпочтения' }}
           </button>
-          <button class="btn btn-secondary" type="button" @click="$emit('skip')">
+          <button class="btn btn-secondary" type="button" :disabled="saving" @click="skip">
             Пропустить
           </button>
         </div>
+        <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
       </form>
     </div>
   </div>
@@ -51,7 +52,7 @@ export default {
     initialPreferences: {
       type: Object,
       default: () => ({
-        tag: '',
+        tagIds: [],
         difficulty: '',
       }),
     },
@@ -63,12 +64,20 @@ export default {
       type: Array,
       default: () => [],
     },
+    saving: {
+      type: Boolean,
+      default: false,
+    },
+    errorMessage: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['save', 'skip'],
   data() {
     return {
       form: {
-        tag: '',
+        tagIds: [],
         difficulty: '',
       },
     }
@@ -79,7 +88,7 @@ export default {
       deep: true,
       handler(value) {
         this.form = {
-          tag: value?.tag || '',
+          tagIds: [...(value?.tagIds || [])],
           difficulty: value?.difficulty || '',
         }
       },
@@ -87,7 +96,10 @@ export default {
   },
   methods: {
     submitPreferences() {
-      this.$emit('save', { ...this.form })
+      this.$emit('save', { ...this.form, tagIds: [...this.form.tagIds] })
+    },
+    skip() {
+      if (!this.saving) this.$emit('skip')
     },
   },
 }
@@ -108,6 +120,8 @@ export default {
   position: relative;
   width: min(520px, 100%);
   padding: 22px;
+  border-radius: 0;
+  box-shadow: 10px 10px 0 var(--primary);
 }
 
 .modal-close {
@@ -117,7 +131,7 @@ export default {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--secondary-bg);
   color: var(--text-main);
   cursor: pointer;
@@ -141,10 +155,44 @@ export default {
 .modal-form select {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: var(--input-bg);
   color: var(--text-main);
+}
+
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+}
+
+.tag-picker legend {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--secondary-bg);
+  cursor: pointer;
+}
+
+.tag-option:has(input:checked) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--secondary-bg));
+}
+
+.form-error {
+  margin: 4px 0 0;
+  color: #b42318;
 }
 
 .actions {

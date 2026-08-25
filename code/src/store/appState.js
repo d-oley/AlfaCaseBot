@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 const SESSION_STORAGE_KEY = 'alfacasebot-session-v2'
 const USER_DATA_STORAGE_KEY = 'alfacasebot-user-data-v2'
 const BAN_NOTICE_STORAGE_KEY = 'alfacasebot-ban-notice-v1'
+export const SOLVE_SCORE_THRESHOLD = 70
 
 const roleOptions = [
   { value: 'STUDENT5', label: 'Ученик средней школы' },
@@ -19,17 +20,30 @@ const difficultyPreferenceOptions = [
   { value: 'hard', label: 'Я люблю посложнее' },
 ]
 
-const getDefaultPreferences = () => ({ tag: '', difficulty: '' })
+const getDefaultPreferences = () => ({ tagIds: [], tags: [], difficulty: '' })
+
+const normalizePreferences = (value = {}) => ({
+  tagIds: [...new Set(
+    (Array.isArray(value.tagIds) ? value.tagIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0)
+  )],
+  tags: [...new Set([
+    ...(Array.isArray(value.tags) ? value.tags : []),
+    ...(value.tag ? [value.tag] : []),
+  ].filter(Boolean))],
+  difficulty: value.difficulty || '',
+})
 
 const getDefaultUser = () => ({
   id: null, username: '', email: '', login: '', nickname: '',
   firstName: '', lastName: '', birthDate: '', role: '',
   cityId: null, city: '', region: '', creationDate: '',
-  avatarUrl: '', rank: 57, preferences: getDefaultPreferences(),
+  avatarUrl: '', rank: 0, preferences: getDefaultPreferences(),
 })
 
 const getDefaultLocalUserData = () => ({
-  firstName: '', lastName: '', rank: 57,
+  firstName: '', lastName: '', rank: 0,
   cityId: null, city: '', region: '', preferences: getDefaultPreferences(),
   userSolvedCases: [], userFavoriteCaseIds: [], viewedCaseIds: [],
   shouldShowPreferencesOnboarding: false,
@@ -58,7 +72,7 @@ const getLocalUserData = (userLike) => {
   return {
     ...getDefaultLocalUserData(),
     ...saved,
-    preferences: { ...getDefaultPreferences(), ...saved.preferences },
+    preferences: normalizePreferences(saved.preferences),
     userSolvedCases: [...(saved.userSolvedCases || [])],
     userFavoriteCaseIds: [...(saved.userFavoriteCaseIds || [])],
     viewedCaseIds: [...(saved.viewedCaseIds || [])],
@@ -74,11 +88,10 @@ const buildUserFromSession = () => {
     ...getDefaultUser(),
     ...session.user,
     ...local,
-    preferences: {
-      ...getDefaultPreferences(),
+    preferences: normalizePreferences({
       ...session.user?.preferences,
       ...local.preferences,
-    },
+    }),
   }
 }
 
@@ -99,6 +112,7 @@ export const appState = reactive({
   shouldShowPreferencesOnboarding: Boolean(initialLocalUserData.shouldShowPreferencesOnboarding),
   userSolvedCases: [...initialLocalUserData.userSolvedCases],
   userFavoriteCaseIds: [...initialLocalUserData.userFavoriteCaseIds],
+  userAchievements: [],
   viewedCaseIds: [...initialLocalUserData.viewedCaseIds],
   banNotice: initialBanNotice,
 })
@@ -135,11 +149,11 @@ const persistUserData = (prevLogin = '') => {
     ...allUsers[curKey],
     firstName: appState.user.firstName || '',
     lastName: appState.user.lastName || '',
-    rank: appState.user.rank || 57,
+    rank: appState.user.rank ?? 0,
     cityId: appState.user.cityId ?? null,
     city: appState.user.city || '',
     region: appState.user.region || '',
-    preferences: { ...getDefaultPreferences(), ...appState.user.preferences },
+    preferences: normalizePreferences(appState.user.preferences),
     userSolvedCases: [...appState.userSolvedCases],
     userFavoriteCaseIds: [...appState.userFavoriteCaseIds],
     viewedCaseIds: [...appState.viewedCaseIds],
@@ -151,23 +165,32 @@ const persistUserData = (prevLogin = '') => {
 }
 
 const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
+const normalizeTagName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU')
 
 const calcRecommendedCase = () => {
-  const tag = appState.user.preferences?.tag || ''
+  const tagIds = new Set((appState.user.preferences?.tagIds || []).map(Number))
+  const tags = new Set((appState.user.preferences?.tags || []).map(normalizeTagName).filter(Boolean))
   const diff = diffDiffMap[appState.user.preferences?.difficulty] || ''
-  if (!tag && !diff) return null
+  if (!tagIds.size && !tags.size && !diff) return null
 
-  const solved = new Set(appState.userSolvedCases.map(e => Number(e.caseId)))
+  const solved = new Set(
+    appState.userSolvedCases
+      .filter(e => Number(e.scorePercent) >= SOLVE_SCORE_THRESHOLD)
+      .map(e => Number(e.caseId))
+  )
   const ranked = appState.cases
-    .filter(c => !solved.has(c.id))
     .map(c => {
       let score = 0
-      if (tag && c.tags.includes(tag)) score += 3
+      const matchingTags = (c.tags || [])
+        .map(normalizeTagName)
+        .filter((tag) => tags.has(tag)).length
+      const matchingTagIds = (c.tagIds || []).filter((id) => tagIds.has(Number(id))).length
+      score += Math.max(matchingTags, matchingTagIds) * 3
       if (diff && c.difficulty === diff) score += 2
-      return { id: c.id, score }
+      return { id: c.id, score, solved: solved.has(Number(c.id)) }
     })
     .filter(c => c.score > 0)
-    .sort((a, b) => b.score - a.score || a.id - b.id)
+    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.score - a.score || a.id - b.id)
   
   return ranked[0]?.id || null
 }
@@ -188,13 +211,12 @@ export const hydrateUser = (payload, opts = {}) => {
     cityId: payload.cityId ?? local.cityId ?? null,
     city: payload.city ?? local.city ?? '',
     region: payload.region ?? local.region ?? '',
-    rank: payload.rank ?? local.rank ?? 57,
+    rank: payload.rank ?? local.rank ?? 0,
     avatarUrl: payload.avatarUrl || '',
-    preferences: {
-      ...getDefaultPreferences(),
+    preferences: normalizePreferences({
       ...payload.preferences,
       ...local.preferences,
-    },
+    }),
   }
   appState.userSolvedCases = [...(local.userSolvedCases || [])]
   appState.userFavoriteCaseIds = [...(local.userFavoriteCaseIds || [])]
@@ -218,6 +240,7 @@ export const logoutUser = () => {
   appState.user = getDefaultUser()
   appState.userSolvedCases = []
   appState.userFavoriteCaseIds = []
+  appState.userAchievements = []
   appState.viewedCaseIds = []
   appState.shouldShowPreferencesOnboarding = false
   appState.recommendedCaseId = null
@@ -287,16 +310,16 @@ export const updateUserProfile = (payload) => {
     login: nextLogin || '',
     nickname: payload.nickname ?? nextLogin ?? '',
     username: payload.username ?? appState.user.username ?? '',
-    preferences: { ...getDefaultPreferences(), ...appState.user.preferences, ...payload.preferences },
+    preferences: normalizePreferences({ ...appState.user.preferences, ...payload.preferences }),
   }
 
   persistUserData(prevKey)
   appState.recommendedCaseId = calcRecommendedCase()
 }
 
-export const updateUserPreferences = (payload = {}) => {
-  appState.user.preferences = { ...getDefaultPreferences(), ...appState.user.preferences, ...payload }
-  appState.shouldShowPreferencesOnboarding = false
+export const updateUserPreferences = (payload = {}, { closeOnboarding = true } = {}) => {
+  appState.user.preferences = normalizePreferences(payload)
+  if (closeOnboarding) appState.shouldShowPreferencesOnboarding = false
   persistUserData()
   appState.recommendedCaseId = calcRecommendedCase()
 }
@@ -325,15 +348,30 @@ export const markCaseViewed = (id) => {
 
 export const isCaseFavorite = (id) => appState.userFavoriteCaseIds.includes(Number(id))
 
-export const toggleCaseFavorite = (id) => {
+export const setUserFavoriteCases = (cases = []) => {
+  appState.userFavoriteCaseIds = [...new Set(
+    cases.map((item) => Number(item?.id ?? item)).filter((id) => Number.isFinite(id) && id > 0)
+  )]
+  persistUserData()
+}
+
+export const setUserAchievements = (achievements = []) => {
+  appState.userAchievements = Array.isArray(achievements) ? [...achievements] : []
+}
+
+export const setCaseFavorite = (id, favorite) => {
   const num = Number(id)
-  if (isCaseFavorite(num)) {
-    appState.userFavoriteCaseIds = appState.userFavoriteCaseIds.filter(x => x !== num)
-  } else {
-    appState.userFavoriteCaseIds = [...appState.userFavoriteCaseIds, num]
-  }
+  if (!Number.isFinite(num) || num <= 0) return false
+  const ids = new Set(appState.userFavoriteCaseIds)
+  if (favorite) ids.add(num)
+  else ids.delete(num)
+  appState.userFavoriteCaseIds = [...ids]
   persistUserData()
   return isCaseFavorite(num)
+}
+
+export const toggleCaseFavorite = (id) => {
+  return setCaseFavorite(id, !isCaseFavorite(id))
 }
 
 export const getFavoriteCases = () =>
@@ -341,26 +379,37 @@ export const getFavoriteCases = () =>
 
 export const saveSolvedCase = (id, score, extra = {}) => {
   const num = Number(id)
+  const normalizedScore = Number(score)
+  if (!Number.isFinite(normalizedScore) || normalizedScore < SOLVE_SCORE_THRESHOLD) return false
+
   const entry = {
     caseId: num,
-    scorePercent: Number(score || 0),
+    scorePercent: normalizedScore,
     solvedAt: extra.solvedAt || new Date().toISOString(),
     attempts: Number(extra.attempts ?? 1),
     revisions: Number(extra.revisions ?? 0),
-    solveMinutes: Number(extra.solveMinutes ?? 0),
   }
 
   const idx = appState.userSolvedCases.findIndex(e => Number(e.caseId) === num)
   if (idx >= 0) {
-    appState.userSolvedCases[idx] = { ...appState.userSolvedCases[idx], ...entry }
+    const previous = appState.userSolvedCases[idx]
+    appState.userSolvedCases[idx] = {
+      ...previous,
+      ...entry,
+      scorePercent: Math.max(Number(previous.scorePercent || 0), normalizedScore),
+      solvedAt: previous.solvedAt || entry.solvedAt,
+    }
   } else {
     appState.userSolvedCases = [...appState.userSolvedCases, entry]
   }
   persistUserData()
+  appState.recommendedCaseId = calcRecommendedCase()
+  return true
 }
 
 export const getSolvedCases = () =>
   [...appState.userSolvedCases]
+    .filter(e => Number(e.scorePercent) >= SOLVE_SCORE_THRESHOLD)
     .sort((a, b) => String(b.solvedAt || '').localeCompare(String(a.solvedAt || '')))
     .map(e => {
       const c = getCaseById(e.caseId)
@@ -371,25 +420,19 @@ export const getSolvedCases = () =>
 export const getRoleOptions = () => [...roleOptions]
 export const getRoleLabel = (val) => roleOptions.find(o => o.value === val)?.label || 'Не указан'
 export const getDifficultyPreferenceOptions = () => [...difficultyPreferenceOptions]
-export const getPreferenceTagOptions = () => [...new Set(appState.cases.flatMap(c => c.tags))].sort()
+export const getPreferenceTagOptions = () => {
+  const tags = new Map()
+  appState.cases.forEach((caseItem) => {
+    (caseItem.tags || []).forEach((name, index) => {
+      const id = Number(caseItem.tagIds?.[index])
+      if (name && Number.isFinite(id) && id > 0) tags.set(id, { id, name })
+    })
+  })
+  return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+}
 
 export const getAchievementsForUser = () => {
-  const solved = appState.userSolvedCases
-  const solvedIds = new Set(solved.map(e => Number(e.caseId)))
-  const dataSci = solved.filter(e => getCaseById(e.caseId)?.tags.includes('AI')).length
-  const busBiz = solved.filter(e => getCaseById(e.caseId)?.tags.includes('Strategy')).length
-  const perfect = solved.filter(e => Number(e.scorePercent) === 100).length
-  const hardCases = solved.filter(e => getCaseById(e.caseId)?.difficulty === 'Сложно').length
-
-  return [
-    { id: 'rapid', title: '⚡ Стремительный взлёт', desc: 'Решите 5 кейсов', active: solvedIds.size >= 5, prog: `${Math.min(solvedIds.size, 5)}/5` },
-    { id: 'collector', title: '📚 Коллекционер', desc: 'Решите 20 кейсов', active: solvedIds.size >= 20, prog: `${Math.min(solvedIds.size, 20)}/20` },
-    { id: 'perfect', title: '💎 Идеальное решение', desc: '100% за кейс', active: perfect >= 1, prog: `${Math.min(perfect, 1)}/1` },
-    { id: 'hardcore', title: '🧠 Хардкорщик', desc: '3 сложных кейса', active: hardCases >= 3, prog: `${Math.min(hardCases, 3)}/3` },
-    { id: 'datasci', title: '📊 Data-мастер', desc: '5 DS кейсов', active: dataSci >= 5, prog: `${Math.min(dataSci, 5)}/5` },
-    { id: 'bizlead', title: '🏢 Бизнес-лидер', desc: '5 бизнес кейсов', active: busBiz >= 5, prog: `${Math.min(busBiz, 5)}/5` },
-    { id: 'toprank', title: '🎖️ Лидер мнений', desc: 'Топ-3 рейтинга', active: appState.user.rank > 0 && appState.user.rank <= 3, prog: `#${appState.user.rank || '-'}` },
-  ]
+  return appState.userAchievements
 }
 
 export const getFullName = (user) => {
@@ -401,6 +444,7 @@ export const getFullName = (user) => {
 
 export const getSolvedCasesForUser = () => {
   return appState.userSolvedCases
+    .filter(solved => Number(solved.scorePercent) >= SOLVE_SCORE_THRESHOLD)
     .map(solved => ({ ...getCaseById(solved.caseId), ...solved }))
     .filter(c => c)
 }

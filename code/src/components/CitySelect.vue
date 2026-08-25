@@ -194,9 +194,9 @@ export default {
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--input-bg);
-  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.05);
+  box-shadow: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -233,9 +233,21 @@ export default {
   color: var(--text-muted);
 }
 
+@media (prefers-color-scheme: dark) {
+  .search-shell {
+    background: var(--input-bg);
+    border-color: var(--border);
+  }
+
+  .dropdown-card {
+    background: var(--card-bg);
+    border-color: var(--border);
+  }
+}
+
 .loading-badge {
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(15, 98, 254, 0.08);
   color: #0f62fe;
   font-size: 0.78rem;
@@ -248,7 +260,7 @@ export default {
   gap: 6px 10px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 0;
   background: rgba(14, 116, 144, 0.08);
   color: var(--text-main);
 }
@@ -263,7 +275,7 @@ export default {
   gap: 6px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 0;
   background: var(--card-bg);
   box-shadow: 0 18px 45px rgba(17, 24, 39, 0.08);
 }
@@ -271,7 +283,7 @@ export default {
 .dropdown-state {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 0;
   font-size: 0.9rem;
 }
 
@@ -291,7 +303,7 @@ export default {
   width: 100%;
   padding: 12px 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: 0;
   background: transparent;
   color: inherit;
   text-align: left;

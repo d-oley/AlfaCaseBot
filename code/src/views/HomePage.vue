@@ -34,7 +34,7 @@ export default {
 <style scoped>
 .home-page {
   display: grid;
-  gap: 32px;
+  gap: clamp(42px, 7vw, 82px);
 }
 </style>
 

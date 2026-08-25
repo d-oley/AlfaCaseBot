@@ -2,7 +2,12 @@
   <header class="header">
     <div class="container header-inner">
       <router-link class="brand" :to="homeRoute">
-        <img class="brand-logo" :src="logoSrc" alt="Логотип Alfa" />
+        <img
+          class="brand-logo"
+          :class="{ 'brand-logo-light': theme === 'light' }"
+          :src="logoSrc"
+          alt="Логотип Alfa"
+        />
         <span class="brand-text">AlfaCaseBot</span>
       </router-link>
 
@@ -60,7 +65,7 @@
         </div>
         <div v-else class="header-actions header-actions-auth">
           <span class="user-login">{{ login || 'Пользователь' }}</span>
-          <span class="user-rank">Место: #{{ userRank }}</span>
+          <span class="user-rank">Место: {{ userRank > 0 ? `#${userRank}` : '—' }}</span>
           <button class="btn btn-secondary" type="button" @click="$emit('logout')">Выйти</button>
         </div>
       </div>
@@ -111,13 +116,13 @@ export default {
 
 <style scoped>
 .header {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 4px solid var(--primary);
   background: var(--header-bg);
-  backdrop-filter: blur(5px);
+  color: #fff;
 }
 
 .header-inner {
-  min-height: 74px;
+  min-height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -127,35 +132,50 @@ export default {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   text-decoration: none;
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 26px;
+  height: 26px;
   object-fit: cover;
+  filter: grayscale(1) contrast(1.4);
+}
+
+.brand-logo-light {
+  filter: none;
 }
 
 .brand-text {
-  font-weight: 700;
-  font-size: 1.08rem;
+  font-family: var(--mono-font);
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .nav-link {
   text-decoration: none;
-  color: var(--text-muted);
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .nav-link.router-link-exact-active {
-  color: var(--text-main);
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 7px;
+  text-decoration-thickness: 3px;
 }
 
 .header-controls {
@@ -165,12 +185,12 @@ export default {
 }
 
 .theme-toggle {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--input-bg);
-  color: var(--text-main);
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -178,8 +198,8 @@ export default {
 }
 
 .theme-toggle svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .header-actions {
@@ -197,12 +217,21 @@ export default {
 
 .user-rank {
   padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-subtle);
+  border-radius: 0;
+  border: 1px solid currentColor;
+  background: transparent;
   font-size: 0.85rem;
   font-weight: 700;
+  font-family: var(--mono-font);
 }
+
+.header .btn-secondary {
+  color: #fff;
+  border-color: #fff;
+  background: transparent;
+}
+
+.header .btn-primary { border-color: var(--primary); }
 
 @media (max-width: 900px) {
   .header-inner {
@@ -218,17 +247,85 @@ export default {
 }
 
 @media (max-width: 560px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 14px 12px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .brand-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .header-controls {
-    width: 100%;
-    flex-wrap: wrap;
+    display: contents;
+  }
+
+  .theme-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .header-actions {
-    width: 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: auto;
   }
 
   .header-actions .btn {
-    flex: 1;
+    min-width: 0;
+    padding-inline: 10px;
+  }
+
+  .header-actions-auth {
+    grid-template-columns: auto auto minmax(90px, 1fr);
+  }
+
+  .user-login,
+  .user-rank {
+    align-self: center;
+  }
+
+  .user-login {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-rank {
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .header-actions-auth {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .header-actions-auth .btn {
+    grid-column: 1 / -1;
   }
 }
 </style>

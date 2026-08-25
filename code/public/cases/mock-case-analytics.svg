@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#f5f2eb"/>
+  <path d="M40 235V90m65 145V155m65 80V120m65 115V45m65 190V100" stroke="#ed2c20" stroke-width="28"/>
+  <text x="28" y="278" fill="#11110f" font-family="monospace" font-size="18">BRANCH ANALYTICS</text>
+</svg>

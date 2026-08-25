@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#ed2c20"/>
+  <path d="M0 230h400M72 0v300" stroke="#11110f" stroke-width="4"/>
+  <text x="94" y="120" fill="#fff" font-family="Arial,sans-serif" font-size="35" font-weight="700">ПРОДУКТ</text>
+  <text x="94" y="166" fill="#11110f" font-family="monospace" font-size="18">CUSTOMER PATH</text>
+</svg>

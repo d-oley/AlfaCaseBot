@@ -59,6 +59,9 @@
           <button class="btn btn-primary" type="submit" :disabled="!isVerificationCodeValid || loading">
             {{ loading ? 'Проверяем...' : 'Подтвердить и войти' }}
           </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="handleResendVerification">
+            Отправить код ещё раз
+          </button>
           <button class="btn btn-secondary" type="button" :disabled="loading" @click="resetVerification">
             Изменить данные регистрации
           </button>
@@ -145,6 +148,7 @@ import {
   logoutRequest,
   mapApiProfileToState,
   registerRequest,
+  resendVerificationEmail,
   verifyEmail,
 } from '@/api/authApi'
 import { getRoleOptions } from '@/store/appState'
@@ -468,6 +472,29 @@ export default {
         this.loading = false
       }
     },
+    async handleResendVerification() {
+      if (!this.pendingVerification || this.loading) return
+
+      this.loading = true
+      this.resetMessages()
+      try {
+        const result = await resendVerificationEmail({
+          username: this.pendingVerification.username,
+          email: this.pendingVerification.email,
+          password: this.pendingVerification.password,
+        })
+        this.pendingVerification = {
+          ...this.pendingVerification,
+          id: result?.id || this.pendingVerification.id,
+        }
+        this.verificationCode = ''
+        this.message = 'Новый код подтверждения отправлен на email.'
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось повторно отправить код.'
+      } finally {
+        this.loading = false
+      }
+    },
   },
 }
 </script>
@@ -486,8 +513,14 @@ export default {
 .modal {
   position: relative;
   width: min(480px, 100%);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   padding: clamp(18px, 3vw, 24px);
-  border-radius: 16px;
+  border-radius: 0;
+  box-shadow: 10px 10px 0 var(--primary);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .modal h2 {
@@ -496,13 +529,14 @@ export default {
 }
 
 .modal-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  float: right;
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--secondary-bg);
   color: var(--text-main);
   cursor: pointer;
@@ -526,7 +560,7 @@ export default {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   font-size: 0.95rem;
   background: var(--input-bg);
   color: var(--text-main);
@@ -541,7 +575,7 @@ export default {
 
 .toggle-password {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--input-bg);
   width: 44px;
   height: 42px;
