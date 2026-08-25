@@ -5,6 +5,8 @@ const ML_URL = process.env.VUE_APP_ML_API_BASE_URL || ''
 const CASE_ASSET_URL = process.env.VUE_APP_CASE_ASSET_BASE_URL || ''
 const USE_MOCK_API = String(process.env.VUE_APP_USE_MOCK_API || '').toLowerCase() === 'true'
 const MOCK_SESSION_KEY = 'alfacasebot-mock-session'
+const mockSolvingKey = (caseId) => `alfacasebot-mock-solving-${Number(caseId)}`
+const mockCompletionKey = (caseId) => `alfacasebot-mock-completed-${Number(caseId)}`
 
 const AUTH_PREFIX = '/api/v1/auth'
 const ADMIN_PREFIX = '/api/admin/v1'
@@ -40,6 +42,7 @@ const errors = {
   'this case is already in your favourites': 'Кейс уже добавлен в избранное',
   'this case is not in your favourites': 'Кейса уже нет в избранном',
   'Case is not active': 'Этот кейс сейчас недоступен',
+  'Case is already solved': 'Этот кейс уже завершён',
   'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
@@ -839,7 +842,47 @@ export const getCaseChatSequence = async (caseId) => {
   })
 }
 
-export const evaluateCaseSolution = ({ text, caseId, solveMinutes }) =>
+export const startCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    if (localStorage.getItem(mockCompletionKey(caseId))) {
+      throw buildRequestError({ message: 'Case is already solved', status: 400 })
+    }
+    const key = mockSolvingKey(caseId)
+    const timestamp = localStorage.getItem(key) || new Date().toISOString()
+    localStorage.setItem(key, timestamp)
+    return Promise.resolve({ active: true, completed: false, bestRating: 0, timestamp })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/startSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
+  })
+}
+
+export const getCaseSolvingState = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    const timestamp = localStorage.getItem(mockSolvingKey(caseId))
+    const completed = localStorage.getItem(mockCompletionKey(caseId)) === 'true'
+    return Promise.resolve({ active: Boolean(timestamp), completed, bestRating: 0, timestamp })
+  }
+  return request(
+    withBaseUrl(API_URL, `${TEXT_PREFIX}/solvingState/${encodeURIComponent(caseId)}`)
+  )
+}
+
+export const finishCaseSolving = (caseId) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    localStorage.removeItem(mockSolvingKey(caseId))
+    localStorage.setItem(mockCompletionKey(caseId), 'true')
+    return Promise.resolve({ active: false, completed: true, bestRating: 0, timestamp: null })
+  }
+  return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/finishSolving/${encodeURIComponent(caseId)}`), {
+    method: 'POST',
+  })
+}
+
+export const evaluateCaseSolution = ({ text, caseId }) =>
   USE_MOCK_API
     ? Promise.resolve({
         status: 'accepted',
@@ -849,7 +892,7 @@ export const evaluateCaseSolution = ({ text, caseId, solveMinutes }) =>
       })
     : mlRequest(withBaseUrl(ML_URL, '/evaluate'), {
         method: 'POST',
-        body: JSON.stringify({ text, case_id: caseId, solved_min: solveMinutes }),
+        body: JSON.stringify({ text, case_id: caseId }),
       })
 
 export const isNotFoundError = (error) => {

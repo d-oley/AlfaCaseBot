@@ -388,7 +388,6 @@ export const saveSolvedCase = (id, score, extra = {}) => {
     solvedAt: extra.solvedAt || new Date().toISOString(),
     attempts: Number(extra.attempts ?? 1),
     revisions: Number(extra.revisions ?? 0),
-    solveMinutes: Number(extra.solveMinutes ?? 0),
   }
 
   const idx = appState.userSolvedCases.findIndex(e => Number(e.caseId) === num)
