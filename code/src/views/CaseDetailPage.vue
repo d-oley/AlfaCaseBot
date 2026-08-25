@@ -361,6 +361,8 @@ h1 {
   max-width: 850px;
   font-size: clamp(1rem, 1.45vw, 1.15rem);
   line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .description-block {
   margin: 34px 0;
