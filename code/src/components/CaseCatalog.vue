@@ -10,8 +10,16 @@
         @click="$emit('open-case', recommendedCase.id)"
       >
         <span class="recommended-mark">Открыть ↗</span>
-        <strong>{{ recommendedCase.title }}</strong>
-        <span>{{ recommendedCase.description }}</span>
+        <span class="recommended-content">
+          <span class="recommended-visual" aria-hidden="true">
+            <img v-if="recommendedCase.iconUrl" :src="recommendedCase.iconUrl" alt="" />
+            <span v-else>CASE</span>
+          </span>
+          <span class="recommended-copy">
+            <strong>{{ recommendedCase.title }}</strong>
+            <span>{{ recommendedCase.description || 'Описание пока не добавлено.' }}</span>
+          </span>
+        </span>
       </button>
       <p v-else class="recommendation-empty">
         Выберите предпочтения, чтобы получить персональную рекомендацию.
@@ -117,7 +125,10 @@ export default {
   background: var(--card-bg);
 }
 .recommendation, .filters { padding: 24px; border-bottom: 1px solid var(--border); }
-.recommendation { grid-row: span 2; border-right: 1px solid var(--border); }
+.recommendation {
+  border-right: 1px solid var(--border);
+  align-self: stretch;
+}
 .section-code, .filter-heading, .case-kicker, .case-meta {
   font-family: var(--mono-font);
   font-size: 0.72rem;
@@ -128,15 +139,14 @@ export default {
 .recommendation h2 {
   margin: 0;
   max-width: 100%;
-  font-size: clamp(2.1rem, 3.2vw, 3.5rem);
+  font-size: clamp(2rem, 2.8vw, 3rem);
   line-height: 1;
   text-transform: uppercase;
-  overflow-wrap: anywhere;
 }
 .recommended-case {
   width: 100%;
-  margin-top: 38px;
-  padding: 16px 0;
+  margin-top: 22px;
+  padding: 14px 0 0;
   border: 0;
   border-top: 1px solid var(--border);
   background: transparent;
@@ -144,10 +154,38 @@ export default {
   text-align: left;
   cursor: pointer;
   display: grid;
-  gap: 7px;
+  gap: 12px;
 }
-.recommended-case strong { font-size: 1.1rem; }
-.recommended-case > span:last-child, .recommendation-empty { color: var(--text-muted); }
+.recommended-content {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.recommended-visual {
+  width: 82px;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: var(--mono-font);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+}
+.recommended-visual img { width: 100%; height: 100%; object-fit: cover; }
+.recommended-copy { min-width: 0; display: grid; gap: 6px; }
+.recommended-copy strong {
+  font-family: var(--display-font);
+  font-size: 1.2rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.recommended-copy > span { color: var(--text-muted); line-height: 1.4; }
+.recommended-case:hover .recommended-copy strong { color: var(--primary); }
+.recommendation-empty { color: var(--text-muted); }
 .recommended-mark { color: var(--primary); font-family: var(--mono-font); font-size: 0.72rem; text-transform: uppercase; }
 .recommendation-empty { margin: 28px 0 0; }
 .filter-heading { display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -166,7 +204,7 @@ export default {
   text-transform: uppercase;
 }
 .tag-btn.active { color: #fff; background: var(--primary); border-color: var(--primary); }
-.cases-list { grid-column: 2; display: grid; }
+.cases-list { grid-column: 1 / -1; display: grid; border-top: 1px solid var(--border); }
 .case-row {
   min-height: 126px;
   border: 0;
@@ -206,7 +244,7 @@ export default {
 
 @media (max-width: 800px) {
   .catalog { grid-template-columns: 1fr; }
-  .recommendation { grid-row: auto; border-right: 0; }
+  .recommendation { border-right: 0; }
   .cases-list { grid-column: 1; }
   .case-row { grid-template-columns: 72px 1fr 24px; padding: 18px 12px; }
   .case-visual { width: 72px; }

@@ -46,8 +46,8 @@
         <article class="card panel-card">
           <h2>Кейсы</h2>
           <div class="list">
-            <div v-for="item in adminCases" :key="item.id" class="list-item">
-              <div>
+            <div v-for="item in adminCases" :key="item.id" class="list-item case-list-item">
+              <div class="case-list-copy">
                 <p class="title">{{ item.title }}</p>
                 <p class="meta">
                   Сложность: {{ item.difficulty }} | Теги: {{ item.tags.join(', ') || 'нет' }}
@@ -1350,6 +1350,24 @@ h1 { font-size: clamp(2rem, 4vw, 4rem); line-height: 0.9; text-transform: upperc
   justify-content: end;
 }
 .list-item > .row-actions .btn { width: 100%; }
+.case-list-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.case-list-copy {
+  min-width: 0;
+}
+.case-list-copy .title {
+  overflow-wrap: anywhere;
+}
+.case-list-copy .meta {
+  line-height: 1.45;
+}
+.case-list-item > .row-actions {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  width: 100%;
+  justify-content: stretch;
+}
 .user-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
