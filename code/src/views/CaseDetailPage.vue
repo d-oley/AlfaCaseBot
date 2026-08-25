@@ -8,7 +8,7 @@
       <router-link class="back-link" to="/dashboard">
         <span aria-hidden="true">←</span> К каталогу кейсов
       </router-link>
-      <p class="case-code">Кейс / {{ caseItem.id }} / {{ caseItem.difficulty || 'Без уровня' }}</p>
+      <p class="case-code">Кейс / {{ caseItem.difficulty || 'Без уровня' }}</p>
       <div class="title-row">
         <h1>{{ caseItem.title }}</h1>
         <button
@@ -19,7 +19,9 @@
           :aria-label="isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'"
           @click="toggleFavorite"
         >
-          ★
+          <svg class="favorite-heart" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 21C9.3 19.3 3 15.1 3 9.5A4.5 4.5 0 0 1 11.1 6.8L12 8l.9-1.2A4.5 4.5 0 0 1 21 9.5c0 5.6-6.3 9.8-9 11.5Z" />
+          </svg>
         </button>
       </div>
       <p v-if="favoriteError" class="leaderboard-error" role="alert">{{ favoriteError }}</p>
@@ -335,25 +337,52 @@ export default {
 h1 {
   margin: 0 0 22px;
   max-width: 1000px;
-  font-size: clamp(2.5rem, 5.5vw, 5.5rem);
-  line-height: .87;
+  font-size: clamp(2.4rem, 4.5vw, 4.5rem);
+  line-height: 1.04;
   text-transform: uppercase;
 }
 
 .favorite-star {
-  width: 56px;
-  height: 56px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  font-size: 1.65rem;
+  font-size: 2rem;
   line-height: 1;
-  color: #b8b8b8;
+  color: var(--text-muted);
   padding: 0;
+  display: grid;
+  place-items: center;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.favorite-star:hover {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  transform: scale(1.06);
 }
 
 .favorite-star.active {
-  color: #f3c01c;
+  color: var(--primary);
+}
+
+.favorite-heart {
+  width: 29px;
+  height: 29px;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.favorite-star.active .favorite-heart {
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 .description {
@@ -399,7 +428,14 @@ h1 {
 
 @media (max-width: 700px) {
   .description-block { grid-template-columns: 1fr; gap: 10px; }
-  h1 { font-size: clamp(2.6rem, 14vw, 5rem); }
+  h1 { font-size: clamp(2.2rem, 11vw, 4rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favorite-star,
+  .favorite-heart {
+    transition: none;
+  }
 }
 
 .difficulty-tag {

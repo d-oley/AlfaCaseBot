@@ -754,7 +754,7 @@ export default {
     },
     getSolutionCaseTitle(caseId) {
       const caseItem = this.adminCases.find((item) => Number(item.id) === Number(caseId))
-      return caseItem?.title || `Кейс ID ${caseId}`
+      return caseItem?.title || 'Неизвестный кейс'
     },
     async saveUser() {
       if (this.isUserSaving) return
