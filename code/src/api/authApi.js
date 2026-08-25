@@ -593,6 +593,22 @@ export const getAdminUserById = (id) =>
     ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id), username: mockData.profile.nickName, role: 'USER' })
     : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`))
 
+export const listAdminUserSolutions = async (userId, { page = 0, size = 25 } = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return normalizePageResponse({ items: [], page: 0, size, totalElements: 0, totalPages: 0 })
+  }
+  const query = new URLSearchParams({ page: String(page), size: String(size) })
+  return normalizePageResponse(
+    await request(
+      withBaseUrl(
+        API_URL,
+        `${ADMIN_PREFIX}/users/${encodeURIComponent(userId)}/solutions?${query}`
+      )
+    )
+  )
+}
+
 export const listAdminTags = async (options = {}) => {
   if (USE_MOCK_API) {
     requireMockSession()
