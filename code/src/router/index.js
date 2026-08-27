@@ -11,6 +11,8 @@ import ProfilePage from '@/views/ProfilePage.vue'
 import AdminPage from '@/views/AdminPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
 import { appState } from '@/store/appState'
+import { loginUser } from '@/store/appState'
+import { getCurrentUserProfile, mapApiProfileToState } from '@/api/authApi'
 
 const routes = [
   {
@@ -60,9 +62,14 @@ const router = createRouter({
 })
 
 // блокируем приватные страницы для гостей
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !appState.isAuthenticated) {
-    return '/'
+    try {
+      const profile = await getCurrentUserProfile()
+      loginUser(mapApiProfileToState(profile))
+    } catch {
+      return '/'
+    }
   }
   return true
 })

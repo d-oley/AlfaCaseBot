@@ -1,6 +1,4 @@
 import { reactive } from 'vue'
-const SESSION_STORAGE_KEY = 'alfacasebot-session-v2'
-const USER_DATA_STORAGE_KEY = 'alfacasebot-user-data-v2'
 const BAN_NOTICE_STORAGE_KEY = 'alfacasebot-ban-notice-v1'
 export const SOLVE_SCORE_THRESHOLD = 70
 
@@ -42,127 +40,35 @@ const getDefaultUser = () => ({
   avatarUrl: '', rank: 0, preferences: getDefaultPreferences(),
 })
 
-const getDefaultLocalUserData = () => ({
-  firstName: '', lastName: '', rank: 0,
-  cityId: null, city: '', region: '', preferences: getDefaultPreferences(),
-  userSolvedCases: [], userFavoriteCaseIds: [], viewedCaseIds: [],
-  shouldShowPreferencesOnboarding: false,
-})
-
 function safeParse(val, fallback) {
   try { return val ? JSON.parse(val) : fallback }
   catch { return fallback }
 }
 
-const readStorage = (key, fallback) => safeParse(localStorage.getItem(key), fallback)
-const writeStorage = (key, val) => localStorage.setItem(key, JSON.stringify(val))
 const readSessionStorage = (key, fallback) => safeParse(sessionStorage.getItem(key), fallback)
-
-const getInitialSession = () => readStorage(SESSION_STORAGE_KEY, {
-  isAuthenticated: false, user: getDefaultUser(),
-})
-
-const getLocalUserData = (userLike) => {
-  const key = String(userLike?.username || userLike?.login || '').trim().toLowerCase()
-  if (!key) return getDefaultLocalUserData()
-  
-  const allUsers = readStorage(USER_DATA_STORAGE_KEY, {})
-  const saved = allUsers[key] || {}
-  
-  return {
-    ...getDefaultLocalUserData(),
-    ...saved,
-    preferences: normalizePreferences(saved.preferences),
-    userSolvedCases: [...(saved.userSolvedCases || [])],
-    userFavoriteCaseIds: [...(saved.userFavoriteCaseIds || [])],
-    viewedCaseIds: [...(saved.viewedCaseIds || [])],
-  }
-}
-
-const buildUserFromSession = () => {
-  const session = getInitialSession()
-  if (!session?.isAuthenticated) return getDefaultUser()
-
-  const local = getLocalUserData(session.user)
-  return {
-    ...getDefaultUser(),
-    ...session.user,
-    ...local,
-    preferences: normalizePreferences({
-      ...session.user?.preferences,
-      ...local.preferences,
-    }),
-  }
-}
-
-const initialSession = getInitialSession()
-const initialUser = buildUserFromSession()
-const initialLocalUserData = getLocalUserData(initialUser)
 const initialBanNotice = readSessionStorage(BAN_NOTICE_STORAGE_KEY, null)
 
+// These keys belonged to the old client-side session/profile cache. Server APIs
+// and the authentication cookie are now the only persistent source of user data.
+localStorage.removeItem('alfacasebot-session-v2')
+localStorage.removeItem('alfacasebot-user-data-v2')
+
 export const appState = reactive({
-  isAuthenticated: Boolean(initialSession?.isAuthenticated),
-  user: initialUser,
+  isAuthenticated: false,
+  user: getDefaultUser(),
   topUsers: [],
   cases: [],
   casesLoading: false,
   casesError: '',
   cities: [],
   recommendedCaseId: null,
-  shouldShowPreferencesOnboarding: Boolean(initialLocalUserData.shouldShowPreferencesOnboarding),
-  userSolvedCases: [...initialLocalUserData.userSolvedCases],
-  userFavoriteCaseIds: [...initialLocalUserData.userFavoriteCaseIds],
+  shouldShowPreferencesOnboarding: false,
+  userSolvedCases: [],
+  userFavoriteCaseIds: [],
   userAchievements: [],
-  viewedCaseIds: [...initialLocalUserData.viewedCaseIds],
+  viewedCaseIds: [],
   banNotice: initialBanNotice,
 })
-
-const persistSession = () => {
-  writeStorage(SESSION_STORAGE_KEY, {
-    isAuthenticated: appState.isAuthenticated,
-    user: appState.user,
-  })
-}
-
-const persistUserData = (prevLogin = '') => {
-  if (!appState.isAuthenticated) {
-    persistSession()
-    return
-  }
-
-  const curKey = String(appState.user?.username || appState.user?.login || '').trim().toLowerCase()
-  if (!curKey) {
-    persistSession()
-    return
-  }
-
-  const allUsers = readStorage(USER_DATA_STORAGE_KEY, {})
-  const prevKey = String(prevLogin || '').trim().toLowerCase()
-
-  if (prevKey && prevKey !== curKey && allUsers[prevKey]) {
-    allUsers[curKey] = { ...allUsers[prevKey], ...allUsers[curKey] }
-    delete allUsers[prevKey]
-  }
-
-  allUsers[curKey] = {
-    ...getDefaultLocalUserData(),
-    ...allUsers[curKey],
-    firstName: appState.user.firstName || '',
-    lastName: appState.user.lastName || '',
-    rank: appState.user.rank ?? 0,
-    cityId: appState.user.cityId ?? null,
-    city: appState.user.city || '',
-    region: appState.user.region || '',
-    preferences: normalizePreferences(appState.user.preferences),
-    userSolvedCases: [...appState.userSolvedCases],
-    userFavoriteCaseIds: [...appState.userFavoriteCaseIds],
-    viewedCaseIds: [...appState.viewedCaseIds],
-    shouldShowPreferencesOnboarding: appState.shouldShowPreferencesOnboarding,
-  }
-
-  writeStorage(USER_DATA_STORAGE_KEY, allUsers)
-  persistSession()
-}
 
 const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
 const normalizeTagName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU')
@@ -196,35 +102,28 @@ const calcRecommendedCase = () => {
 }
 
 export const hydrateUser = (payload, opts = {}) => {
-  const local = getLocalUserData(payload)
-
   appState.isAuthenticated = true
   appState.user = {
     ...getDefaultUser(),
     ...payload,
-    ...local,
     login: payload.login || payload.nickname || payload.username || '',
     nickname: payload.nickname || payload.login || payload.username || '',
     username: payload.username || '',
-    firstName: payload.firstName ?? local.firstName ?? '',
-    lastName: payload.lastName ?? local.lastName ?? '',
-    cityId: payload.cityId ?? local.cityId ?? null,
-    city: payload.city ?? local.city ?? '',
-    region: payload.region ?? local.region ?? '',
-    rank: payload.rank ?? local.rank ?? 0,
+    firstName: payload.firstName || '',
+    lastName: payload.lastName || '',
+    cityId: payload.cityId ?? null,
+    city: payload.city || '',
+    region: payload.region || '',
+    rank: payload.rank ?? 0,
     avatarUrl: payload.avatarUrl || '',
-    preferences: normalizePreferences({
-      ...payload.preferences,
-      ...local.preferences,
-    }),
+    preferences: normalizePreferences(payload.preferences),
   }
-  appState.userSolvedCases = [...(local.userSolvedCases || [])]
-  appState.userFavoriteCaseIds = [...(local.userFavoriteCaseIds || [])]
-  appState.viewedCaseIds = [...(local.viewedCaseIds || [])]
-  appState.shouldShowPreferencesOnboarding = opts.onboarding || local.shouldShowPreferencesOnboarding
+  appState.userSolvedCases = []
+  appState.userFavoriteCaseIds = []
+  appState.viewedCaseIds = []
+  appState.shouldShowPreferencesOnboarding = Boolean(opts.onboarding)
 
   appState.recommendedCaseId = calcRecommendedCase()
-  persistUserData()
 }
 
 export const registerUser = (payload) => {
@@ -244,7 +143,6 @@ export const logoutUser = () => {
   appState.viewedCaseIds = []
   appState.shouldShowPreferencesOnboarding = false
   appState.recommendedCaseId = null
-  persistSession()
 }
 
 export const showBanNotice = (message = '') => {
@@ -297,11 +195,9 @@ export const upsertCase = (item) => {
 
 export const setUserAvatar = (url) => {
   appState.user.avatarUrl = url
-  persistUserData()
 }
 
 export const updateUserProfile = (payload) => {
-  const prevKey = String(appState.user?.username || appState.user?.login || '').trim().toLowerCase()
   const nextLogin = payload.login ?? payload.nickname ?? appState.user.login
 
   appState.user = {
@@ -313,27 +209,23 @@ export const updateUserProfile = (payload) => {
     preferences: normalizePreferences({ ...appState.user.preferences, ...payload.preferences }),
   }
 
-  persistUserData(prevKey)
   appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const updateUserPreferences = (payload = {}, { closeOnboarding = true } = {}) => {
   appState.user.preferences = normalizePreferences(payload)
   if (closeOnboarding) appState.shouldShowPreferencesOnboarding = false
-  persistUserData()
   appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const skipUserPreferences = () => {
   appState.user.preferences = getDefaultPreferences()
   appState.shouldShowPreferencesOnboarding = false
-  persistUserData()
   appState.recommendedCaseId = calcRecommendedCase()
 }
 
 export const closePreferencesOnboarding = () => {
   appState.shouldShowPreferencesOnboarding = false
-  persistUserData()
 }
 
 export const getCaseById = (id) => appState.cases.find(c => c.id === Number(id)) || null
@@ -342,7 +234,6 @@ export const markCaseViewed = (id) => {
   const num = Number(id)
   if (!appState.viewedCaseIds.includes(num)) {
     appState.viewedCaseIds = [...appState.viewedCaseIds, num]
-    persistUserData()
   }
 }
 
@@ -352,7 +243,6 @@ export const setUserFavoriteCases = (cases = []) => {
   appState.userFavoriteCaseIds = [...new Set(
     cases.map((item) => Number(item?.id ?? item)).filter((id) => Number.isFinite(id) && id > 0)
   )]
-  persistUserData()
 }
 
 export const setUserAchievements = (achievements = []) => {
@@ -366,7 +256,6 @@ export const setCaseFavorite = (id, favorite) => {
   if (favorite) ids.add(num)
   else ids.delete(num)
   appState.userFavoriteCaseIds = [...ids]
-  persistUserData()
   return isCaseFavorite(num)
 }
 
@@ -402,7 +291,6 @@ export const saveSolvedCase = (id, score, extra = {}) => {
   } else {
     appState.userSolvedCases = [...appState.userSolvedCases, entry]
   }
-  persistUserData()
   appState.recommendedCaseId = calcRecommendedCase()
   return true
 }
