@@ -268,6 +268,8 @@ export const normalizeCase = (item = {}) => {
     pdfUrl: getCaseAssetUrl(item.pdfUrl),
     iconUrl: getCaseAssetUrl(item.iconUrl),
     promptContextEn: item.promptContextEn || '',
+    perfectSolution: item.perfectSolution || '',
+    caseRating: Number(item.caseRating ?? 0),
     viewsCount: Number(item.viewsCount || 0),
     active: item.active ?? item.isActive ?? true,
     createdAt: item.createdAt || '',
@@ -334,6 +336,12 @@ const toCaseApiPayload = (item = {}) => ({
   averageSolveMin: Number(item.averageSolveMin ?? item.averageSolveMinutes ?? 0),
   promptContextEn: item.promptContextEn || '',
   active: item.active ?? item.isActive ?? true,
+  ...(String(item.perfectSolution || '').trim()
+    ? { perfectSolution: String(item.perfectSolution).trim() }
+    : {}),
+  ...(item.removePerfectSolution !== undefined
+    ? { removePerfectSolution: Boolean(item.removePerfectSolution) }
+    : {}),
   ...(item.removePdf !== undefined ? { removePdf: Boolean(item.removePdf) } : {}),
   ...(item.removeIcon !== undefined ? { removeIcon: Boolean(item.removeIcon) } : {}),
 })
@@ -518,6 +526,24 @@ export const getCaseByIdRequest = async (id) => {
   return normalizeCase(item)
 }
 
+export const getCasePerfectSolution = async (id) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    if (localStorage.getItem(mockCompletionKey(id)) !== 'true') {
+      throw buildRequestError({ message: 'Case is not solved yet', status: 400 })
+    }
+    const item = mockData.cases.find((caseItem) => Number(caseItem.id) === Number(id))
+    if (!item) throw buildRequestError({ message: 'Кейс не найден', status: 404 })
+    return {
+      caseId: Number(id),
+      perfectSolution: item.perfectSolution || null,
+    }
+  }
+  return request(
+    withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}/perfectSolution`)
+  )
+}
+
 export const listCaseTags = async () => {
   if (USE_MOCK_API) {
     const tags = new Map()
@@ -567,6 +593,22 @@ export const getAdminUserById = (id) =>
   USE_MOCK_API
     ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id), username: mockData.profile.nickName, role: 'USER' })
     : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`))
+
+export const listAdminUserSolutions = async (userId, { page = 0, size = 25 } = {}) => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return normalizePageResponse({ items: [], page: 0, size, totalElements: 0, totalPages: 0 })
+  }
+  const query = new URLSearchParams({ page: String(page), size: String(size) })
+  return normalizePageResponse(
+    await request(
+      withBaseUrl(
+        API_URL,
+        `${ADMIN_PREFIX}/users/${encodeURIComponent(userId)}/solutions?${query}`
+      )
+    )
+  )
+}
 
 export const listAdminTags = async (options = {}) => {
   if (USE_MOCK_API) {
@@ -880,6 +922,20 @@ export const finishCaseSolving = (caseId) => {
   return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/finishSolving/${encodeURIComponent(caseId)}`), {
     method: 'POST',
   })
+}
+
+export const rateCase = (caseId, rating) => {
+  const normalizedRating = Number(rating)
+  if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+    return Promise.reject(new Error('Оценка должна быть от 1 до 5'))
+  }
+
+  return USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), rating: normalizedRating })
+    : request(withBaseUrl(API_URL, `${TEXT_PREFIX}/rateCase/${encodeURIComponent(caseId)}`), {
+      method: 'POST',
+      body: JSON.stringify({ rating: normalizedRating }),
+    })
 }
 
 export const evaluateCaseSolution = ({ text, caseId }) =>
