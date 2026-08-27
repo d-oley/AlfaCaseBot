@@ -32,8 +32,12 @@ back/.project
 back/.settings/
 
 # ML (ml folder)
-ml/training/data/*
-!ml/training/data/*.py
+ml/training/data/**/*.csv
+ml/training/data/solution_evaluation/raw/*
+!ml/training/data/solution_evaluation/raw/.gitkeep
+ml/training/data/solution_evaluation/annotated/*
+!ml/training/data/solution_evaluation/annotated/.gitkeep
+ml/training/data/solution_evaluation/**/.cache_alfacase_parser/
 ml/data1.csv
 ml/data2.csv
 ml/__pycache__

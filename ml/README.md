@@ -121,14 +121,14 @@ python -m api.local_ml_runner --case-id 6 --text "Текст решения"
 - `artifacts/` — единственный актуальный runtime-артефакт `best_model.joblib`.
 
 Notebook следует запускать из каталога `ml/training`. Он читает
-`data/combined_data_corrected.csv` и экспортирует модель в
+`data/censorship/combined_data_corrected.csv` и экспортирует модель в
 `../artifacts/best_model.joblib`, то есть ровно туда, откуда её загружает API.
 
 Окружение обучения и исходный объединённый датасет можно восстановить так:
 
 ```powershell
 pip install -r training/requirements.txt
-python training/data/combine_csv.py
+python training/data/censorship/combine_csv.py
 cd training
 jupyter lab training_censor_model.ipynb
 ```
@@ -137,3 +137,11 @@ jupyter lab training_censor_model.ipynb
 `data2.csv`, `data3.csv`, поэтому повторный запуск не захватывает производные
 CSV-файлы. Скорректированный `combined_data_corrected.csv` остаётся входом
 актуальной версии notebook.
+
+Данные разделены по задачам:
+
+- `training/data/censorship/` — датасеты для модели цензуры;
+- `training/data/solution_evaluation/raw/` — сырые результаты парсинга решений;
+- `training/data/solution_evaluation/annotated/` — вручную размеченные решения;
+- `training/data/solution_evaluation/parse_russian_business_cases.py` — сборщик
+  русскоязычных бизнес-кейсов. По умолчанию он записывает результаты в `raw/`.
