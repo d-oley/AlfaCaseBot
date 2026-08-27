@@ -33,7 +33,7 @@ back/.settings/
 
 # ML (ml folder)
 ml/training/data/*
-!ml/training/data/combine_csv.py
+!ml/training/data/*.py
 ml/data1.csv
 ml/data2.csv
 ml/__pycache__
