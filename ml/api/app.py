@@ -18,11 +18,12 @@ from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from llm_service import OPENROUTER_API_KEY, evaluate_solution
-from logging_utils import configure_numbered_file_logging
+from .llm_service import OPENROUTER_API_KEY, evaluate_solution
+from .logging_utils import configure_numbered_file_logging
 
 
-DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "artifacts" / "best_model.joblib"
+ML_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MODEL_PATH = ML_ROOT / "artifacts" / "best_model.joblib"
 MODEL_PATH = Path(os.getenv("ML_MODEL_PATH", str(DEFAULT_MODEL_PATH))).expanduser()
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
@@ -37,7 +38,7 @@ TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() i
     "on",
 }
 LOG_LEVEL = os.getenv("ML_LOG_LEVEL", "INFO").upper()
-APP_LOG_FILE = Path(__file__).resolve().parent / "logs" / "app.log"
+APP_LOG_FILE = ML_ROOT / "logs" / "app.log"
 APP_FILE_LOGGING_DISABLED = os.getenv("ML_DISABLE_APP_FILE_LOGGING", "").lower() in {
     "1",
     "true",

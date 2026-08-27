@@ -2,7 +2,7 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
-config.py
+api/config.py
 logs/
 tests/
-training_censor_model.ipynb
+training/
