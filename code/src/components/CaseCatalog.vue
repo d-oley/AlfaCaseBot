@@ -18,6 +18,7 @@
           <span class="recommended-copy">
             <strong>{{ recommendedCase.title }}</strong>
             <span>{{ recommendedCase.description || 'Описание пока не добавлено.' }}</span>
+            <span class="case-rating-value">★ {{ formatRating(recommendedCase.caseRating) }}</span>
           </span>
         </span>
       </button>
@@ -78,6 +79,7 @@
         <span class="case-meta">
           <span>{{ item.difficulty || 'Не указана' }}</span>
           <span>{{ item.averageSolveMinutes || '—' }} мин</span>
+          <span>★ {{ formatRating(item.caseRating) }}</span>
         </span>
         <span class="case-arrow" aria-hidden="true">↗</span>
       </button>
@@ -129,6 +131,10 @@ export default {
     },
   },
   methods: {
+    formatRating(value) {
+      const rating = Number(value || 0)
+      return rating > 0 ? rating.toFixed(1) : 'нет оценок'
+    },
     applyRouteFilters() {
       const requestedTag = String(this.$route.query.tag || '').trim().toLowerCase()
       const requestedDifficulty = String(this.$route.query.difficulty || '').trim().toLowerCase()
@@ -210,6 +216,7 @@ export default {
   overflow-wrap: anywhere;
 }
 .recommended-copy > span { color: var(--text-muted); line-height: 1.4; }
+.recommended-copy .case-rating-value { color: var(--text-main); font-family: var(--mono-font); font-size: 0.74rem; text-transform: uppercase; }
 .recommended-case:hover .recommended-copy strong { color: var(--primary); }
 .recommendation-empty { color: var(--text-muted); }
 .recommended-mark { color: var(--primary); font-family: var(--mono-font); font-size: 0.72rem; text-transform: uppercase; }

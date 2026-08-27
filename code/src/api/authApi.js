@@ -269,6 +269,7 @@ export const normalizeCase = (item = {}) => {
     iconUrl: getCaseAssetUrl(item.iconUrl),
     promptContextEn: item.promptContextEn || '',
     perfectSolution: item.perfectSolution || '',
+    caseRating: Number(item.caseRating ?? 0),
     viewsCount: Number(item.viewsCount || 0),
     active: item.active ?? item.isActive ?? true,
     createdAt: item.createdAt || '',
@@ -921,6 +922,20 @@ export const finishCaseSolving = (caseId) => {
   return request(withBaseUrl(API_URL, `${TEXT_PREFIX}/finishSolving/${encodeURIComponent(caseId)}`), {
     method: 'POST',
   })
+}
+
+export const rateCase = (caseId, rating) => {
+  const normalizedRating = Number(rating)
+  if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+    return Promise.reject(new Error('Оценка должна быть от 1 до 5'))
+  }
+
+  return USE_MOCK_API
+    ? Promise.resolve({ success: true, caseId: Number(caseId), rating: normalizedRating })
+    : request(withBaseUrl(API_URL, `${TEXT_PREFIX}/rateCase/${encodeURIComponent(caseId)}`), {
+      method: 'POST',
+      body: JSON.stringify({ rating: normalizedRating }),
+    })
 }
 
 export const evaluateCaseSolution = ({ text, caseId }) =>

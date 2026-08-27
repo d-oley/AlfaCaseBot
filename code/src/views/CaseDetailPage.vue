@@ -42,6 +42,47 @@
         >{{ tag }}</button>
       </div>
 
+      <div class="case-rating">
+        <div class="case-rating-copy">
+          <span class="description-label">Оценка кейса</span>
+          <div class="average-rating" :aria-label="formattedCaseRating">
+            <span class="average-stars" aria-hidden="true">
+              <svg
+                v-for="rating in 5"
+                :key="rating"
+                viewBox="0 0 24 24"
+                :class="{ filled: roundedCaseRating >= rating }"
+              >
+                <path d="m12 2.8 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 16.83l-5.5 2.89 1.05-6.12L3.1 9.27l6.15-.9L12 2.8Z" />
+              </svg>
+            </span>
+            <strong>{{ formattedCaseRating }}</strong>
+          </div>
+          <span class="case-rating-note">Средняя оценка пользователей</span>
+        </div>
+        <div class="case-rating-actions">
+          <span class="description-label">Ваша оценка</span>
+          <div class="rating-buttons" role="group" aria-label="Оценить кейс от 1 до 5">
+            <button
+              v-for="rating in 5"
+              :key="rating"
+              class="rating-button"
+              :class="{ active: userCaseRating >= rating }"
+              type="button"
+              :disabled="ratingSaving"
+              :aria-label="`Поставить оценку ${rating} из 5`"
+              @click="submitCaseRating(rating)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 2.8 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 16.83l-5.5 2.89 1.05-6.12L3.1 9.27l6.15-.9L12 2.8Z" />
+              </svg>
+            </button>
+          </div>
+          <span v-if="ratingMessage" class="case-rating-status" role="status">{{ ratingMessage }}</span>
+          <span v-if="ratingError" class="leaderboard-error" role="alert">{{ ratingError }}</span>
+        </div>
+      </div>
+
       <div class="description-block">
         <span class="description-label">Задача</span>
         <p class="description">{{ caseItem.fullDescription }}</p>
@@ -113,6 +154,7 @@ import {
   getCasePerfectSolution,
   getCaseSolvingState,
   listCaseLeaderboard,
+  rateCase,
   removeFavoriteCase,
 } from '@/api/authApi'
 import {
@@ -144,6 +186,10 @@ export default {
       perfectSolution: null,
       perfectSolutionLoading: false,
       perfectSolutionError: '',
+      userCaseRating: 0,
+      ratingSaving: false,
+      ratingMessage: '',
+      ratingError: '',
     }
   },
   computed: {
@@ -155,6 +201,13 @@ export default {
     },
     isFavorite() {
       return isCaseFavorite(this.caseId)
+    },
+    formattedCaseRating() {
+      const value = Number(this.caseItem?.caseRating || 0)
+      return value > 0 ? `${value.toFixed(1)} / 5` : 'Пока нет оценок'
+    },
+    roundedCaseRating() {
+      return Math.round(Number(this.caseItem?.caseRating || 0))
     },
   },
   watch: {
@@ -168,6 +221,9 @@ export default {
         if (value) {
           markCaseViewed(value)
           this.resetPerfectSolutionState()
+          this.userCaseRating = 0
+          this.ratingMessage = ''
+          this.ratingError = ''
           await Promise.all([
             this.loadCase(value),
             this.loadLeaderboard(value),
@@ -259,6 +315,21 @@ export default {
         this.favoriteError = error?.message || 'Не удалось изменить избранное.'
       } finally {
         this.favoriteSaving = false
+      }
+    },
+    async submitCaseRating(rating) {
+      if (this.ratingSaving) return
+      this.ratingSaving = true
+      this.ratingMessage = ''
+      this.ratingError = ''
+      try {
+        await rateCase(this.caseId, rating)
+        this.userCaseRating = rating
+        this.ratingMessage = 'Оценка сохранена'
+      } catch (error) {
+        this.ratingError = error?.message || 'Не удалось сохранить оценку.'
+      } finally {
+        this.ratingSaving = false
       }
     },
   },
@@ -443,6 +514,96 @@ h1 {
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
+.case-rating {
+  margin: 0 0 24px;
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.case-rating-copy,
+.case-rating-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.case-rating-copy strong {
+  font-family: var(--display-font);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.average-rating,
+.average-stars {
+  display: flex;
+  align-items: center;
+}
+
+.average-rating {
+  gap: 10px;
+}
+
+.average-stars {
+  gap: 3px;
+}
+
+.average-stars svg {
+  width: 27px;
+  height: 27px;
+  fill: transparent;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.average-stars svg.filled {
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
+.case-rating-note,
+.case-rating-status {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: 3px;
+}
+
+.rating-button {
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.rating-button svg {
+  width: 100%;
+  height: 100%;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.rating-button:hover,
+.rating-button.active {
+  color: var(--primary);
+}
+
+.rating-button.active svg {
+  fill: currentColor;
+}
+
+.rating-button:disabled {
+  cursor: wait;
+}
+
 .tag:hover {
   color: #fff;
   border-color: var(--primary);
@@ -451,6 +612,7 @@ h1 {
 
 @media (max-width: 700px) {
   .description-block { grid-template-columns: 1fr; gap: 10px; }
+  .case-rating { align-items: flex-start; flex-direction: column; }
   h1 { font-size: clamp(2.2rem, 11vw, 4rem); }
 }
 
