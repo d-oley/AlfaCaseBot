@@ -46,8 +46,8 @@
         <article class="card panel-card">
           <h2>Кейсы</h2>
           <div class="list">
-            <div v-for="item in adminCases" :key="item.id" class="list-item">
-              <div>
+            <div v-for="item in adminCases" :key="item.id" class="list-item case-list-item">
+              <div class="case-list-copy">
                 <p class="title">{{ item.title }}</p>
                 <p class="meta">
                   Сложность: {{ item.difficulty }} | Теги: {{ item.tags.join(', ') || 'нет' }}
@@ -108,6 +108,19 @@
             <label for="case-prompt">Английский контекст для модели</label>
             <textarea id="case-prompt" v-model.trim="caseForm.promptContextEn" rows="4" />
 
+            <label for="case-perfect-solution">Эталонное решение</label>
+            <textarea
+              id="case-perfect-solution"
+              v-model="caseForm.perfectSolution"
+              rows="6"
+              maxlength="10000"
+              placeholder="Станет доступно пользователю после завершения кейса"
+            />
+            <p class="hint case-field-hint">
+              До завершения кейса пользователь не сможет получить этот текст.
+              Чтобы удалить сохранённое решение, очистите поле и сохраните кейс.
+            </p>
+
             <label for="case-pdf">PDF</label>
             <input id="case-pdf" type="file" accept="application/pdf" @change="handleCasePdfChange" />
 
@@ -165,9 +178,19 @@
           </div>
         </article>
 
-        <article class="card panel-card">
-          <h2>{{ userForm.id ? 'Изменить пользователя' : 'Добавить пользователя' }}</h2>
-          <p class="hint">Для изменения или удаления введите ID пользователя.</p>
+        <article class="card panel-card collapsible-panel" :class="{ collapsed: !isUserEditorExpanded }">
+          <button
+            class="collapsible-header"
+            type="button"
+            :aria-expanded="isUserEditorExpanded"
+            @click="isUserEditorExpanded = !isUserEditorExpanded"
+          >
+            <h2>{{ userForm.id ? 'Изменить пользователя' : 'Добавить пользователя' }}</h2>
+            <span class="collapse-chevron" aria-hidden="true">›</span>
+          </button>
+
+          <div v-if="isUserEditorExpanded" class="collapsible-content">
+            <p class="hint">Для изменения или удаления введите ID пользователя.</p>
 
           <div class="user-id-row">
             <div class="user-id-field">
@@ -276,7 +299,88 @@
                 Удалить
               </button>
             </div>
-          </form>
+            </form>
+          </div>
+        </article>
+
+        <article
+          v-if="userForm.id"
+          class="card panel-card user-solutions-panel collapsible-panel"
+          :class="{ collapsed: !isUserSolutionsExpanded }"
+        >
+          <button
+            class="collapsible-header"
+            type="button"
+            :aria-expanded="isUserSolutionsExpanded"
+            @click="toggleUserSolutions"
+          >
+            <h2>Решения пользователя</h2>
+            <span class="collapse-chevron" aria-hidden="true">›</span>
+          </button>
+
+          <div v-if="isUserSolutionsExpanded" class="collapsible-content">
+            <div class="section-topbar solutions-topbar">
+            <div>
+              <p class="meta">
+                {{ userForm.nickName || userForm.login || `ID ${userForm.id}` }} ·
+                Всего: {{ userSolutionsPage.totalElements }}
+              </p>
+            </div>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              :disabled="isUserSolutionsLoading"
+              @click="loadUserSolutions(userForm.id, userSolutionsPage.page)"
+            >
+              Обновить
+            </button>
+            </div>
+
+          <p v-if="userSolutionsError" class="error-text" role="alert">
+            {{ userSolutionsError }}
+          </p>
+          <p v-else-if="isUserSolutionsLoading" class="hint">Загружаем решения...</p>
+          <p v-else-if="!userSolutions.length" class="hint">
+            Пользователь ещё не отправлял решений.
+          </p>
+
+          <div v-else class="user-solutions-list">
+            <article
+              v-for="solution in userSolutions"
+              :key="solution.solutionId"
+              class="user-solution-item"
+            >
+              <header class="user-solution-header">
+                <strong>{{ getSolutionCaseTitle(solution.caseId) }}</strong>
+                <span class="solution-rating">Оценка: {{ solution.rating ?? '—' }} / 100</span>
+              </header>
+              <div class="solution-message solution-message-user">
+                <span>Решение пользователя</span>
+                <p>{{ solution.solutionText || 'Текст решения отсутствует.' }}</p>
+              </div>
+              <div class="solution-message solution-message-bot">
+                <span>Ответ ИИ</span>
+                <p>{{ solution.solutionResponse || 'Ответ отсутствует.' }}</p>
+              </div>
+            </article>
+          </div>
+
+            <div v-if="userSolutionsPage.totalPages > 1" class="pagination-actions">
+            <button
+              class="btn btn-secondary"
+              type="button"
+              :disabled="userSolutionsPage.page <= 0 || isUserSolutionsLoading"
+              @click="changeUserSolutionsPage(-1)"
+            >←</button>
+            <span>{{ userSolutionsPage.page + 1 }} / {{ userSolutionsPage.totalPages }}</span>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              :disabled="userSolutionsPage.page + 1 >= userSolutionsPage.totalPages || isUserSolutionsLoading"
+              @click="changeUserSolutionsPage(1)"
+            >→</button>
+            </div>
+          </div>
         </article>
       </div>
 
@@ -334,6 +438,7 @@ import {
   loginRequest,
   listAdminCases,
   listAdminTags,
+  listAdminUserSolutions,
   listAdminUsers,
   listCities,
   logoutRequest,
@@ -355,6 +460,8 @@ const toCaseForm = (item = null) => ({
   selectedTagIds: Array.isArray(item?.tagIds) ? [...item.tagIds] : [],
   averageSolveMinutes: item?.averageSolveMinutes ?? 1,
   promptContextEn: item?.promptContextEn || '',
+  perfectSolution: item?.perfectSolution || '',
+  hadPerfectSolution: Boolean(item?.perfectSolution),
   active: item?.active ?? true,
 })
 
@@ -413,6 +520,12 @@ export default {
       userSearch: '',
       adminUsers: [],
       usersPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
+      userSolutions: [],
+      userSolutionsPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
+      isUserSolutionsLoading: false,
+      userSolutionsError: '',
+      isUserEditorExpanded: false,
+      isUserSolutionsExpanded: false,
       adminTags: tags.map((name, index) => ({ id: index + 1, name })),
       caseForm: toCaseForm(),
       casePdfFile: null,
@@ -542,6 +655,8 @@ export default {
       const userId = Number(this.userForm.id)
       if (!userId || this.isUserLoading) return
 
+      this.resetUserSolutions()
+      this.isUserSolutionsExpanded = false
       this.isUserLoading = true
       this.userError = ''
       this.userMessage = ''
@@ -586,10 +701,60 @@ export default {
     },
     resetUserForm() {
       this.userForm = toUserForm()
+      this.resetUserSolutions()
+      this.isUserEditorExpanded = false
+      this.isUserSolutionsExpanded = false
       this.cities = []
       this.cityLoadError = ''
       this.userError = ''
       this.userMessage = ''
+    },
+    resetUserSolutions() {
+      this.userSolutions = []
+      this.userSolutionsPage = { page: 0, size: 25, totalElements: 0, totalPages: 0 }
+      this.userSolutionsError = ''
+      this.isUserSolutionsLoading = false
+    },
+    toggleUserSolutions() {
+      this.isUserSolutionsExpanded = !this.isUserSolutionsExpanded
+      if (
+        this.isUserSolutionsExpanded &&
+        !this.userSolutions.length &&
+        !this.userSolutionsError
+      ) {
+        this.loadUserSolutions(this.userForm.id, 0)
+      }
+    },
+    async loadUserSolutions(userId, page = 0) {
+      const normalizedUserId = Number(userId)
+      if (!normalizedUserId || this.isUserSolutionsLoading) return
+      this.isUserSolutionsLoading = true
+      this.userSolutionsError = ''
+      try {
+        const result = await listAdminUserSolutions(normalizedUserId, {
+          page,
+          size: this.userSolutionsPage.size,
+        })
+        this.userSolutions = result.items
+        this.userSolutionsPage = {
+          page: result.page,
+          size: result.size,
+          totalElements: result.totalElements,
+          totalPages: result.totalPages,
+        }
+      } catch (error) {
+        this.userSolutions = []
+        this.userSolutionsError = error?.message || 'Не удалось загрузить решения пользователя.'
+      } finally {
+        this.isUserSolutionsLoading = false
+      }
+    },
+    changeUserSolutionsPage(offset) {
+      this.loadUserSolutions(this.userForm.id, this.userSolutionsPage.page + offset)
+    },
+    getSolutionCaseTitle(caseId) {
+      const caseItem = this.adminCases.find((item) => Number(item.id) === Number(caseId))
+      return caseItem?.title || 'Неизвестный кейс'
     },
     async saveUser() {
       if (this.isUserSaving) return
@@ -719,6 +884,14 @@ export default {
 
       try {
         const files = { pdfFile: this.casePdfFile, iconFile: this.caseIconFile }
+        const casePayload = {
+          ...this.caseForm,
+          removePerfectSolution: Boolean(
+            this.caseForm.id &&
+            this.caseForm.hadPerfectSolution &&
+            !this.caseForm.perfectSolution.trim()
+          ),
+        }
         const previousTagIds = this.caseForm.id
           ? this.getCaseTagIds(
               this.adminCases.find((item) => Number(item.id) === Number(this.caseForm.id))
@@ -726,9 +899,9 @@ export default {
           : []
         let caseId = this.caseForm.id
         if (this.caseForm.id) {
-          await updateCaseRequest(this.caseForm.id, this.caseForm, files)
+          await updateCaseRequest(this.caseForm.id, casePayload, files)
         } else {
-          const result = await createCaseRequest(this.caseForm, files)
+          const result = await createCaseRequest(casePayload, files)
           caseId = Number(result?.id)
           if (!Number.isFinite(caseId) || caseId <= 0) {
             throw new Error('Кейс создан, но сервер не вернул его идентификатор для привязки тегов.')
@@ -843,6 +1016,11 @@ h2 {
   color: var(--text-muted);
 }
 
+.case-field-hint {
+  margin-top: -2px;
+  font-size: 0.78rem;
+}
+
 .admin-topbar {
   display: flex;
   justify-content: space-between;
@@ -899,6 +1077,124 @@ h2 {
 
 .panel-card {
   padding: 16px;
+}
+
+.collapsible-panel.collapsed {
+  align-self: start;
+}
+
+.collapsible-header {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapsible-header h2 {
+  margin: 0;
+}
+
+.collapse-chevron {
+  flex: 0 0 auto;
+  font-family: var(--mono-font);
+  font-size: 2rem;
+  line-height: 0.8;
+  color: var(--primary);
+  transform: rotate(0deg);
+  transition: transform 0.18s ease;
+}
+
+.collapsible-header[aria-expanded='true'] .collapse-chevron {
+  transform: rotate(90deg);
+}
+
+.collapsible-content {
+  margin-top: 16px;
+}
+
+.solutions-topbar {
+  align-items: flex-start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-chevron {
+    transition: none;
+  }
+}
+
+.user-solutions-panel {
+  grid-column: 1 / -1;
+}
+
+.user-solutions-list {
+  display: grid;
+  gap: 12px;
+}
+
+.user-solution-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  background: var(--chat-bg);
+  display: grid;
+  gap: 10px;
+}
+
+.user-solution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.solution-rating {
+  padding: 4px 8px;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--mono-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.solution-message {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+
+.solution-message-user {
+  margin-left: clamp(0px, 8vw, 100px);
+  background: var(--primary);
+  color: #fff;
+}
+
+.solution-message-bot {
+  margin-right: clamp(0px, 8vw, 100px);
+  background: var(--surface-bot-message);
+}
+
+.solution-message span {
+  display: block;
+  margin-bottom: 5px;
+  font-family: var(--mono-font);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.solution-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .section-topbar {
@@ -1054,6 +1350,24 @@ h1 { font-size: clamp(2rem, 4vw, 4rem); line-height: 0.9; text-transform: upperc
   justify-content: end;
 }
 .list-item > .row-actions .btn { width: 100%; }
+.case-list-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.case-list-copy {
+  min-width: 0;
+}
+.case-list-copy .title {
+  overflow-wrap: anywhere;
+}
+.case-list-copy .meta {
+  line-height: 1.45;
+}
+.case-list-item > .row-actions {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  width: 100%;
+  justify-content: stretch;
+}
 .user-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
