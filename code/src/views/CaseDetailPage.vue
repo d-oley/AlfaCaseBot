@@ -96,6 +96,15 @@
       </div>
     </section>
 
+    <section v-if="caseItem && theorySections.length" class="card theory-promo-card">
+      <div>
+        <p class="case-code">Подготовка к кейсу</p>
+        <h2>Разберите теорию перед решением</h2>
+        <p>К кейсу добавлено разделов: {{ theorySections.length }}. Изучайте их по порядку или выберите нужную тему.</p>
+      </div>
+      <router-link class="btn btn-secondary" :to="`/case/${caseId}/theory`">Пройти теорию</router-link>
+    </section>
+
     <section v-if="caseItem" class="card perfect-solution-card">
       <p class="case-code">Эталонное решение</p>
       <h2>Сверьте свой подход с эталоном</h2>
@@ -154,6 +163,7 @@ import {
   getCasePerfectSolution,
   getCaseSolvingState,
   listCaseLeaderboard,
+  listCaseTheory,
   rateCase,
   removeFavoriteCase,
 } from '@/api/authApi'
@@ -190,6 +200,7 @@ export default {
       ratingSaving: false,
       ratingMessage: '',
       ratingError: '',
+      theorySections: [],
     }
   },
   computed: {
@@ -228,6 +239,7 @@ export default {
             this.loadCase(value),
             this.loadLeaderboard(value),
             this.loadSolvingState(value),
+            this.loadTheory(value),
           ])
         }
       },
@@ -299,6 +311,14 @@ export default {
         this.leaderboardError = error?.message || 'Не удалось загрузить рейтинг по кейсу.'
       }
     },
+    async loadTheory(caseId) {
+      try {
+        const response = await listCaseTheory(caseId)
+        this.theorySections = response.materials
+      } catch {
+        this.theorySections = []
+      }
+    },
     goToChat() {
       this.$router.push(`/case/${this.caseId}/chat`)
     },
@@ -353,6 +373,21 @@ export default {
   justify-items: start;
   gap: 14px;
 }
+
+.theory-promo-card {
+  padding: clamp(20px, 3vw, 34px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-left: 5px solid var(--primary);
+}
+
+.theory-promo-card h2,
+.theory-promo-card p { margin: 0; }
+.theory-promo-card h2 { margin: 7px 0 9px; }
+.theory-promo-card p:last-child { color: var(--text-muted); line-height: 1.5; }
+.theory-promo-card .btn { flex: 0 0 auto; }
 
 .perfect-solution-card .case-code,
 .perfect-solution-card h2,
@@ -613,6 +648,7 @@ h1 {
 @media (max-width: 700px) {
   .description-block { grid-template-columns: 1fr; gap: 10px; }
   .case-rating { align-items: flex-start; flex-direction: column; }
+  .theory-promo-card { align-items: stretch; flex-direction: column; }
   h1 { font-size: clamp(2.2rem, 11vw, 4rem); }
 }
 
