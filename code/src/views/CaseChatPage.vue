@@ -78,6 +78,14 @@
         </form>
       </template>
 
+      <aside v-if="shouldRecommendTheory" class="theory-recommendation">
+        <div>
+          <strong>Попробуйте разобрать теорию</strong>
+          <p>Короткие разделы помогут лучше подготовиться к следующей попытке.</p>
+        </div>
+        <router-link class="btn btn-secondary" :to="`/case/${caseId}/theory`">Пройти теорию</router-link>
+      </aside>
+
       <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
     </section>
 
@@ -144,6 +152,7 @@ import {
   getCaseByIdRequest,
   getCaseChatSequence,
   getCaseSolvingState,
+  listCaseTheory,
   startCaseSolving,
 } from '@/api/authApi'
 import {
@@ -153,6 +162,7 @@ import {
   markCaseViewed,
   saveSolvedCaseResult,
   showBanNotice,
+  SOLVE_SCORE_THRESHOLD,
   upsertCase,
 } from '@/store/appState'
 
@@ -186,6 +196,8 @@ export default {
       isHistoryLoading: false,
       errorMessage: '',
       statusMessage: '',
+      theorySections: [],
+      latestSubmittedRating: null,
     }
   },
   computed: {
@@ -217,10 +229,18 @@ export default {
       const seconds = totalSeconds % 60
       return [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':')
     },
+    shouldRecommendTheory() {
+      if (!this.theorySections.length) return false
+      const latestIsLow = Number.isFinite(Number(this.latestSubmittedRating)) &&
+        Number(this.latestSubmittedRating) < SOLVE_SCORE_THRESHOLD
+      const finalIsLow = this.isSolvingCompleted &&
+        Number(this.solvingBestRating) < SOLVE_SCORE_THRESHOLD
+      return latestIsLow || finalIsLow
+    },
   },
   async created() {
     markCaseViewed(this.caseId)
-    await Promise.all([this.loadCase(), this.loadSolvingState()])
+    await Promise.all([this.loadCase(), this.loadSolvingState(), this.loadTheory()])
     if (this.isSolvingActive) await this.loadChatHistory()
   },
   beforeUnmount() {
@@ -329,6 +349,14 @@ export default {
         this.errorMessage = error?.message || 'Не удалось загрузить кейс.'
       }
     },
+    async loadTheory() {
+      try {
+        const response = await listCaseTheory(this.caseId)
+        this.theorySections = response.materials
+      } catch {
+        this.theorySections = []
+      }
+    },
     resizeMessageInput() {
       const input = this.$refs.messageInput
       if (!input) {
@@ -350,11 +378,13 @@ export default {
       try {
         const sequence = await getCaseChatSequence(this.caseId)
         const history = []
+        let latestRating = null
         sequence.forEach((item) => {
           if (item.solutionText) {
             history.push({ id: this.nextId++, author: 'user', text: item.solutionText })
           }
           if (item.solutionResponse) {
+            if (Number.isFinite(Number(item.rating))) latestRating = Number(item.rating)
             history.push({
               id: this.nextId++,
               author: 'bot',
@@ -365,6 +395,7 @@ export default {
         })
         const messagesAddedWhileLoading = this.messages.slice(1)
         this.messages = [this.messages[0], ...history, ...messagesAddedWhileLoading]
+        if (this.latestSubmittedRating === null) this.latestSubmittedRating = latestRating
       } catch (error) {
         if (Number(error?.status) === 401 || Number(error?.status) === 403) {
           this.errorMessage = 'Не удалось загрузить историю: сессия истекла.'
@@ -415,6 +446,8 @@ export default {
 
         this.statusMessage =
           response.rating === null || response.rating === undefined ? 'Ответ обработан.' : ''
+
+        this.latestSubmittedRating = typeof response.rating === 'number' ? response.rating : null
 
         if (typeof response.rating === 'number' && this.appState.isAuthenticated) {
           saveSolvedCaseResult(this.caseId, response.rating)
@@ -683,6 +716,19 @@ export default {
   font-size: 0.95rem;
 }
 
+.theory-recommendation {
+  padding: 16px;
+  border: 1px solid var(--primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+
+.theory-recommendation strong { text-transform: uppercase; }
+.theory-recommendation p { margin: 5px 0 0; color: var(--text-muted); }
+
 .status-text {
   color: var(--text-muted);
 }
@@ -790,6 +836,8 @@ export default {
   .chat-form {
     flex-direction: column;
   }
+
+  .theory-recommendation { align-items: stretch; flex-direction: column; }
 
   .start-solving-modal-actions {
     flex-direction: column-reverse;

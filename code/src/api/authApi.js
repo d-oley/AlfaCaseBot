@@ -43,6 +43,8 @@ const errors = {
   'this case is not in your favourites': 'Кейса уже нет в избранном',
   'Case is not active': 'Этот кейс сейчас недоступен',
   'Case is already solved': 'Этот кейс уже завершён',
+  'Material not found': 'Раздел теории не найден',
+  'Quiz not found': 'Тест для этого раздела не найден',
   'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
@@ -543,6 +545,45 @@ export const getCasePerfectSolution = async (id) => {
     withBaseUrl(API_URL, `${CASE_PREFIX}/${encodeURIComponent(id)}/perfectSolution`)
   )
 }
+
+export const listCaseTheory = async (caseId) => {
+  if (USE_MOCK_API) return { caseId: Number(caseId), materials: [] }
+  const payload = await request(withBaseUrl(API_URL, `${CASE_PREFIX}/${Number(caseId)}/theory`))
+  return {
+    caseId: Number(payload?.caseId ?? caseId),
+    materials: (Array.isArray(payload?.materials) ? payload.materials : [])
+      .map((item) => ({
+        id: Number(item?.id),
+        title: String(item?.title || ''),
+        position: Number(item?.position || 0),
+      }))
+      .filter((item) => Number.isFinite(item.id) && item.id > 0)
+      .sort((a, b) => a.position - b.position || a.id - b.id),
+  }
+}
+
+export const getTheoryMaterial = async (materialId) => {
+  if (USE_MOCK_API) throw buildRequestError({ message: 'Material not found', status: 404 })
+  return request(withBaseUrl(API_URL, `${CASE_PREFIX}/theory/${Number(materialId)}`))
+}
+
+export const getTheoryQuiz = async (materialId) => {
+  if (USE_MOCK_API) throw buildRequestError({ message: 'Quiz not found', status: 404 })
+  return request(withBaseUrl(API_URL, `${CASE_PREFIX}/theory/${Number(materialId)}/quiz`))
+}
+
+export const submitTheoryQuiz = (quizId, answers) =>
+  USE_MOCK_API
+    ? Promise.resolve({ attemptId: 1, isSolved: false })
+    : request(withBaseUrl(API_URL, `${CASE_PREFIX}/quiz/${Number(quizId)}/submit`), {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      })
+
+export const getTheoryQuizStatus = (quizId) =>
+  USE_MOCK_API
+    ? Promise.resolve({ quizId: Number(quizId), attemptsCount: 0, isSolved: false })
+    : request(withBaseUrl(API_URL, `${CASE_PREFIX}/quiz/${Number(quizId)}/status`))
 
 export const listCaseTags = async () => {
   if (USE_MOCK_API) {
