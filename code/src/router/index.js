@@ -7,6 +7,7 @@ import HomePage from '@/views/HomePage.vue'
 import DashboardPage from '@/views/DashboardPage.vue'
 import CaseDetailPage from '@/views/CaseDetailPage.vue'
 import CaseChatPage from '@/views/CaseChatPage.vue'
+import TheoryPage from '@/views/TheoryPage.vue'
 import ProfilePage from '@/views/ProfilePage.vue'
 import AdminPage from '@/views/AdminPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
@@ -42,6 +43,12 @@ const routes = [
     path: '/case/:caseId/chat',
     name: 'case-chat',
     component: CaseChatPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/case/:caseId/theory',
+    name: 'case-theory',
+    component: TheoryPage,
     meta: { requiresAuth: true },
   },
   {

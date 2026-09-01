@@ -1,27 +1,4 @@
 #!/usr/bin/env python3
-"""Надёжный сбор русскоязычных бизнес-кейсов и решений с Executive.ru.
-
-Главные принципы:
-- не отбрасывать валидный кейс из-за редакционного текста в начале статьи;
-- искать исходный кейс несколькими способами, а не только по одной ссылке;
-- поддерживать несколько поколений разметки решений;
-- уметь извлекать решения из прикреплённых DOCX без python-docx;
-- не смешивать несколько авторов под заголовками вроде «Решения победителей»;
-- сохранять происхождение текста и помечать сомнительные fallback-строки.
-
-Зависимость:
-    python -m pip install "lxml>=5,<7"
-
-Примеры:
-    python parse_russian_business_cases_v4.py --self-test
-    python parse_russian_business_cases_v4.py --output-dir parsed_cases --max-articles 5
-    python parse_russian_business_cases_v4.py --output-dir parsed_cases
-
-По умолчанию объединённые статьи без надёжных границ НЕ добавляются. Флаг
---include-combined разрешает такой последний fallback; строки получают
-needs_review=true.
-"""
-
 from __future__ import annotations
 
 import argparse

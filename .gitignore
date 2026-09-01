@@ -37,6 +37,7 @@ ml/training/data/solution_evaluation/raw/*
 !ml/training/data/solution_evaluation/raw/.gitkeep
 ml/training/data/solution_evaluation/annotated/*
 !ml/training/data/solution_evaluation/annotated/.gitkeep
+ml/training/data/solution_evaluation/clean/*
 ml/**/.cache_alfacase_parser/
 ml/data1.csv
 ml/data2.csv
