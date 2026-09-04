@@ -1,0 +1,6 @@
+target,representation,training_regime,selected_version,current_real_val_MAE,current_stress_val_MAE,current_selection_score,tuned_real_val_MAE,tuned_stress_val_MAE,tuned_selection_score
+score_factchecking,separate,ALL_SYNTH_WEIGHTED,tuned,4.5004,19.9932,10.6975,5.2488,17.8663,10.2958
+score_originality,solution_only,ALL_SYNTH_WEIGHTED,current,6.6057,11.0158,8.3697,6.6057,11.0158,8.3697
+score_effectiveness,solution_only,ALL_SYNTH_WEIGHTED,tuned,6.8556,15.4752,10.3035,6.1477,15.9952,10.0867
+score_logic,solution_only,ALL_SYNTH_WEIGHTED,current,4.7452,9.6817,6.7198,4.1812,13.0771,7.7395
+score_completeness,solution_only,ALL_SYNTH_WEIGHTED,current,4.4643,10.8312,7.0111,4.4643,10.8312,7.0111

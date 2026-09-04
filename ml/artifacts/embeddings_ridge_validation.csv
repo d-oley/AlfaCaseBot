@@ -1,0 +1,4 @@
+representation,real_val_MAE,stress_val_MAE,selection_score,stress_bad_recall
+C_SOLUTION_HANDCRAFTED,4.7003,12.632,7.873,0.7778
+A_SOLUTION,4.7326,12.9769,8.0303,0.6667
+B_FULL_INTERACTIONS,5.5879,12.9221,8.5216,0.7778

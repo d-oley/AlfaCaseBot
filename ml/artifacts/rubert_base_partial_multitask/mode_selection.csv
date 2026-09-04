@@ -1,0 +1,3 @@
+mode,epoch,train_loss,real_val_MAE,stress_val_MAE,stress_bad_recall,selection_score
+PARTIAL,4,0.01189,4.0778,12.97863,0.88889,7.63813
+FROZEN,4,0.01239,4.01764,13.78032,0.66667,7.92271
