@@ -9,7 +9,7 @@ from pathlib import Path
 
 os.environ.setdefault("ML_DISABLE_APP_FILE_LOGGING", "1")
 
-from .app import SUCCESS_MSG, TOXIC_MSG, analyze_text, elapsed_ms, truncate_log
+from .llm_only_app import SUCCESS_MSG, TOXIC_MSG, analyze_text, elapsed_ms, truncate_log
 from .case_contexts import CASE_CONTEXTS, get_case_context
 from .llm_service import evaluate_solution
 from .logging_utils import configure_numbered_file_logging

@@ -9,7 +9,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 # Перед запуском задайте ML_SERVICE_TOKEN в окружении процесса (из хранилища секретов).
-uvicorn api.app:app --host 0.0.0.0 --port 5000 --reload
+uvicorn api.llm_only_app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
 После запуска доступны:
@@ -18,6 +18,28 @@ uvicorn api.app:app --host 0.0.0.0 --port 5000 --reload
 - Swagger UI: `http://localhost:5000/docs`
 - OpenAPI: `http://localhost:5000/openapi.json`
 - health-check: `GET http://localhost:5000/health`
+
+### Смешанная оценка
+
+`api.llm_only_app:app` оценивает все пять критериев через LLM. `api.hybrid_app:app` использует тот же HTTP-контракт, проверку токсичности, авторизацию и сохранение результата, но эффективность, логичность и полноту получает из RuBERT Tiny2. Фактчекинг остаётся прежним; оригинальность оценивает LLM сравнением с эталоном из Java.
+
+```powershell
+pip install -r requirements-hybrid.txt
+uvicorn api.hybrid_app:app --host 0.0.0.0 --port 5000
+```
+
+Модель загружается один раз при старте, без обучения и скачивания весов. В `artifacts/rubert_tiny2_multitask` нужны `rubert_tiny2_multitask.pt`, `config.json` и каталог `tokenizer`. Путь можно изменить через `TINY2_ARTIFACT_DIR`, устройство — через `TINY2_DEVICE` (по умолчанию `cpu`). При отсутствии или несовместимости артефакта запуск завершается ошибкой.
+
+Tiny2 получает пару «полное условие кейса, решение» с `longest_first` и длиной из checkpoint, как в ноутбуке. Полное условие загружается из `fullDescription` ответа `GET /api/v1/cases/{case_id}` (`PUBLIC_CASE_PATH_TEMPLATE`). Служебный `promptContextEn` используется для LLM. Если полного условия нет, оценка не сохраняется. Соответствие содержимого `fullDescription` обучающему `case_text` нужно поддерживать при заполнении кейсов в Java.
+
+Веса итоговой оценки: фактчекинг — 0.20, оригинальность — 0.25, эффективность — 0.25, логичность и полнота — по 0.15. В конце LLM получает только баллы, отмечает сильные критерии и даёт косвенные рекомендации по слабым, без раскрытия решения.
+
+Для смешанного Docker-образа:
+
+```powershell
+docker build --build-arg ML_REQUIREMENTS=requirements-hybrid.txt -t alfacasebot-ml-hybrid .
+docker run --rm -p 5000:5000 -e ML_SERVICE_TOKEN -e OPENROUTER_API_KEY -e SERPER_API_KEY -e BACKEND_BASE_URL alfacasebot-ml-hybrid uvicorn api.hybrid_app:app --host 0.0.0.0 --port 5000
+```
 
 Для Docker:
 
