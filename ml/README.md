@@ -38,6 +38,7 @@ docker run --rm -p 5000:5000 `
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
 | `ML_SERVICE_TOKEN` | пусто | Обязательный серверный секрет для заголовка `X-ML-Service-Token`; значение должно совпадать с Java |
 | `CASE_PATH_TEMPLATE` | `/api/text/v1/cases/{case_id}/prompt` | Шаблон запроса контекста кейса из Java |
+| `PERFECT_SOLUTION_PATH_TEMPLATE` | `/api/text/v1/cases/{case_id}/perfectSolution` | Эталон кейса для сравнения оригинальности |
 | `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |
 | `OPENROUTER_API_KEY` | пусто | ключ OpenRouter |
 | `OPENROUTER_URL` | `https://openrouter.ai/api/v1/chat/completions` | URL OpenRouter |
@@ -111,12 +112,16 @@ ML добавляет `X-ML-Service-Token` ко всем своим запрос
 
 При токсичности вызывается `POST /api/text/v1/processViolation`. Если backend блокирует пользователя и удаляет cookie, заголовок `Set-Cookie` передаётся браузеру.
 
+Перед LLM-оценкой ML получает `perfectSolution` через `GET /api/text/v1/cases/{case_id}/perfectSolution` с сервисным токеном и пользовательской cookie. Эталон используется только при сравнении оригинальности вместо генерации типичного решения. Если запрос неуспешен, возвращается `502 PERFECT_SOLUTION_LOAD_FAILED`; если поле отсутствует, пусто или имеет неверный тип — `422 PERFECT_SOLUTION_MISSING`. Оценка в этих случаях не сохраняется.
+
+Промпты запрещают раскрывать эталон и давать готовые идеи, шаги решения или наводящие вопросы. Итоговый отзыв формулируется отдельным LLM-запросом только по баллам критериев; при сбое используется короткий нейтральный текст. Эталон не включается в тело ответа API или сообщения логирования исходящего промпта оригинальности.
+
 ## Локальный запуск пайплайна
 
 Оценку без сайта и backend можно запустить так:
 
 ```powershell
-python -m api.local_ml_runner --case-id 6 --text "Текст решения"
+python -m api.local_ml_runner --case-id 6 --text "Текст решения" --perfect-solution-file reference.txt
 ```
 
 Локальный runner использует те же функции токсичности и LLM, что и FastAPI.

@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument("--case-id", type=int, help="ID кейса для оценки")
     parser.add_argument("--text", help="Текст решения кейса")
     parser.add_argument("--text-file", help="Путь к файлу с текстом решения")
+    parser.add_argument("--perfect-solution-file", help="UTF-8 файл с эталонным решением выбранного кейса")
     parser.add_argument(
         "--list-cases",
         action="store_true",
@@ -125,6 +126,12 @@ def main():
     if args.case_id is None:
         raise SystemExit("--case-id обязателен, если не указан --list-cases")
 
+    if not args.perfect_solution_file:
+        raise SystemExit("Для оценки нужен --perfect-solution-file с эталоном выбранного кейса")
+    perfect_solution = Path(args.perfect_solution_file).read_text(encoding="utf-8-sig").strip()
+    if not perfect_solution:
+        raise SystemExit("Файл эталонного решения пуст")
+
     text = read_text(args)
     if not text:
         raise SystemExit("Нужен текст: передай --text, --text-file или stdin")
@@ -171,7 +178,7 @@ def main():
         )
         return 0
 
-    evaluation_result = evaluate_solution(text, case_info.get("context", ""))
+    evaluation_result = evaluate_solution(text, case_info.get("context", ""), perfect_solution)
     log_payload("evaluation_result", evaluation_result, request_id)
 
     response_payload = build_success_response(args.case_id, text, evaluation_result)

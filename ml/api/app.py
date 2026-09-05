@@ -31,6 +31,9 @@ CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_RATING_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
 CASE_PATH_TEMPLATE = os.getenv("CASE_PATH_TEMPLATE", "/api/text/v1/cases/{case_id}/prompt")
+PERFECT_SOLUTION_PATH_TEMPLATE = os.getenv(
+    "PERFECT_SOLUTION_PATH_TEMPLATE", "/api/text/v1/cases/{case_id}/perfectSolution"
+)
 BACKEND_TIMEOUT = float(os.getenv("BACKEND_TIMEOUT", "10"))
 TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {
     "1",
@@ -280,7 +283,7 @@ def is_session_error(payload: dict[str, Any]) -> bool:
     return backend_message(payload) in SESSION_ERROR_MESSAGES
 
 
-def evaluate_with_llm(text: str, case_id: int, case_context: str) -> dict[str, Any]:
+def evaluate_with_llm(text: str, case_id: int, case_context: str, perfect_solution: str) -> dict[str, Any]:
     started_at = time.perf_counter()
     LOGGER.info(
         "llm_evaluation_started request_id=%s case_id=%s text_length=%s",
@@ -288,7 +291,7 @@ def evaluate_with_llm(text: str, case_id: int, case_context: str) -> dict[str, A
         case_id,
         len(text),
     )
-    result = evaluate_solution(text, case_context)
+    result = evaluate_solution(text, case_context, perfect_solution)
     rating = max(0, min(100, round(float(result.get("final_score", 70)))))
     response = {
         "rating": rating,
@@ -509,7 +512,40 @@ async def evaluate(payload: EvaluateRequest, request: Request):
         )
 
     try:
-        llm_result = await run_in_threadpool(evaluate_with_llm, text, case_id, case_context)
+        reference_path = PERFECT_SOLUTION_PATH_TEMPLATE.format(case_id=case_id)
+        reference_status, reference_data, _ = await backend_request(
+            reference_path, method="GET", cookie=cookie
+        )
+    except (KeyError, ValueError):
+        return logged_response(
+            error_payload("CASE_API_CONFIG_ERROR", "Некорректно настроен адрес эталонного решения"),
+            500,
+            "evaluate_reference_config_failed",
+        )
+    except RuntimeError:
+        return logged_response(
+            error_payload("BACKEND_UNAVAILABLE", "Backend недоступен"),
+            502,
+            "evaluate_reference_backend_unavailable",
+        )
+    if reference_status != 200:
+        return logged_response(
+            error_payload("PERFECT_SOLUTION_LOAD_FAILED", "Не удалось загрузить эталон для проверки"),
+            502,
+            "evaluate_reference_load_failed",
+        )
+    perfect_solution = reference_data.get("perfectSolution")
+    if not isinstance(perfect_solution, str) or not perfect_solution.strip():
+        return logged_response(
+            error_payload("PERFECT_SOLUTION_MISSING", "Для кейса не задан эталон проверки"),
+            422,
+            "evaluate_reference_missing",
+        )
+
+    try:
+        llm_result = await run_in_threadpool(
+            evaluate_with_llm, text, case_id, case_context, perfect_solution.strip()
+        )
     except Exception:
         LOGGER.exception("llm_evaluation_failed request_id=%s case_id=%s", current_request_id(), case_id)
         return logged_response(
