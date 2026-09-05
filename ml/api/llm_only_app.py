@@ -52,6 +52,7 @@ APP_FILE_LOGGING_DISABLED = os.getenv("ML_DISABLE_APP_FILE_LOGGING", "").lower()
 
 SUCCESS_MSG = "Ответ принят."
 TOXIC_MSG = "Обнаружены недопустимые формулировки 😠😠😠. После 3 таких сообщений ваш аккаунт будет заблокирован!!!"
+HIGH_TOXICITY_THRESHOLD = 0.9
 SESSION_ERROR_MESSAGES = {"Please login first", "Session expired"}
 
 
@@ -203,16 +204,28 @@ def analyze_text(text: str) -> dict[str, Any]:
     max_confidence = float(sentence_scores.max())
     for index, (sentence, score) in enumerate(zip(sentences, sentence_scores)):
         confidence = float(score)
-        if confidence >= THRESHOLD:
+        if confidence >= THRESHOLD or confidence >= HIGH_TOXICITY_THRESHOLD:
             toxic_examples.append(
                 {"index": index, "text": sentence, "confidence": round(confidence, 4)}
             )
 
-    details = {"total": len(sentences)}
+    is_toxic = max_confidence >= HIGH_TOXICITY_THRESHOLD or len(toxic_examples) >= 2
+    decision = (
+        "high_confidence" if max_confidence >= HIGH_TOXICITY_THRESHOLD
+        else "multiple_sentences" if is_toxic
+        else "single_borderline" if toxic_examples
+        else "below_threshold"
+    )
+    details = {"total": len(sentences), "decision": decision}
+    LOGGER.info(
+        "toxicity_decision request_id=%s decision=%s is_toxic=%s "
+        "sentence_count=%s candidate_count=%s max_confidence=%.4f threshold=%.4f high_threshold=%.2f",
+        current_request_id(), decision, is_toxic, len(sentences), len(toxic_examples),
+        max_confidence, THRESHOLD, HIGH_TOXICITY_THRESHOLD,
+    )
     if toxic_examples:
         details.update({"toxic_count": len(toxic_examples), "examples": toxic_examples})
-        return success_payload(True, round(max_confidence, 4), details)
-    return success_payload(False, round(max_confidence, 4), details)
+    return success_payload(is_toxic, round(max_confidence, 4), details)
 
 
 def parse_backend_response(response: httpx.Response) -> dict[str, Any]:

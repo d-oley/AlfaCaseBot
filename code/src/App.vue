@@ -15,6 +15,10 @@
       <div>
         <strong>Аккаунт заблокирован</strong>
         <p>{{ appState.banNotice.message }}</p>
+        <p>
+          Если вы считаете, что вас несправедливо забанили — пишите на почту
+          <a href="mailto:spring_app@mail.ru">spring_app@mail.ru</a>.
+        </p>
       </div>
       <button type="button" aria-label="Закрыть уведомление о блокировке" @click="clearBanNotice">
         ×
@@ -259,6 +263,11 @@ export default {
 
 .ban-notice p {
   margin-top: 4px;
+}
+
+.ban-notice a {
+  color: inherit;
+  overflow-wrap: anywhere;
 }
 
 .ban-notice button {
