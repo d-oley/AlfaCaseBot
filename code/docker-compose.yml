@@ -7,6 +7,7 @@ services:
     container_name: alfacasebot-ml
     environment:
       BACKEND_BASE_URL: http://host.docker.internal:8080
+      ML_SERVICE_TOKEN: ${ML_SERVICE_TOKEN:?Set ML_SERVICE_TOKEN for Java and ML}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       SERPER_API_KEY: ${SERPER_API_KEY:-}

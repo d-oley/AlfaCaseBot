@@ -26,6 +26,7 @@ ML_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MODEL_PATH = ML_ROOT / "artifacts" / "best_censor_model.joblib"
 MODEL_PATH = Path(os.getenv("ML_MODEL_PATH", str(DEFAULT_MODEL_PATH))).expanduser()
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
+ML_SERVICE_TOKEN = os.getenv("ML_SERVICE_TOKEN", "").strip()
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
 TOXIC_PATH = os.getenv("TOXIC_PATH", "/api/text/v1/processViolation")
 SAVE_RATING_PATH = os.getenv("SAVE_RATING_PATH", "/api/text/v1/addScore")
@@ -226,7 +227,12 @@ async def backend_request(
     body: dict[str, Any] | None = None,
     cookie: str = "",
 ) -> tuple[int, dict[str, Any], str | None]:
-    headers = {"Accept": "application/json"}
+    if not ML_SERVICE_TOKEN:
+        raise RuntimeError("ML_SERVICE_TOKEN не настроен")
+    headers = {
+        "Accept": "application/json",
+        "X-ML-Service-Token": ML_SERVICE_TOKEN,
+    }
     if cookie:
         headers["Cookie"] = cookie
     started_at = time.perf_counter()
@@ -385,6 +391,13 @@ async def evaluate(payload: EvaluateRequest, request: Request):
             error_payload("UNAUTHORIZED", "Требуется cookie"),
             401,
             "evaluate_missing_cookie",
+        )
+
+    if not ML_SERVICE_TOKEN:
+        return logged_response(
+            error_payload("ML_SERVICE_NOT_CONFIGURED", "Не настроен доступ ML к backend"),
+            503,
+            "evaluate_missing_service_token",
         )
 
     try:

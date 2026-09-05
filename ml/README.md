@@ -8,6 +8,7 @@ FastAPI-сервис проверяет решение на токсичност
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+# Перед запуском задайте ML_SERVICE_TOKEN в окружении процесса (из хранилища секретов).
 uvicorn api.app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
@@ -24,6 +25,7 @@ uvicorn api.app:app --host 0.0.0.0 --port 5000 --reload
 docker build -t alfacasebot-ml .
 docker run --rm -p 5000:5000 `
   -e BACKEND_BASE_URL=http://host.docker.internal:8080 `
+  -e ML_SERVICE_TOKEN `
   -e OPENROUTER_API_KEY=your-key `
   alfacasebot-ml
 ```
@@ -34,6 +36,7 @@ docker run --rm -p 5000:5000 `
 |---|---|---|
 | `ML_MODEL_PATH` | `artifacts/best_censor_model.joblib` | Путь к joblib-артефакту модели токсичности |
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
+| `ML_SERVICE_TOKEN` | пусто | Обязательный серверный секрет для заголовка `X-ML-Service-Token`; значение должно совпадать с Java |
 | `CASE_PATH_TEMPLATE` | `/api/text/v1/cases/{case_id}/prompt` | Шаблон запроса контекста кейса из Java |
 | `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |
 | `OPENROUTER_API_KEY` | пусто | ключ OpenRouter |
@@ -46,6 +49,10 @@ docker run --rm -p 5000:5000 `
 | `ML_LOG_LEVEL` | `INFO` | уровень логирования |
 
 Секреты читаются только из окружения. `config.py` и `.env*` исключены из Docker context.
+
+`ML_SERVICE_TOKEN` задаётся в окружении ML-сервиса и Java одним и тем же значением. В Java также задайте `ML_SERVICE_HEADER=X-ML-Service-Token`. В Docker Compose (`code/docker-compose.yml`) токен передаётся только контейнеру `ml` из окружения запуска; без него Compose сообщит об ошибке. Не добавляйте токен в `VUE_APP_*`, исходники или браузерные запросы.
+
+ML добавляет `X-ML-Service-Token` ко всем своим запросам к Java через `backend_request()`, сохраняя пользовательскую cookie. При отсутствии секрета `/evaluate` возвращает HTTP 503 с кодом `ML_SERVICE_NOT_CONFIGURED`; health-check остаётся доступным. Локальный запуск через `uvicorn` сам по себе не загружает `.env`.
 
 ## API
 
