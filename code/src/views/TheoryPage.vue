@@ -68,9 +68,17 @@
             <strong>{{ quizStatus.isSolved ? 'Тест пройден' : 'Тест не пройден' }}</strong>
             <span>Попыток: {{ quizStatus.attemptsCount }}</span>
           </div>
+          <span v-else-if="quizStatusLoading" class="quiz-status-note">Загружаем результат...</span>
         </div>
 
-        <form v-if="!attemptResult" class="quiz-form" @submit.prevent="submitQuiz">
+        <div v-if="quizStatusError" class="quiz-status-error">
+          <p class="error-text" role="alert">{{ quizStatusError }}</p>
+          <button class="btn btn-secondary" type="button" :disabled="quizStatusLoading" @click="loadQuizStatus">
+            Повторить загрузку результата
+          </button>
+        </div>
+
+        <form v-if="!displayedResult" class="quiz-form" @submit.prevent="submitQuiz">
           <fieldset v-for="question in quiz.questions" :key="question.id" class="quiz-question">
             <legend>
               <span>{{ question.position }}</span>
@@ -94,11 +102,15 @@
           <p v-if="!allQuestionsAnswered" class="form-note">Ответьте на все вопросы.</p>
         </form>
 
-        <div v-else class="attempt-result" :class="{ solved: attemptResult.isSolved }" role="status">
-          <p class="section-code">Результат попытки</p>
-          <h3>{{ attemptResult.isSolved ? 'Тест пройден' : 'Пока не пройден' }}</h3>
+        <div v-else class="attempt-result" :class="{ solved: displayedResult.isSolved }" role="status">
+          <p class="section-code">{{ attemptResult ? 'Результат попытки' : 'Лучший результат' }}</p>
+          <h3>{{ displayedResult.isSolved ? 'Тест пройден' : 'Пока не пройден' }}</h3>
+          <p v-if="attemptScorePercent !== null" class="attempt-score">
+            <strong>{{ attemptScorePercent }}%</strong>
+            <span>правильных ответов</span>
+          </p>
           <p>
-            {{ attemptResult.isSolved
+            {{ displayedResult.isSolved
               ? 'Материал усвоен. При желании тест можно пройти ещё раз.'
               : 'Вернитесь к теории и попробуйте пройти тест ещё раз.' }}
           </p>
@@ -133,6 +145,8 @@ export default {
       materialError: '',
       quiz: null,
       quizStatus: null,
+      quizStatusLoading: false,
+      quizStatusError: '',
       quizLoading: false,
       quizError: '',
       quizNotFound: false,
@@ -140,6 +154,7 @@ export default {
       submitting: false,
       submitError: '',
       attemptResult: null,
+      isRetaking: false,
     }
   },
   computed: {
@@ -153,6 +168,23 @@ export default {
       return Boolean(this.quiz?.questions?.length) && this.quiz.questions.every(
         (question) => this.answers[question.id] !== undefined
       )
+    },
+    displayedResult() {
+      if (this.attemptResult) return this.attemptResult
+      const attemptsCount = Number(this.quizStatus?.attemptsCount)
+      const score = Number(this.quizStatus?.score)
+      const hasStoredResult = (Number.isFinite(attemptsCount) && attemptsCount > 0) ||
+        (Number.isFinite(score) && score > 0) || Boolean(this.quizStatus?.isSolved)
+      if (this.isRetaking || !hasStoredResult) return null
+      return {
+        score: this.quizStatus.score,
+        isSolved: Boolean(this.quizStatus.isSolved),
+      }
+    },
+    attemptScorePercent() {
+      if (this.displayedResult?.score === null || this.displayedResult?.score === undefined) return null
+      const score = Number(this.displayedResult.score)
+      return Number.isFinite(score) ? Math.min(100, Math.max(0, Math.round(score))) : null
     },
   },
   async created() {
@@ -173,7 +205,8 @@ export default {
       try {
         const response = await listCaseTheory(this.caseId)
         this.sections = response.materials
-        if (this.sections.length) await this.selectSection(this.sections[0].id)
+        const requested = this.sections.find(section => Number(section.id) === Number(this.$route.query.material))
+        if (this.sections.length) await this.selectSection((requested || this.sections[0]).id)
       } catch (error) {
         this.sections = []
         this.sectionsError = error?.message || 'Не удалось загрузить разделы теории.'
@@ -188,9 +221,11 @@ export default {
       this.materialError = ''
       this.quiz = null
       this.quizStatus = null
+      this.quizStatusError = ''
       this.quizError = ''
       this.quizNotFound = false
       this.attemptResult = null
+      this.isRetaking = false
       this.answers = {}
       this.materialLoading = true
       try {
@@ -209,17 +244,26 @@ export default {
       try {
         this.quiz = await getTheoryQuiz(materialId)
         this.answers = {}
-        try {
-          this.quizStatus = await getTheoryQuizStatus(this.quiz.id)
-        } catch {
-          this.quizStatus = null
-        }
+        await this.loadQuizStatus()
       } catch (error) {
         this.quiz = null
         this.quizNotFound = Number(error?.status) === 404
         if (!this.quizNotFound) this.quizError = error?.message || 'Не удалось загрузить тест.'
       } finally {
         this.quizLoading = false
+      }
+    },
+    async loadQuizStatus() {
+      if (!this.quiz?.id || this.quizStatusLoading) return
+      this.quizStatusLoading = true
+      this.quizStatusError = ''
+      try {
+        this.quizStatus = await getTheoryQuizStatus(this.quiz.id)
+      } catch (error) {
+        this.quizStatus = null
+        this.quizStatusError = error?.message || 'Не удалось загрузить сохранённый результат теста.'
+      } finally {
+        this.quizStatusLoading = false
       }
     },
     async submitQuiz() {
@@ -232,7 +276,8 @@ export default {
           answerOptionId: Number(this.answers[question.id]),
         }))
         this.attemptResult = await submitTheoryQuiz(this.quiz.id, answers)
-        this.quizStatus = await getTheoryQuizStatus(this.quiz.id)
+        this.isRetaking = false
+        await this.loadQuizStatus()
       } catch (error) {
         this.submitError = error?.message || 'Не удалось проверить тест.'
       } finally {
@@ -242,6 +287,7 @@ export default {
     startNewAttempt() {
       this.answers = {}
       this.attemptResult = null
+      this.isRetaking = true
       this.submitError = ''
     },
   },
@@ -266,6 +312,9 @@ export default {
 .quiz-status { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); color: var(--text-muted); }
 .quiz-status.solved { border-color: #2f8f5b; color: #236b45; }
 .quiz-status span { font-size: .78rem; }
+.quiz-status-note { color: var(--text-muted); font-size: .82rem; }
+.quiz-status-error { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+.quiz-status-error p { margin: 0; }
 .quiz-form { display: grid; gap: 22px; }
 .quiz-question { margin: 0; padding: 18px 0; border: 0; border-top: 1px solid var(--border); }
 .quiz-question legend { width: 100%; margin-bottom: 14px; font-weight: 700; line-height: 1.45; }
@@ -278,5 +327,8 @@ export default {
 .attempt-result { padding: 22px; border: 1px solid var(--border); }
 .attempt-result.solved { border-color: #2f8f5b; }
 .attempt-result h3 { margin: 8px 0; font-size: 1.55rem; }
+.attempt-score { display: flex; align-items: baseline; gap: 10px; margin: 14px 0; }
+.attempt-score strong { font-family: var(--display-font); font-size: clamp(2.4rem, 6vw, 4rem); line-height: .9; }
+.attempt-score span { color: var(--text-muted); }
 @media (max-width: 640px) { .quiz-heading { flex-direction: column; } .quiz-status { width: 100%; box-sizing: border-box; } }
 </style>

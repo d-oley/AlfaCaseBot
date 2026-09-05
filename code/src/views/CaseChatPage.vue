@@ -230,12 +230,9 @@ export default {
       return [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':')
     },
     shouldRecommendTheory() {
-      if (!this.theorySections.length) return false
-      const latestIsLow = Number.isFinite(Number(this.latestSubmittedRating)) &&
-        Number(this.latestSubmittedRating) < SOLVE_SCORE_THRESHOLD
-      const finalIsLow = this.isSolvingCompleted &&
-        Number(this.solvingBestRating) < SOLVE_SCORE_THRESHOLD
-      return latestIsLow || finalIsLow
+      return this.theorySections.length > 0 && this.isSolvingActive && !this.isSolvingCompleted &&
+        typeof this.latestSubmittedRating === 'number' && Number.isFinite(this.latestSubmittedRating) &&
+        this.latestSubmittedRating < SOLVE_SCORE_THRESHOLD
     },
   },
   async created() {
@@ -384,7 +381,8 @@ export default {
             history.push({ id: this.nextId++, author: 'user', text: item.solutionText })
           }
           if (item.solutionResponse) {
-            if (Number.isFinite(Number(item.rating))) latestRating = Number(item.rating)
+            if (item.rating !== null && item.rating !== undefined && item.rating !== '' &&
+              Number.isFinite(Number(item.rating))) latestRating = Number(item.rating)
             history.push({
               id: this.nextId++,
               author: 'bot',

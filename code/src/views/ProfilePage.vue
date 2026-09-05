@@ -114,6 +114,79 @@
       <p class="stat-value">{{ appState.user.rank > 0 ? `#${appState.user.rank}` : '—' }}</p>
     </section>
 
+    <section class="card progress-overview-card" aria-labelledby="profile-progress-title">
+      <div class="progress-overview-heading">
+        <div>
+          <p class="progress-kicker">Статистика обучения</p>
+          <h2 id="profile-progress-title">Ваш прогресс</h2>
+        </div>
+        <p class="progress-caption">
+          {{ caseProgressLoading ? 'Загружаем результаты кейсов...' : (caseProgressError || 'Обновляется по результатам кейсов и полученным достижениям.') }}
+        </p>
+      </div>
+
+      <div class="progress-overview-grid">
+        <article class="progress-donut-panel">
+          <div
+            class="progress-donut"
+            :style="{ background: `conic-gradient(var(--primary) ${caseProgressPercent}%, var(--surface-muted) 0)` }"
+            role="progressbar"
+            aria-label="Пройденные кейсы"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuenow="caseProgressPercent"
+          >
+            <div class="progress-donut-center">
+              <strong>{{ caseProgressPercent }}%</strong>
+              <span>кейсов</span>
+            </div>
+          </div>
+          <div>
+            <strong class="progress-stat-title">{{ solvedCases.length }} из {{ availableCaseCount }}</strong>
+            <p>кейсов пройдено</p>
+          </div>
+        </article>
+
+        <article class="progress-metric-panel">
+          <div class="progress-metric-copy">
+            <span>Средний результат</span>
+            <strong>{{ averageSolvedScore }}%</strong>
+          </div>
+          <div class="progress-meter" role="progressbar" aria-label="Средний результат" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="averageSolvedScore">
+            <span :style="{ width: `${averageSolvedScore}%` }"></span>
+          </div>
+          <p>{{ solvedCases.length ? 'По лучшим результатам пройденных кейсов' : 'Появится после первого пройденного кейса' }}</p>
+        </article>
+
+        <article class="progress-metric-panel">
+          <div class="progress-metric-copy">
+            <span>Достижения</span>
+            <strong>{{ unlockedAchievementsCount }} / {{ achievements.length }}</strong>
+          </div>
+          <div class="progress-meter" role="progressbar" aria-label="Полученные достижения" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="achievementProgressPercent">
+            <span :style="{ width: `${achievementProgressPercent}%` }"></span>
+          </div>
+          <p>{{ achievementProgressPercent }}% коллекции открыто</p>
+        </article>
+      </div>
+
+      <div class="profile-results-chart">
+        <div class="profile-results-chart-heading">
+          <div>
+            <p class="progress-kicker">Результаты по кейсам</p>
+            <h3>Сравнение лучших оценок</h3>
+          </div>
+          <span>Баллы из 100</span>
+        </div>
+        <progress-bar-chart
+          v-if="profileChartItems.length"
+          :items="profileChartItems"
+          aria-label="Лучшие результаты пользователя по пройденным кейсам"
+        />
+        <p v-else class="progress-chart-empty">График появится после первого результата от 70 баллов.</p>
+      </div>
+    </section>
+
     <section class="card switchable-card">
       <div class="switch-tabs">
         <button class="switch-tab" :class="{ active: activeTab === 'solved' }" :style="activeTab === 'solved' ? activeTabStyle : null" type="button" @click="activeTab = 'solved'">
@@ -206,11 +279,13 @@
 
 <script>
 import CitySelect from '@/components/CitySelect.vue'
+import ProgressBarChart from '@/components/ProgressBarChart.vue'
 import {
   changeEmail,
   changeUserParams,
   formatBirthdateForApi,
   getCaseAssetUrl,
+  getCaseSolvingState,
   getCurrentUserProfile,
   listCities,
   saveUserPreferences,
@@ -218,6 +293,7 @@ import {
 } from '@/api/authApi'
 import {
   appState,
+  SOLVE_SCORE_THRESHOLD,
   getAchievementsForUser,
   getDifficultyPreferenceOptions,
   getFavoriteCasesForUser,
@@ -236,6 +312,7 @@ export default {
   name: 'ProfilePage',
   components: {
     CitySelect,
+    ProgressBarChart,
   },
   data() {
     return {
@@ -254,6 +331,10 @@ export default {
       isEditingProfile: false,
       activeTab: 'solved',
       selectedAchievement: null,
+      caseProgressStatuses: [],
+      caseProgressLoading: false,
+      caseProgressError: '',
+      caseProgressRequestKey: '',
       activeTabStyle: {
         backgroundColor: '#11110f',
         borderColor: '#11110f',
@@ -286,13 +367,55 @@ export default {
       return getRoleLabel(this.appState.user.role)
     },
     solvedCases() {
-      return getSolvedCasesForUser()
+      const casesById = new Map(this.appState.cases.map((item) => [Number(item.id), item]))
+      const merged = new Map(
+        getSolvedCasesForUser().map((item) => [Number(item.caseId), item])
+      )
+      this.caseProgressStatuses
+        .filter((item) => item.bestRating >= SOLVE_SCORE_THRESHOLD)
+        .forEach((item) => {
+          const caseItem = casesById.get(item.caseId)
+          if (!caseItem) return
+          const previous = merged.get(item.caseId)
+          merged.set(item.caseId, {
+            ...caseItem,
+            ...previous,
+            caseId: item.caseId,
+            scorePercent: Math.max(Number(previous?.scorePercent || 0), item.bestRating),
+          })
+        })
+      return [...merged.values()].sort((a, b) => Number(b.scorePercent) - Number(a.scorePercent))
     },
     favoriteCases() {
       return getFavoriteCasesForUser()
     },
     achievements() {
       return getAchievementsForUser()
+    },
+    availableCaseCount() {
+      return Math.max(this.appState.cases.length, this.solvedCases.length)
+    },
+    caseProgressPercent() {
+      if (!this.availableCaseCount) return 0
+      return Math.min(100, Math.round((this.solvedCases.length / this.availableCaseCount) * 100))
+    },
+    averageSolvedScore() {
+      if (!this.solvedCases.length) return 0
+      const total = this.solvedCases.reduce((sum, item) => sum + Number(item.scorePercent || 0), 0)
+      return Math.min(100, Math.max(0, Math.round(total / this.solvedCases.length)))
+    },
+    profileChartItems() {
+      return this.solvedCases.map((item) => ({
+        label: item.title || `Кейс ${item.caseId}`,
+        value: item.scorePercent,
+      }))
+    },
+    unlockedAchievementsCount() {
+      return this.achievements.filter((item) => item.active).length
+    },
+    achievementProgressPercent() {
+      if (!this.achievements.length) return 0
+      return Math.round((this.unlockedAchievementsCount / this.achievements.length) * 100)
     },
     preferenceTagOptions() {
       return getPreferenceTagOptions()
@@ -309,6 +432,19 @@ export default {
     avatarSource() {
       this.avatarLoadFailed = false
     },
+    'appState.cases.length': {
+      immediate: true,
+      handler() {
+        this.loadCaseProgress()
+      },
+    },
+    'appState.isAuthenticated'(isAuthenticated) {
+      if (isAuthenticated) this.loadCaseProgress()
+      else {
+        this.caseProgressStatuses = []
+        this.caseProgressRequestKey = ''
+      }
+    },
   },
   created() {
     this.fillFormFromState()
@@ -319,6 +455,32 @@ export default {
     }
   },
   methods: {
+    async loadCaseProgress() {
+      if (!this.appState.isAuthenticated || !this.appState.cases.length) return
+      const caseIds = this.appState.cases
+        .map((item) => Number(item.id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+      const requestKey = `${this.appState.user.id}:${caseIds.join(',')}`
+      if (!caseIds.length || this.caseProgressRequestKey === requestKey) return
+
+      this.caseProgressRequestKey = requestKey
+      this.caseProgressLoading = true
+      this.caseProgressError = ''
+      const results = await Promise.allSettled(caseIds.map((caseId) => getCaseSolvingState(caseId)))
+      if (this.caseProgressRequestKey !== requestKey) return
+
+      this.caseProgressStatuses = results.flatMap((result, index) => {
+        if (result.status !== 'fulfilled') return []
+        return [{
+          caseId: caseIds[index],
+          bestRating: Math.min(100, Math.max(0, Math.round(Number(result.value?.bestRating) || 0))),
+        }]
+      })
+      if (this.caseProgressStatuses.length !== caseIds.length) {
+        this.caseProgressError = 'Часть результатов сейчас недоступна.'
+      }
+      this.caseProgressLoading = false
+    },
     resetProfileMessages() {
       this.profileMessage = ''
       this.profileError = ''
@@ -510,6 +672,7 @@ export default {
 
 .profile-header,
 .rank-card,
+.progress-overview-card,
 .switchable-card,
 .edit-card {
   padding: clamp(18px, 2.5vw, 28px);
@@ -518,7 +681,183 @@ export default {
 .profile-header { min-height: 190px; }
 .rank-card { background: var(--primary); color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
 .rank-card h3 { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
-.edit-card, .switchable-card { grid-column: 1 / -1; }
+.edit-card, .progress-overview-card, .switchable-card { grid-column: 1 / -1; }
+
+.progress-overview-card {
+  display: grid;
+  gap: 24px;
+  border-top: 5px solid var(--primary);
+}
+
+.progress-overview-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.progress-overview-heading h2,
+.progress-overview-heading p,
+.progress-donut-panel p,
+.progress-metric-panel p {
+  margin: 0;
+}
+
+.progress-overview-heading h2 {
+  margin-top: 6px;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  text-transform: uppercase;
+}
+
+.progress-kicker {
+  color: var(--primary);
+  font-family: var(--mono-font);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.progress-caption {
+  max-width: 430px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.progress-overview-grid {
+  display: grid;
+  grid-template-columns: 1.1fr repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.progress-donut-panel,
+.progress-metric-panel {
+  min-width: 0;
+  min-height: 190px;
+  padding: clamp(18px, 2.5vw, 28px);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.progress-donut-panel {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.progress-donut {
+  width: 118px;
+  height: 118px;
+  flex: 0 0 118px;
+  padding: 13px;
+  border-radius: 50%;
+}
+
+.progress-donut-center {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--card-bg);
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.progress-donut-center strong {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.progress-donut-center span,
+.progress-donut-panel p,
+.progress-metric-panel p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.progress-stat-title {
+  display: block;
+  margin-bottom: 5px;
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
+}
+
+.progress-metric-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 15px;
+}
+
+.progress-metric-copy {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress-metric-copy span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.progress-metric-copy strong {
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  line-height: 1;
+}
+
+.progress-meter {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.progress-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.35s ease;
+}
+
+.profile-results-chart {
+  min-width: 0;
+  padding: clamp(18px, 2.5vw, 28px);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.profile-results-chart-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.profile-results-chart-heading h3,
+.profile-results-chart-heading p,
+.progress-chart-empty {
+  margin: 0;
+}
+
+.profile-results-chart-heading h3 {
+  margin-top: 5px;
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
+  text-transform: uppercase;
+}
+
+.profile-results-chart-heading > span,
+.progress-chart-empty {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.progress-chart-empty {
+  padding: 28px 0 12px;
+}
 
 .avatar-block {
   display: flex;
@@ -894,7 +1233,9 @@ export default {
 
 @media (max-width: 760px) {
   .profile-page { grid-template-columns: 1fr; }
-  .edit-card, .switchable-card { grid-column: auto; }
+  .edit-card, .progress-overview-card, .switchable-card { grid-column: auto; }
+  .progress-overview-heading { align-items: start; flex-direction: column; }
+  .progress-overview-grid { grid-template-columns: 1fr; }
   .achievements-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .avatar-upload input {
@@ -903,6 +1244,9 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .progress-donut-panel { align-items: flex-start; flex-direction: column; }
+  .profile-results-chart-heading { align-items: flex-start; flex-direction: column; }
+
   .switchable-card {
     padding-inline: 16px;
   }

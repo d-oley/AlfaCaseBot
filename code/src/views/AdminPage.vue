@@ -28,6 +28,9 @@
       </header>
 
       <div class="tabs">
+        <button class="tab-btn" :class="{ active: activeTab === 'theory' }" @click="activeTab = 'theory'">
+          Теория
+        </button>
         <button class="tab-btn" :class="{ active: activeTab === 'cases' }" @click="activeTab = 'cases'">
           Кейсы
         </button>
@@ -41,6 +44,8 @@
 
       <p v-if="adminActionError" class="error-text">{{ adminActionError }}</p>
       <p v-if="adminActionMessage" class="success-text">{{ adminActionMessage }}</p>
+
+      <admin-theory-panel v-show="activeTab === 'theory'" :cases="adminCases" />
 
       <div v-if="activeTab === 'cases'" class="panel-grid">
         <article class="card panel-card">
@@ -384,7 +389,7 @@
         </article>
       </div>
 
-      <div v-else class="panel-grid">
+      <div v-else-if="activeTab === 'tags'" class="panel-grid">
         <article class="card panel-card">
           <h2>Теги</h2>
           <div class="list">
@@ -424,6 +429,7 @@
 
 <script>
 import CitySelect from '@/components/CitySelect.vue'
+import AdminTheoryPanel from '@/components/AdminTheoryPanel.vue'
 import {
   activateCaseTag,
   attachCaseTag,
@@ -492,7 +498,7 @@ const toUserForm = (item = null) => ({
 
 export default {
   name: 'AdminPage',
-  components: { CitySelect },
+  components: { CitySelect, AdminTheoryPanel },
   data() {
     const tags = [...new Set(appState.cases.flatMap((item) => item.tags))]
     return {

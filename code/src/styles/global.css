@@ -77,6 +77,10 @@ body {
 }
 
 button, input, select, textarea { font: inherit; }
+select option, select optgroup {
+  color: var(--text-main);
+  background-color: var(--input-bg);
+}
 button:focus-visible {
   outline: 2px solid color-mix(in srgb, currentColor 78%, transparent);
   outline-offset: -4px;

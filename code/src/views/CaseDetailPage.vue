@@ -96,13 +96,76 @@
       </div>
     </section>
 
+    <section v-if="caseItem && appState.isAuthenticated" class="card case-progress-card" aria-labelledby="case-progress-title">
+      <div class="case-progress-heading">
+        <div>
+          <p class="case-code">Прогресс по кейсу</p>
+          <h2 id="case-progress-title">{{ caseProgressLabel }}</h2>
+        </div>
+        <strong v-if="!solvingStateLoading && !solvingStateError" class="case-progress-percent">{{ caseJourneyPercent }}%</strong>
+      </div>
+
+      <p v-if="solvingStateLoading" class="perfect-solution-note">Загружаем ваш прогресс...</p>
+      <p v-else-if="solvingStateError" class="leaderboard-error" role="alert">{{ solvingStateError }}</p>
+      <template v-else>
+        <div
+          class="case-journey-meter"
+          role="progressbar"
+          aria-label="Этап прохождения кейса"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="caseJourneyPercent"
+        >
+          <span :style="{ width: `${caseJourneyPercent}%` }"></span>
+        </div>
+
+        <ol class="case-progress-steps" aria-label="Этапы прохождения">
+          <li v-for="(step, index) in caseProgressSteps" :key="step.label" :class="{ done: step.done }">
+            <span class="case-progress-step-number" aria-hidden="true">{{ step.done ? '✓' : index + 1 }}</span>
+            <span>{{ step.label }}</span>
+          </li>
+        </ol>
+
+        <div class="case-score-summary">
+          <div>
+            <span class="description-label">Лучший результат</span>
+            <strong>{{ caseBestRating > 0 ? `${caseBestRating} / 100` : 'Пока нет оценки' }}</strong>
+          </div>
+          <div class="case-score-meter" role="progressbar" aria-label="Лучший результат по кейсу" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="caseBestRating">
+            <span :style="{ width: `${caseBestRating}%` }"></span>
+          </div>
+        </div>
+
+        <div class="case-comparison-chart">
+          <div class="case-comparison-heading">
+            <div>
+              <span class="description-label">Сравнение результатов</span>
+              <h3>Вы и другие участники</h3>
+            </div>
+            <span>Баллы из 100</span>
+          </div>
+          <progress-bar-chart
+            :items="caseComparisonChartItems"
+            aria-label="Сравнение результата пользователя со средним и лучшим результатом по кейсу"
+          />
+        </div>
+      </template>
+    </section>
+
     <section v-if="caseItem && theorySections.length" class="card theory-promo-card">
       <div>
         <p class="case-code">Подготовка к кейсу</p>
         <h2>Разберите теорию перед решением</h2>
         <p>К кейсу добавлено разделов: {{ theorySections.length }}. Изучайте их по порядку или выберите нужную тему.</p>
       </div>
-      <router-link class="btn btn-secondary" :to="`/case/${caseId}/theory`">Пройти теорию</router-link>
+      <div class="theory-section-links">
+        <router-link
+          v-for="section in theorySections"
+          :key="section.id"
+          class="btn btn-secondary"
+          :to="{ path: `/case/${caseId}/theory`, query: { material: section.id } }"
+        >{{ section.title }}</router-link>
+      </div>
     </section>
 
     <section v-if="caseItem" class="card perfect-solution-card">
@@ -156,6 +219,7 @@
 
 <script>
 import CaseLeaderboard from '@/components/CaseLeaderboard.vue'
+import ProgressBarChart from '@/components/ProgressBarChart.vue'
 import {
   addFavoriteCase,
   getCaseAssetUrl,
@@ -180,6 +244,7 @@ export default {
   name: 'CaseDetailPage',
   components: {
     CaseLeaderboard,
+    ProgressBarChart,
   },
   data() {
     return {
@@ -192,7 +257,9 @@ export default {
       favoriteError: '',
       solvingStateLoading: false,
       solvingStateError: '',
+      isSolvingActive: false,
       isCaseCompleted: false,
+      caseBestRating: 0,
       perfectSolution: null,
       perfectSolutionLoading: false,
       perfectSolutionError: '',
@@ -219,6 +286,38 @@ export default {
     },
     roundedCaseRating() {
       return Math.round(Number(this.caseItem?.caseRating || 0))
+    },
+    hasStartedCase() {
+      return this.isSolvingActive || this.isCaseCompleted || this.caseBestRating > 0
+    },
+    caseJourneyPercent() {
+      if (this.isCaseCompleted) return 100
+      return this.hasStartedCase ? 67 : 33
+    },
+    caseProgressLabel() {
+      if (this.isCaseCompleted) return 'Кейс завершён'
+      return this.hasStartedCase ? 'Решение в процессе' : 'Начните решение'
+    },
+    caseProgressSteps() {
+      return [
+        { label: 'Кейс открыт', done: true },
+        { label: 'Решение начато', done: this.hasStartedCase },
+        { label: 'Кейс завершён', done: this.isCaseCompleted },
+      ]
+    },
+    caseComparisonChartItems() {
+      const scores = this.leaderboardEntries
+        .map((item) => Number(item.score))
+        .filter((score) => Number.isFinite(score) && score >= 0)
+      const average = scores.length
+        ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+        : 0
+      const leader = Math.max(this.caseBestRating, ...scores, 0)
+      return [
+        { label: 'Ваш результат', value: this.caseBestRating },
+        { label: 'Средний', value: average, secondary: true },
+        { label: 'Лучший', value: leader, secondary: true },
+      ]
     },
   },
   watch: {
@@ -252,7 +351,9 @@ export default {
     resetPerfectSolutionState() {
       this.solvingStateLoading = false
       this.solvingStateError = ''
+      this.isSolvingActive = false
       this.isCaseCompleted = false
+      this.caseBestRating = 0
       this.perfectSolution = null
       this.perfectSolutionError = ''
     },
@@ -262,7 +363,9 @@ export default {
       this.solvingStateError = ''
       try {
         const state = await getCaseSolvingState(caseId)
+        this.isSolvingActive = Boolean(state?.active)
         this.isCaseCompleted = Boolean(state?.completed)
+        this.caseBestRating = Math.min(100, Math.max(0, Math.round(Number(state?.bestRating) || 0)))
       } catch (error) {
         this.solvingStateError = error?.message || 'Не удалось проверить состояние решения.'
       } finally {
@@ -367,6 +470,145 @@ export default {
   border-top-width: 5px;
 }
 
+.case-progress-card {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  gap: 22px;
+  border-top: 5px solid var(--primary);
+}
+
+.case-progress-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.case-progress-heading .case-code,
+.case-progress-heading h2 {
+  margin: 0;
+}
+
+.case-progress-heading h2 {
+  margin-top: 7px;
+  font-size: clamp(1.6rem, 3vw, 2.7rem);
+  text-transform: uppercase;
+}
+
+.case-progress-percent {
+  color: var(--primary);
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  line-height: 0.85;
+}
+
+.case-journey-meter,
+.case-score-meter {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.case-journey-meter {
+  height: 18px;
+}
+
+.case-score-meter {
+  width: min(420px, 100%);
+  height: 12px;
+}
+
+.case-journey-meter span,
+.case-score-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.35s ease;
+}
+
+.case-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case-progress-steps li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.case-progress-steps li.done {
+  color: var(--text-main);
+}
+
+.case-progress-step-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-family: var(--mono-font);
+  font-size: 0.75rem;
+}
+
+.case-progress-steps li.done .case-progress-step-number {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.case-score-summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.45fr) minmax(240px, 1fr);
+  align-items: end;
+  gap: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.case-score-summary > div:first-child {
+  display: grid;
+  gap: 7px;
+}
+
+.case-score-summary strong {
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+}
+
+.case-comparison-chart {
+  min-width: 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.case-comparison-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.case-comparison-heading h3 {
+  margin: 6px 0 0;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  text-transform: uppercase;
+}
+
+.case-comparison-heading > span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .perfect-solution-card {
   padding: clamp(20px, 3vw, 34px);
   display: grid;
@@ -388,6 +630,8 @@ export default {
 .theory-promo-card h2 { margin: 7px 0 9px; }
 .theory-promo-card p:last-child { color: var(--text-muted); line-height: 1.5; }
 .theory-promo-card .btn { flex: 0 0 auto; }
+.theory-section-links { display: grid; gap: 10px; min-width: 0; }
+.theory-section-links .btn { white-space: normal; overflow-wrap: anywhere; }
 
 .perfect-solution-card .case-code,
 .perfect-solution-card h2,
@@ -648,13 +892,19 @@ h1 {
 @media (max-width: 700px) {
   .description-block { grid-template-columns: 1fr; gap: 10px; }
   .case-rating { align-items: flex-start; flex-direction: column; }
+  .case-progress-heading { align-items: flex-start; }
+  .case-progress-steps { grid-template-columns: 1fr; }
+  .case-score-summary { grid-template-columns: 1fr; }
+  .case-comparison-heading { align-items: flex-start; flex-direction: column; }
   .theory-promo-card { align-items: stretch; flex-direction: column; }
   h1 { font-size: clamp(2.2rem, 11vw, 4rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .favorite-star,
-  .favorite-heart {
+  .favorite-heart,
+  .case-journey-meter span,
+  .case-score-meter span {
     transition: none;
   }
 }

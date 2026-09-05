@@ -45,6 +45,8 @@ const errors = {
   'Case is already solved': 'Этот кейс уже завершён',
   'Material not found': 'Раздел теории не найден',
   'Quiz not found': 'Тест для этого раздела не найден',
+  'Material with this position already exists': 'В этом кейсе уже есть блок с таким номером.',
+  'Quiz has attempts and cannot be updated': 'Этот тест уже проходили. Сервер запрещает изменять его вопросы.',
   'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
@@ -574,7 +576,7 @@ export const getTheoryQuiz = async (materialId) => {
 
 export const submitTheoryQuiz = (quizId, answers) =>
   USE_MOCK_API
-    ? Promise.resolve({ attemptId: 1, isSolved: false })
+    ? Promise.resolve({ attemptId: 1, correctAnswers: 1, totalQuestions: 2, score: 50, isSolved: false })
     : request(withBaseUrl(API_URL, `${CASE_PREFIX}/quiz/${Number(quizId)}/submit`), {
         method: 'POST',
         body: JSON.stringify({ answers }),
@@ -582,8 +584,10 @@ export const submitTheoryQuiz = (quizId, answers) =>
 
 export const getTheoryQuizStatus = (quizId) =>
   USE_MOCK_API
-    ? Promise.resolve({ quizId: Number(quizId), attemptsCount: 0, isSolved: false })
-    : request(withBaseUrl(API_URL, `${CASE_PREFIX}/quiz/${Number(quizId)}/status`))
+    ? Promise.resolve({ quizId: Number(quizId), attemptsCount: 0, isSolved: false, score: 0 })
+    : request(withBaseUrl(API_URL, `${CASE_PREFIX}/quiz/${Number(quizId)}/status`), {
+        cache: 'no-store',
+      })
 
 export const listCaseTags = async () => {
   if (USE_MOCK_API) {
@@ -600,6 +604,30 @@ export const listCaseTags = async () => {
   const tags = await loadAllPages({ path: `${CASE_PREFIX}/tags`, normalizeItem: normalizeTag })
   return tags.filter((tag) => tag.name)
 }
+
+export const listAdminTheory = (caseId) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${Number(caseId)}/theory`))
+
+export const getAdminTheory = (id) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/theory/${Number(id)}`))
+
+export const getAdminTheoryQuiz = (id) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/theory/${Number(id)}/quiz`))
+
+export const createAdminTheory = (caseId, payload) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${Number(caseId)}/theory`), {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+
+export const updateAdminTheory = (id, payload) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/theory/${Number(id)}`), {
+    method: 'PATCH', body: JSON.stringify(payload),
+  })
+
+export const saveAdminTheoryQuiz = (id, payload) =>
+  request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/theory/${Number(id)}/quiz`), {
+    method: 'PUT', body: JSON.stringify(payload),
+  })
 
 export const listAdminCases = async () => {
   if (USE_MOCK_API) {
