@@ -23,7 +23,7 @@ from .logging_utils import configure_numbered_file_logging
 
 
 ML_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL_PATH = ML_ROOT / "artifacts" / "best_model.joblib"
+DEFAULT_MODEL_PATH = ML_ROOT / "artifacts" / "best_censor_model.joblib"
 MODEL_PATH = Path(os.getenv("ML_MODEL_PATH", str(DEFAULT_MODEL_PATH))).expanduser()
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080").rstrip("/")
 CHECK_COOKIE_PATH = os.getenv("CHECK_COOKIE_PATH", "/api/text/v1/checkCookie")
