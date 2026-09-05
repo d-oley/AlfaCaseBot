@@ -32,7 +32,7 @@ docker run --rm -p 5000:5000 `
 
 | Переменная | Значение по умолчанию | Назначение |
 |---|---|---|
-| `ML_MODEL_PATH` | `artifacts/best_model.joblib` | Путь к joblib-артефакту модели токсичности |
+| `ML_MODEL_PATH` | `artifacts/best_censor_model.joblib` | Путь к joblib-артефакту модели токсичности |
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Java-backend |
 | `CASE_PATH_TEMPLATE` | `/api/text/v1/cases/{case_id}/prompt` | Шаблон запроса контекста кейса из Java |
 | `BACKEND_TIMEOUT` | `10` | timeout запросов к backend, секунд |
@@ -118,11 +118,11 @@ python -m api.local_ml_runner --case-id 6 --text "Текст решения"
 
 - `api/` — FastAPI-приложение, LLM-интеграция и локальный runner.
 - `training/` — notebook и данные для воспроизводимого обучения модели.
-- `artifacts/` — единственный актуальный runtime-артефакт `best_model.joblib`.
+- `artifacts/` — единственный актуальный runtime-артефакт `best_censor_model.joblib`.
 
 Notebook следует запускать из каталога `ml/training`. Он читает
 `data/censorship/combined_data_corrected.csv` и экспортирует модель в
-`../artifacts/best_model.joblib`, то есть ровно туда, откуда её загружает API.
+`../artifacts/best_censor_model.joblib`, то есть ровно туда, откуда её загружает API.
 
 Окружение обучения и исходный объединённый датасет можно восстановить так:
 
