@@ -55,6 +55,7 @@ localStorage.removeItem('alfacasebot-user-data-v2')
 
 export const appState = reactive({
   isAuthenticated: false,
+  isAdmin: false,
   user: getDefaultUser(),
   topUsers: [],
   cases: [],
@@ -136,6 +137,7 @@ export const loginUser = (payload) => {
 
 export const logoutUser = () => {
   appState.isAuthenticated = false
+  appState.isAdmin = false
   appState.user = getDefaultUser()
   appState.userSolvedCases = []
   appState.userFavoriteCaseIds = []
@@ -143,6 +145,10 @@ export const logoutUser = () => {
   appState.viewedCaseIds = []
   appState.shouldShowPreferencesOnboarding = false
   appState.recommendedCaseId = null
+}
+
+export const setAdminAccess = (value) => {
+  appState.isAdmin = Boolean(value)
 }
 
 export const showBanNotice = (message = '') => {

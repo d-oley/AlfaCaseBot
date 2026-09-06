@@ -653,6 +653,21 @@ export const listAdminCases = async () => {
   })
 }
 
+export const checkAdminAccess = async () => {
+  if (USE_MOCK_API) {
+    requireMockSession()
+    return true
+  }
+
+  try {
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases?page=0&size=1&sort=createdAt,desc`))
+    return true
+  } catch (error) {
+    if (error?.status === 401 || error?.status === 403) return false
+    throw error
+  }
+}
+
 const buildAdminPageQuery = ({ page = 0, size = 25, search = '', sort = 'createdAt,desc' } = {}) => {
   const params = new URLSearchParams({ page: String(page), size: String(size), sort })
   if (String(search).trim()) params.set('search', String(search).trim())

@@ -441,6 +441,7 @@ import {
   deleteAdminUser,
   getUserCityById,
   getAdminUserById,
+  getCurrentUserProfile,
   loginRequest,
   listAdminCases,
   listAdminTags,
@@ -448,12 +449,13 @@ import {
   listAdminUsers,
   listCities,
   logoutRequest,
+  mapApiProfileToState,
   parseBirthdateFromApi,
   updateAdminUser,
   updateCaseTag,
   updateCaseRequest,
 } from '@/api/authApi'
-import { appState, getRoleOptions, setCases } from '@/store/appState'
+import { appState, getRoleOptions, loginUser, setAdminAccess, setCases } from '@/store/appState'
 
 const toCaseForm = (item = null) => ({
   id: item?.id || null,
@@ -566,6 +568,7 @@ export default {
       const isLoaded = await this.loadAdminCases()
       this.isAdminAuthorized = isLoaded
       if (isLoaded) {
+        await this.syncAuthenticatedAdmin()
         await this.loadTagsFromApi()
       } else {
         this.adminActionError = ''
@@ -594,6 +597,7 @@ export default {
           throw new Error('У аккаунта нет прав администратора.')
         }
         this.isAdminAuthorized = true
+        await this.syncAuthenticatedAdmin(this.credentials.login)
         this.credentials.password = ''
         await this.loadTagsFromApi()
       } catch (error) {
@@ -602,6 +606,23 @@ export default {
       } finally {
         this.isAdminAuthLoading = false
       }
+    },
+    async syncAuthenticatedAdmin(fallbackLogin = '') {
+      if (!appState.isAuthenticated) {
+        try {
+          const profile = await getCurrentUserProfile()
+          loginUser(mapApiProfileToState(profile, {
+            username: fallbackLogin,
+            login: fallbackLogin,
+            nickname: fallbackLogin,
+          }))
+        } catch {
+          if (fallbackLogin) {
+            loginUser({ username: fallbackLogin, login: fallbackLogin, nickname: fallbackLogin })
+          }
+        }
+      }
+      setAdminAccess(true)
     },
     async loadAdminCases() {
       this.adminActionError = ''

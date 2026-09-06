@@ -2,6 +2,7 @@
   <div class="app-shell">
     <app-header
       :is-authenticated="appState.isAuthenticated"
+      :is-admin="appState.isAdmin"
       :login="appState.user.login"
       :user-rank="appState.user.rank"
       :theme="theme"
@@ -59,6 +60,7 @@ import AppHeader from './components/AppHeader.vue'
 import AuthModal from './components/AuthModal.vue'
 import PreferenceModal from './components/PreferenceModal.vue'
 import {
+  checkAdminAccess,
   getCurrentUserProfile,
   getUserPreferences,
   listCases,
@@ -74,6 +76,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  setAdminAccess,
   skipUserPreferences,
   setUserFavoriteCases,
   setUserAchievements,
@@ -133,7 +136,7 @@ export default {
       try {
         const profile = await getCurrentUserProfile()
         loginUser(mapApiProfileToState(profile, this.appState.user))
-        await this.loadPersonalization()
+        await Promise.all([this.loadPersonalization(), this.refreshAdminAccess()])
       } catch {
         if (this.appState.isAuthenticated) {
           logoutUser()
@@ -159,13 +162,21 @@ export default {
       loginUser(payload)
       this.closeModal()
       this.$router.push('/dashboard')
-      await this.loadPersonalization()
+      await Promise.all([this.loadPersonalization(), this.refreshAdminAccess()])
     },
     async handleRegisterSuccess(payload) {
       registerUser(payload)
+      setAdminAccess(false)
       this.closeModal()
       this.$router.push('/dashboard')
       await this.loadPersonalization({ preserveOnboarding: true })
+    },
+    async refreshAdminAccess() {
+      try {
+        setAdminAccess(await checkAdminAccess())
+      } catch {
+        setAdminAccess(false)
+      }
     },
     handleAccountBanned(message) {
       showBanNotice(message)

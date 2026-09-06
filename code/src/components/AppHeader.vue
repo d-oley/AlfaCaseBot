@@ -14,6 +14,7 @@
       <nav class="nav">
         <router-link class="nav-link" :to="homeRoute">Главная</router-link>
         <router-link v-if="isAuthenticated" class="nav-link" to="/profile">Личный кабинет</router-link>
+        <router-link v-if="isAuthenticated && isAdmin" class="nav-link" to="/admin">Админ-панель</router-link>
       </nav>
 
       <div class="header-controls">
@@ -81,6 +82,10 @@ export default {
   name: 'AppHeader',
   props: {
     isAuthenticated: {
+      type: Boolean,
+      default: false,
+    },
+    isAdmin: {
       type: Boolean,
       default: false,
     },
