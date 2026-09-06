@@ -65,14 +65,14 @@ const errors = {
   'You are already logged in': 'Сначала выйдите из текущего аккаунта',
   'You are not logged in': 'Вы уже вышли из аккаунта',
   'Invalid request': 'Не удалось обработать данные',
-  'Validation method is required': 'Выберите способ подтверждения email',
+  'Validation method is required': 'Выберите способ подтверждения аккаунта',
   'Verification code is required': 'Введите код из письма',
   'Invalid or expired verification code': 'Неверный или устаревший код подтверждения',
   'Verification session expired.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Invalid or expired verification session.': 'Сессия подтверждения истекла. Начните регистрацию заново',
   'Account is already verified': 'Аккаунт уже подтверждён. Войдите в него',
   'Invalid email or username': 'Неверно указан email или логин',
-  'Account is not verified': 'Подтвердите email перед входом',
+  'Account is not verified': 'Подтвердите аккаунт перед входом',
   'Backend недоступен': 'Сервис временно недоступен',
 }
 
@@ -425,7 +425,13 @@ export const resetPassword = ({ oldPassword, newPassword }) =>
 
 export const registerRequest = ({ username, email, password, birthdate, status, cityId, validationMethod }) =>
   USE_MOCK_API
-    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    ? Promise.resolve({
+        success: true,
+        verification: validationMethod === 'TELEGRAM'
+          ? 'https://t.me/alfa_auth_verification_bot?start=mock-verification-token'
+          : '123456',
+        id: mockData.profile.id,
+      })
     : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
     body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
@@ -433,7 +439,13 @@ export const registerRequest = ({ username, email, password, birthdate, status, 
 
 export const resendVerificationEmail = ({ username, email, password, validationMethod = 'EMAIL' }) =>
   USE_MOCK_API
-    ? Promise.resolve({ success: true, verification: '123456', id: mockData.profile.id })
+    ? Promise.resolve({
+        success: true,
+        verification: validationMethod === 'TELEGRAM'
+          ? 'https://t.me/alfa_auth_verification_bot?start=mock-verification-token'
+          : '123456',
+        id: mockData.profile.id,
+      })
     : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resendEmail`), {
       method: 'POST',
       body: JSON.stringify({ username, email, password, validationMethod }),

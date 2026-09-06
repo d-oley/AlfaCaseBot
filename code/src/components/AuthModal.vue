@@ -71,6 +71,36 @@
         </form>
       </template>
 
+      <template v-else-if="isTelegramVerification">
+        <h2>Подтвердите аккаунт</h2>
+        <div class="modal-form">
+          <p class="verification-hint">
+            Откройте Telegram, нажмите «Запустить» в боте, а затем вернитесь на сайт.
+          </p>
+
+          <a
+            class="btn btn-primary telegram-link"
+            :href="telegramVerificationUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Открыть Telegram
+          </a>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="handleTelegramVerificationSubmit">
+            {{ loading ? 'Проверяем...' : 'Проверить подтверждение' }}
+          </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="handleResendVerification">
+            Создать новую ссылку
+          </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="resetVerification">
+            Изменить данные регистрации
+          </button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="switchToLogin">
+            Войти в другой аккаунт
+          </button>
+        </div>
+      </template>
+
       <template v-else>
         <h2>Регистрация</h2>
         <form class="modal-form" @submit.prevent="handleRegisterSubmit">
@@ -125,6 +155,12 @@
           </div>
           <p v-if="registerPasswordInvalid" class="error-text">{{ passwordRuleText }}</p>
 
+          <label for="register-validation-method">Способ подтверждения</label>
+          <select id="register-validation-method" v-model="registerForm.validationMethod">
+            <option value="EMAIL">Email</option>
+            <option value="TELEGRAM">Telegram</option>
+          </select>
+
           <button class="btn btn-primary" type="submit" :disabled="isRegisterDisabled || loading">
             {{ loading ? 'Регистрация...' : 'Создать аккаунт' }}
           </button>
@@ -155,6 +191,12 @@ import { getRoleOptions } from '@/store/appState'
 
 const USERNAME_REGEX = /^\S{3,20}$/
 const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
+const TELEGRAM_VERIFICATION_URL_REGEX = /^https:\/\/t\.me\/[A-Za-z0-9_]+\?start=[A-Za-z0-9_-]+$/
+
+const normalizeTelegramVerificationUrl = (value) => {
+  const url = String(value || '').trim()
+  return TELEGRAM_VERIFICATION_URL_REGEX.test(url) ? url : ''
+}
 
 export default {
   name: 'AuthModal',
@@ -192,6 +234,7 @@ export default {
         role: '',
         cityId: null,
         password: '',
+        validationMethod: 'EMAIL',
       },
     }
   },
@@ -203,7 +246,13 @@ export default {
       return this.mode === 'login'
     },
     isEmailVerification() {
-      return Boolean(this.pendingVerification)
+      return this.pendingVerification?.validationMethod === 'EMAIL'
+    },
+    isTelegramVerification() {
+      return this.pendingVerification?.validationMethod === 'TELEGRAM'
+    },
+    telegramVerificationUrl() {
+      return normalizeTelegramVerificationUrl(this.pendingVerification?.verificationUrl)
     },
     isVerificationCodeValid() {
       return /^\d{6}$/.test(this.verificationCode)
@@ -237,6 +286,7 @@ export default {
         !this.registerForm.birthDate ||
         !this.registerForm.role ||
         !this.registerForm.cityId ||
+        !this.registerForm.validationMethod ||
         !this.isRegisterPasswordValid(this.registerForm.password)
       )
     },
@@ -290,6 +340,8 @@ export default {
         username: this.registerForm.login,
         password: this.registerForm.password,
         email: this.registerForm.email,
+        validationMethod: this.registerForm.validationMethod,
+        verificationUrl: '',
         profile: this.buildFallbackProfile({
           username: this.registerForm.login,
           login: this.registerForm.login,
@@ -409,29 +461,59 @@ export default {
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
           cityId: this.registerForm.cityId,
-          validationMethod: 'EMAIL',
+          validationMethod: this.registerForm.validationMethod,
         })
+        const verificationUrl = this.registerForm.validationMethod === 'TELEGRAM'
+          ? normalizeTelegramVerificationUrl(result?.verification)
+          : ''
 
-        if (!result?.id) {
-          throw new Error('Не удалось начать подтверждение email.')
+        if (!result?.id || (this.registerForm.validationMethod === 'TELEGRAM' && !verificationUrl)) {
+          throw new Error('Не удалось начать подтверждение аккаунта.')
         }
 
         this.pendingVerification = {
           ...this.buildPendingVerification(),
           id: result.id,
+          verificationUrl,
         }
         this.verificationCode = ''
-        this.message = 'Код подтверждения отправлен на email.'
+        this.message = this.isTelegramVerification
+          ? 'Ссылка для подтверждения готова.'
+          : 'Код подтверждения отправлен на email.'
       } catch (error) {
         const backendError = error?.body?.errorText
         if (
           backendError === 'This email address is already taken' ||
           backendError === 'This username is already taken'
         ) {
-          this.pendingVerification = this.buildPendingVerification()
-          this.verificationCode = ''
-          this.message = 'Аккаунт уже создан. Введите ранее отправленный код подтверждения.'
-          return
+          try {
+            const pendingVerification = this.buildPendingVerification()
+            const result = await resendVerificationEmail({
+              username: pendingVerification.username,
+              email: pendingVerification.email,
+              password: pendingVerification.password,
+              validationMethod: pendingVerification.validationMethod,
+            })
+            const verificationUrl = pendingVerification.validationMethod === 'TELEGRAM'
+              ? normalizeTelegramVerificationUrl(result?.verification)
+              : ''
+            if (pendingVerification.validationMethod === 'TELEGRAM' && !verificationUrl) {
+              throw new Error('Сервер не вернул ссылку для Telegram.')
+            }
+            this.pendingVerification = {
+              ...pendingVerification,
+              id: result?.id,
+              verificationUrl,
+            }
+            this.verificationCode = ''
+            this.message = this.isTelegramVerification
+              ? 'Аккаунт уже создан. Мы создали новую ссылку для Telegram.'
+              : 'Аккаунт уже создан. Новый код отправлен на email.'
+            return
+          } catch (resendError) {
+            this.errorMessage = resendError?.message || 'Не удалось повторно запустить подтверждение.'
+            return
+          }
         }
         const message = error?.message || 'Не удалось зарегистрироваться.'
         this.errorMessage = message.includes('CORS') || message.includes('ERR_') 
@@ -472,6 +554,32 @@ export default {
         this.loading = false
       }
     },
+    async handleTelegramVerificationSubmit() {
+      if (!this.isTelegramVerification || this.loading) return
+
+      this.loading = true
+      this.resetMessages()
+
+      try {
+        await loginRequest({
+          username: this.pendingVerification.username,
+          password: this.pendingVerification.password,
+        })
+        const profile = await getCurrentUserProfile()
+        const user = mapApiProfileToState(profile, this.pendingVerification.profile)
+
+        this.resetVerification()
+        this.$emit('register-success', user)
+        this.message = 'Аккаунт подтверждён через Telegram.'
+      } catch (error) {
+        const backendError = error?.body?.errorText
+        this.errorMessage = backendError === 'Account is not verified'
+          ? 'Бот ещё не подтвердил аккаунт. Откройте Telegram, нажмите «Запустить» и повторите проверку.'
+          : error?.message || 'Не удалось проверить подтверждение через Telegram.'
+      } finally {
+        this.loading = false
+      }
+    },
     async handleResendVerification() {
       if (!this.pendingVerification || this.loading) return
 
@@ -482,13 +590,23 @@ export default {
           username: this.pendingVerification.username,
           email: this.pendingVerification.email,
           password: this.pendingVerification.password,
+          validationMethod: this.pendingVerification.validationMethod,
         })
+        const verificationUrl = this.isTelegramVerification
+          ? normalizeTelegramVerificationUrl(result?.verification)
+          : ''
+        if (this.isTelegramVerification && !verificationUrl) {
+          throw new Error('Сервер не вернул ссылку для Telegram.')
+        }
         this.pendingVerification = {
           ...this.pendingVerification,
           id: result?.id || this.pendingVerification.id,
+          verificationUrl,
         }
         this.verificationCode = ''
-        this.message = 'Новый код подтверждения отправлен на email.'
+        this.message = this.isTelegramVerification
+          ? 'Новая ссылка для Telegram готова.'
+          : 'Новый код подтверждения отправлен на email.'
       } catch (error) {
         this.errorMessage = error?.message || 'Не удалось повторно отправить код.'
       } finally {
@@ -606,6 +724,13 @@ export default {
 .modal-form .btn-link:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+.telegram-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .error-text {
