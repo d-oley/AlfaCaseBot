@@ -384,7 +384,7 @@ export const parseBirthdateFromApi = (date) => {
 }
 
 export const mapApiProfileToState = (profile, fallback = {}) => {
-  const username = profile?.username || fallback.username || profile?.nickName || profile?.nickname || ''
+  const username = profile?.username || fallback.username || ''
   const login = profile?.nickName || profile?.nickname || fallback.login || username
 
   return {
@@ -395,6 +395,8 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
     email: profile?.email ?? fallback.email ?? '',
     firstName: profile?.firstName ?? fallback.firstName ?? '',
     lastName: profile?.lastName ?? fallback.lastName ?? '',
+    middleName: profile?.middleName ?? fallback.middleName ?? '',
+    gender: profile?.gender ?? fallback.gender ?? 'NOT_STATED',
     birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
     role: profile?.status ?? fallback.role ?? '',
     cityId: profile?.cityId ?? fallback.cityId ?? null,
@@ -417,8 +419,12 @@ export const checkSession = () =>
 
 export const resetPassword = ({ oldPassword, newPassword }) =>
   USE_MOCK_API
-    ? Promise.resolve({ success: true, oldPassword, newPassword })
-    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetpassword`), {
+    ? Promise.resolve().then(() => {
+        requireMockSession()
+        localStorage.removeItem(MOCK_SESSION_KEY)
+        return { success: true }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/resetPassword`), {
     method: 'POST',
     body: JSON.stringify({ oldPassword, newPassword }),
   })
@@ -497,18 +503,31 @@ export const logoutRequest = () =>
 
 export const changeEmail = ({ email }) =>
   USE_MOCK_API
-    ? Promise.resolve({ success: true, email })
-    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeemail`), {
+    ? Promise.resolve().then(() => {
+        requireMockSession()
+        mockData.profile.email = email
+        return { success: true }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeEmail`), {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
 
-export const changeUserParams = ({ firstName, lastName, middleName, nickName, birthdate, status, cityId }) =>
+export const changeUserParams = ({ firstName, lastName, middleName, nickName, gender, birthdate, status, cityId }) =>
   USE_MOCK_API
-    ? Promise.resolve({ success: true })
-    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeparams`), {
+    ? Promise.resolve().then(() => {
+        requireMockSession()
+        const fields = { firstName, lastName, middleName, nickName, gender, birthdate, status, cityId }
+        Object.entries(fields).forEach(([key, value]) => {
+          if (value != null) mockData.profile[key] = value
+        })
+        const city = mockData.cities.find((item) => Number(item.id) === Number(cityId))
+        if (city) Object.assign(mockData.profile, { cityName: city.cityName, regionName: city.regionName })
+        return { success: true }
+      })
+    : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/changeParams`), {
     method: 'POST',
-    body: JSON.stringify({ firstName, lastName, middleName, nickName, birthdate, status, cityId }),
+    body: JSON.stringify({ firstName, lastName, middleName, nickName, gender, birthdate, status, cityId }),
   })
 
 export const verifyEmail = ({ verification }) =>

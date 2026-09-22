@@ -3,6 +3,9 @@
     <div class="container footer-content">
       <p>AlfaCaseBot</p>
       <p>ИИ-тренажер для практики бизнес-кейсов</p>
+      <p class="footer-disclaimer">
+        AlfaCaseBot — учебный проект. Не является официальным продуктом Альфа-Банка.
+      </p>
     </div>
   </footer>
 </template>
@@ -36,5 +39,12 @@ export default {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.footer-content .footer-disclaimer {
+  flex-basis: 100%;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-transform: none;
 }
 </style>

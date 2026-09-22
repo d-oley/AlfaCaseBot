@@ -35,7 +35,7 @@ const normalizePreferences = (value = {}) => ({
 
 const getDefaultUser = () => ({
   id: null, username: '', email: '', login: '', nickname: '',
-  firstName: '', lastName: '', birthDate: '', role: '',
+  firstName: '', lastName: '', middleName: '', gender: 'NOT_STATED', birthDate: '', role: '',
   cityId: null, city: '', region: '', creationDate: '',
   avatarUrl: '', rank: 0, preferences: getDefaultPreferences(),
 })
@@ -333,7 +333,7 @@ export const getFullName = (user) => {
   if (!user) return ''
   const firstName = user.firstName || ''
   const lastName = user.lastName || ''
-  return [firstName, lastName].filter(Boolean).join(' ') || user.login || user.nickname || 'Пользователь'
+  return [firstName, user.middleName, lastName].filter(Boolean).join(' ') || user.login || user.nickname || 'Пользователь'
 }
 
 export const getSolvedCasesForUser = () => {

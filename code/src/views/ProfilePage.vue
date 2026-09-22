@@ -16,7 +16,9 @@
         <div class="avatar-controls">
           <h2>Личный кабинет</h2>
           <p class="meta-line">Имя: {{ fullName || 'Пока не указано' }}</p>
-          <p class="meta-line">Логин: {{ appState.user.login || 'Пользователь' }}</p>
+          <p v-if="appState.user.username" class="meta-line">Логин: {{ appState.user.username }}</p>
+          <p class="meta-line">Никнейм: {{ appState.user.nickname || 'Пока не указан' }}</p>
+          <p v-if="profileMessage" class="success-text" role="status">{{ profileMessage }}</p>
           <p class="meta-line">Статус: {{ roleLabel }}</p>
           <p class="meta-line">Город: {{ appState.user.city || 'Пока не выбран' }}</p>
 
@@ -32,6 +34,8 @@
     <section v-if="isEditingProfile" class="card edit-card">
       <h3>Редактирование профиля</h3>
       <form class="profile-form" @submit.prevent="saveProfile">
+        <fieldset class="profile-fields" :disabled="isSavingProfile || isSavingPassword">
+        <legend>Личные данные</legend>
         <label for="profile-avatar">Аватар</label>
         <input
           id="profile-avatar"
@@ -46,6 +50,20 @@
 
         <label for="profile-last-name">Фамилия</label>
         <input id="profile-last-name" v-model.trim="profileForm.lastName" type="text" placeholder="Фамилия" />
+
+        <label for="profile-middle-name">Отчество</label>
+        <input id="profile-middle-name" v-model.trim="profileForm.middleName" type="text" autocomplete="additional-name" />
+
+        <label for="profile-nickname">Никнейм</label>
+        <input id="profile-nickname" v-model.trim="profileForm.nickName" type="text" minlength="3" maxlength="20" aria-describedby="profile-nickname-hint" />
+        <p id="profile-nickname-hint" class="meta-line">От 3 до 20 символов без пробелов. Отображается на сайте; логин для входа остаётся прежним.</p>
+
+        <label for="profile-gender">Пол</label>
+        <select id="profile-gender" v-model="profileForm.gender">
+          <option value="NOT_STATED">Не указан</option>
+          <option value="MALE">Мужской</option>
+          <option value="FEMALE">Женский</option>
+        </select>
 
         <label for="profile-email">Почта</label>
         <input id="profile-email" v-model.trim="profileForm.email" type="email" />
@@ -104,9 +122,25 @@
             Отмена
           </button>
         </div>
+        </fieldset>
       </form>
 
-      <p v-if="profileMessage" class="success-text">{{ profileMessage }}</p>
+      <h3 class="password-heading">Смена пароля</h3>
+      <p class="meta-line">После смены пароля все сеансы завершатся. Войдите снова с новым паролем.</p>
+      <form class="profile-form" @submit.prevent="savePassword">
+        <fieldset class="profile-fields" :disabled="isSavingPassword || isSavingProfile">
+          <legend>Пароль</legend>
+          <label for="profile-old-password">Текущий пароль</label>
+          <input id="profile-old-password" v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" required />
+          <label for="profile-new-password">Новый пароль</label>
+          <input id="profile-new-password" v-model="passwordForm.newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="30" required aria-describedby="profile-password-hint" />
+          <p id="profile-password-hint" class="meta-line">От 8 до 30 символов, минимум одна цифра и один спецсимвол: !@#$%^&amp;*()_-+=;:/?|\&lt;&gt;{}[]</p>
+          <label for="profile-confirm-password">Повторите новый пароль</label>
+          <input id="profile-confirm-password" v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" required />
+          <button class="btn btn-primary" type="submit">{{ isSavingPassword ? 'Смена пароля...' : 'Изменить пароль' }}</button>
+        </fieldset>
+        <p v-if="passwordError" class="error-text" role="alert">{{ passwordError }}</p>
+      </form>
     </section>
 
     <section class="card rank-card">
@@ -288,6 +322,8 @@ import {
   getCaseSolvingState,
   getCurrentUserProfile,
   listCities,
+  mapApiProfileToState,
+  resetPassword,
   saveUserPreferences,
   setProfilePicture,
 } from '@/api/authApi'
@@ -302,6 +338,7 @@ import {
   getRoleLabel,
   getRoleOptions,
   getSolvedCasesForUser,
+  logoutUser,
   setAvailableCities,
   setUserAvatar,
   updateUserPreferences,
@@ -310,6 +347,7 @@ import {
 
 export default {
   name: 'ProfilePage',
+  emits: ['open-login'],
   components: {
     CitySelect,
     ProgressBarChart,
@@ -328,6 +366,9 @@ export default {
       profileMessage: '',
       profileError: '',
       isSavingProfile: false,
+      isSavingPassword: false,
+      passwordError: '',
+      passwordForm: { oldPassword: '', newPassword: '', confirmPassword: '' },
       isEditingProfile: false,
       activeTab: 'solved',
       selectedAchievement: null,
@@ -347,6 +388,9 @@ export default {
       profileForm: {
         firstName: '',
         lastName: '',
+        middleName: '',
+        nickName: '',
+        gender: 'NOT_STATED',
         email: '',
         birthDate: '',
         role: '',
@@ -511,6 +555,9 @@ export default {
     fillFormFromState() {
       this.profileForm.firstName = this.appState.user.firstName || ''
       this.profileForm.lastName = this.appState.user.lastName || ''
+      this.profileForm.middleName = this.appState.user.middleName || ''
+      this.profileForm.nickName = this.appState.user.nickname || ''
+      this.profileForm.gender = this.appState.user.gender || 'NOT_STATED'
       this.profileForm.email = this.appState.user.email || ''
       this.profileForm.birthDate = this.appState.user.birthDate || ''
       this.profileForm.role = this.appState.user.role || ''
@@ -519,12 +566,16 @@ export default {
       this.profileForm.preferenceDifficulty = this.appState.user.preferences?.difficulty || ''
     },
     startProfileEdit() {
+      if (this.isSavingProfile || this.isSavingPassword) return
+      this.resetPasswordForm()
       this.resetProfileMessages()
       this.clearPendingAvatar()
       this.fillFormFromState()
       this.isEditingProfile = true
     },
     cancelProfileEdit() {
+      if (this.isSavingProfile || this.isSavingPassword) return
+      this.resetPasswordForm()
       this.isEditingProfile = false
       this.clearPendingAvatar()
       this.resetProfileMessages()
@@ -565,8 +616,39 @@ export default {
       this.avatarLoadFailed = false
       event.target.value = ''
     },
+    resetPasswordForm() {
+      this.passwordForm = { oldPassword: '', newPassword: '', confirmPassword: '' }
+      this.passwordError = ''
+    },
+    async savePassword() {
+      if (this.isSavingPassword || this.isSavingProfile) return
+      this.passwordError = ''
+      const { oldPassword, newPassword, confirmPassword } = this.passwordForm
+      if (!oldPassword || newPassword.length < 8 || newPassword.length > 30 ||
+          !/\p{Nd}/u.test(newPassword) ||
+          ![...newPassword].some((char) => '!@#$%^&*()_-+=;:/?|\\<>{}[]'.includes(char))) {
+        this.passwordError = 'Введите текущий пароль и новый пароль по указанным правилам.'
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        this.passwordError = 'Новые пароли не совпадают.'
+        return
+      }
+      this.isSavingPassword = true
+      try {
+        await resetPassword({ oldPassword, newPassword })
+        this.resetPasswordForm()
+        logoutUser()
+        await this.$router.replace('/')
+        this.$emit('open-login')
+      } catch (error) {
+        this.passwordError = error?.message || 'Не удалось изменить пароль.'
+      } finally {
+        this.isSavingPassword = false
+      }
+    },
     async saveProfile() {
-      if (this.isSavingProfile) {
+      if (this.isSavingProfile || this.isSavingPassword) {
         return
       }
 
@@ -576,40 +658,62 @@ export default {
       const previousUser = { ...this.appState.user }
       const selectedCity = this.getSelectedCity()
       const emailChanged = this.profileForm.email !== (previousUser.email || '')
-      const profileParamsChanged =
-        this.profileForm.firstName !== (previousUser.firstName || '') ||
-        this.profileForm.lastName !== (previousUser.lastName || '') ||
-        this.profileForm.birthDate !== (previousUser.birthDate || '') ||
-        this.profileForm.role !== (previousUser.role || '') ||
-        Number(this.profileForm.cityId || 0) !== Number(previousUser.cityId || 0)
+      const params = {}
+      const fields = { firstName: 'firstName', lastName: 'lastName', middleName: 'middleName', nickName: 'nickname', gender: 'gender', birthDate: 'birthDate', role: 'role', cityId: 'cityId' }
+      for (const [field, stateField] of Object.entries(fields)) {
+        const value = this.profileForm[field]
+        const previous = previousUser[stateField] ?? (field === 'gender' ? 'NOT_STATED' : '')
+        if (String(value ?? '') === String(previous)) continue
+        if (field !== 'middleName' && (value === '' || value == null)) {
+          this.profileError = 'Имя, фамилию, никнейм, дату рождения, статус и город нельзя очистить. Укажите новое значение.'
+          this.isSavingProfile = false
+          return
+        }
+        params[field === 'birthDate' ? 'birthdate' : field === 'role' ? 'status' : field] =
+          field === 'birthDate' ? formatBirthdateForApi(value) : value
+      }
+      if (params.nickName != null && (params.nickName.length < 3 || params.nickName.length > 20 || params.nickName.includes(' '))) {
+        this.profileError = 'Никнейм должен содержать от 3 до 20 символов без пробелов.'
+        this.isSavingProfile = false
+        return
+      }
+      let changesSaved = false
+      let profileReloaded = false
+      let avatarChanged = false
+      const refreshProfile = async () => {
+        const profile = await getCurrentUserProfile()
+        updateUserProfile(mapApiProfileToState(profile, this.appState.user))
+        if (avatarChanged) {
+          const url = getCaseAssetUrl(profile?.avatarUrl)
+          setUserAvatar(url ? `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}` : '')
+          this.clearPendingAvatar()
+          this.avatarLoadFailed = false
+        }
+      }
 
       try {
         if (emailChanged) {
           await changeEmail({
             email: this.profileForm.email,
           })
+          changesSaved = true
         }
 
-        if (profileParamsChanged) {
-          await changeUserParams({
-            firstName: this.profileForm.firstName,
-            lastName: this.profileForm.lastName,
-            birthdate: formatBirthdateForApi(this.profileForm.birthDate),
-            status: this.profileForm.role,
-            cityId: this.profileForm.cityId,
-          })
+        if (Object.keys(params).length) {
+          await changeUserParams(params)
+          changesSaved = true
+          // Java returns city names but does not include cityId in UserProfile.
+          if (params.cityId != null) updateUserProfile({ cityId: Number(params.cityId), city: selectedCity?.cityName || '', region: selectedCity?.regionName || '' })
         }
 
         if (this.pendingAvatarFile) {
           await setProfilePicture(this.pendingAvatarFile)
-          const refreshedProfile = await getCurrentUserProfile()
-          const storedAvatarUrl = getCaseAssetUrl(refreshedProfile?.avatarUrl)
-          const avatarUrl = storedAvatarUrl ? `${storedAvatarUrl}?v=${Date.now()}` : ''
-          setUserAvatar(avatarUrl)
-          this.clearPendingAvatar()
-          this.avatarLoadFailed = false
+          changesSaved = true
+          avatarChanged = true
         }
 
+        await refreshProfile()
+        profileReloaded = true
         const preferences = await saveUserPreferences({
           tagIds: this.profileForm.preferenceTagIds,
           difficulty: this.profileForm.preferenceDifficulty,
@@ -622,22 +726,19 @@ export default {
           tags: preferences.tags.length ? preferences.tags : selectedPreferenceNames,
         })
 
-        updateUserProfile({
-          firstName: this.profileForm.firstName,
-          lastName: this.profileForm.lastName,
-          email: this.profileForm.email,
-          birthDate: this.profileForm.birthDate,
-          role: this.profileForm.role,
-          cityId: selectedCity?.id ?? previousUser.cityId ?? null,
-          city: selectedCity?.cityName || previousUser.city || '',
-          region: selectedCity?.regionName || previousUser.region || '',
-        })
-
         this.profileMessage = 'Изменения сохранены.'
-
+        this.resetPasswordForm()
         this.isEditingProfile = false
       } catch (error) {
         this.profileError = error?.message || 'Не удалось сохранить изменения профиля.'
+        if (changesSaved) {
+          this.profileError = `Часть изменений сохранена. ${this.profileError}`
+          if (!profileReloaded) {
+            try { await refreshProfile() } catch {
+              this.profileError += ' Не удалось загрузить актуальный профиль. Обновите страницу перед повторным сохранением.'
+            }
+          }
+        }
       } finally {
         this.isSavingProfile = false
       }
@@ -921,6 +1022,18 @@ export default {
 .switchable-card h3 {
   margin: 0 0 10px;
 }
+
+.profile-fields {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profile-fields > legend { margin-bottom: 12px; }
+.edit-card .password-heading { margin-top: 28px; }
 
 .profile-form {
   display: grid;
