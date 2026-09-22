@@ -42,11 +42,14 @@
             <input id="theory-position" v-model.number="form.position" type="number" min="1" step="1" max="2147483647" required />
             <label for="theory-text">Текст теории</label>
             <textarea id="theory-text" v-model="form.text" rows="10" required />
+            <label class="publish-choice"><input v-model="hasQuiz" type="checkbox" :disabled="loadedQuizExists" /> Добавить тест к блоку</label>
+            <template v-if="hasQuiz">
             <h3>Тест по этому блоку</h3>
             <label for="theory-quiz-title">Название теста</label>
             <input id="theory-quiz-title" v-model.trim="quizTitle" required maxlength="255" />
             <fieldset v-for="(question, qi) in questions" :key="question.key" class="question-editor">
               <legend>Вопрос {{ qi + 1 }}</legend>
+              <label class="publish-choice"><input v-model="question.isActive" type="checkbox" /> Вопрос активен</label>
               <label :for="`question-${question.key}`">Текст вопроса</label>
               <textarea :id="`question-${question.key}`" v-model.trim="question.text" required rows="2" />
               <p class="hint">Отметьте один правильный ответ.</p>
@@ -61,8 +64,10 @@
               </div>
             </fieldset>
             <button class="btn btn-secondary" type="button" @click="questions.push(newQuestion())">Добавить вопрос</button>
-            <label class="publish-choice"><input v-model="form.isActive" type="checkbox" /> Опубликовать блок с тестом</label>
-            <button class="btn btn-primary" type="submit" :disabled="loading || Boolean(listError)">{{ saving ? 'Сохраняем...' : 'Сохранить блок и тест' }}</button>
+            <label class="publish-choice"><input v-model="quizActive" type="checkbox" /> Тест активен</label>
+            </template>
+            <label class="publish-choice"><input v-model="form.isActive" type="checkbox" /> Опубликовать блок</label>
+            <button class="btn btn-primary" type="submit" :disabled="loading || Boolean(listError)">{{ saving ? 'Сохраняем...' : 'Сохранить блок' }}</button>
           </fieldset>
           <p v-if="error" class="error-text" role="alert">{{ error }}</p>
           <p v-if="message" class="success-text" role="status">{{ message }}</p>
@@ -77,7 +82,7 @@ import { createAdminTheory, getAdminTheory, getAdminTheoryQuiz, listAdminTheory,
 
 let nextKey = 0
 const newOption = () => ({ key: ++nextKey, text: '' })
-const newQuestion = () => ({ key: ++nextKey, text: '', correctKey: null, options: [newOption(), newOption()] })
+const newQuestion = () => ({ key: ++nextKey, text: '', isActive: true, correctKey: null, options: [newOption(), newOption()] })
 const newForm = (position = 1) => ({ title: '', position, text: '', isActive: true })
 
 export default {
@@ -86,8 +91,9 @@ export default {
   data() {
     return {
       caseId: '', materials: [], loading: false, listError: '', saving: false,
-      form: newForm(), quizTitle: '', questions: [newQuestion()],
-      materialId: null, materialActionId: null, savedQuiz: null, error: '', message: '', loadVersion: 0,
+      form: newForm(), hasQuiz: true, quizActive: true, quizTitle: '', questions: [newQuestion()],
+      materialId: null, materialActionId: null, loadedQuizExists: false, materialCreatedAsDraft: false,
+      savedQuiz: null, error: '', message: '', loadVersion: 0,
     }
   },
   methods: {
@@ -95,9 +101,9 @@ export default {
     newQuestion,
     quizPayload() {
       return {
-        title: this.quizTitle.trim(), isActive: true,
+        title: this.quizTitle.trim(), isActive: this.quizActive,
         questions: this.questions.map((q, qi) => ({
-          text: q.text.trim(), position: qi + 1, isActive: true,
+          text: q.text.trim(), position: qi + 1, isActive: q.isActive !== false,
           options: q.options.map((o, oi) => ({ text: o.text.trim(), position: oi + 1, isCorrect: o.key === q.correctKey })),
         })),
       }
@@ -131,15 +137,18 @@ export default {
         }
         this.resetForm()
         this.materialId = material.id
+        this.hasQuiz = Boolean(quiz)
         this.form = { title: material.title, text: material.text, position: material.position, isActive: material.isActive }
         if (quiz) {
+          this.hasQuiz = true
+          this.loadedQuizExists = true
+          this.quizActive = quiz.isActive !== false
           this.quizTitle = quiz.title
           this.questions = [...quiz.questions].sort((a, b) => a.position - b.position).map(q => {
             const options = [...q.options].sort((a, b) => a.position - b.position).map(o => ({ ...newOption(), text: o.text, isCorrect: o.isCorrect }))
-            return { key: ++nextKey, text: q.text, options, correctKey: options.find(o => o.isCorrect)?.key ?? null }
+            return { key: ++nextKey, text: q.text, isActive: q.isActive !== false, options, correctKey: options.find(o => o.isCorrect)?.key ?? null }
           })
-          this.savedQuiz = quiz.isActive && quiz.questions.every(q => q.isActive)
-            ? JSON.stringify(this.quizPayload()) : null
+          this.savedQuiz = JSON.stringify(this.quizPayload())
         }
       } catch (error) {
         this.error = error?.message || 'Не удалось открыть блок.'
@@ -152,8 +161,12 @@ export default {
     resetForm() {
       this.form = newForm(Math.max(0, ...this.materials.map(item => Number(item.position) || 0)) + 1)
       this.quizTitle = ''
+      this.hasQuiz = true
+      this.quizActive = true
       this.questions = [newQuestion()]
       this.materialId = null
+      this.loadedQuizExists = false
+      this.materialCreatedAsDraft = false
       this.savedQuiz = null
     },
     async changeCase() {
@@ -194,31 +207,36 @@ export default {
         this.error = 'В этом кейсе уже есть блок с таким номером.'
         return
       }
-      if (!this.quizTitle.trim() || !this.questions.length || this.questions.some(q =>
+      if (this.hasQuiz && (!this.quizTitle.trim() || !this.questions.length || this.questions.some(q =>
         !q.text.trim() || q.options.length < 2 || q.options.some(o => !o.text.trim()) ||
-        !q.options.some(o => o.key === q.correctKey))) {
+        !q.options.some(o => o.key === q.correctKey)))) {
         this.error = 'Заполните тест: для каждого вопроса нужны минимум два ответа и один правильный.'
         return
       }
-      const quiz = this.quizPayload()
+      const quiz = this.hasQuiz ? this.quizPayload() : null
       this.saving = true
       try {
         if (!this.materialId) {
           const result = await createAdminTheory(this.caseId, { ...material, isActive: false })
           this.materialId = result.id
           if (!this.materialId) throw new Error('Сервер не вернул ID созданного блока. Обновите список перед повторным сохранением.')
+          this.materialCreatedAsDraft = true
         }
-        if (this.savedQuiz !== JSON.stringify(quiz)) {
+        if (!this.materialCreatedAsDraft) await updateAdminTheory(this.materialId, material)
+        if (quiz && this.savedQuiz !== JSON.stringify(quiz)) {
           await saveAdminTheoryQuiz(this.materialId, quiz)
           this.savedQuiz = JSON.stringify(quiz)
         }
-        await updateAdminTheory(this.materialId, material)
-        this.message = material.isActive ? 'Блок теории и тест опубликованы.' : 'Блок теории с тестом сохранён как черновик.'
+        if (this.materialCreatedAsDraft) {
+          await updateAdminTheory(this.materialId, material)
+          this.materialCreatedAsDraft = false
+        }
+        this.message = material.isActive ? 'Блок теории сохранён и опубликован.' : 'Блок теории сохранён как черновик.'
         this.resetForm()
         await this.loadMaterials()
       } catch (error) {
         this.error = (this.materialId ? 'Блок уже создан. Повторное сохранение продолжит работу с ним. ' : '') +
-          (error?.message || 'Не удалось сохранить теорию с тестом.')
+          (error?.message || 'Не удалось сохранить блок теории.')
       } finally {
         this.saving = false
       }

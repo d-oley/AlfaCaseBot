@@ -62,6 +62,7 @@ export const appState = reactive({
   casesLoading: false,
   casesError: '',
   cities: [],
+  availableTags: [],
   recommendedCaseId: null,
   shouldShowPreferencesOnboarding: false,
   userSolvedCases: [],
@@ -186,6 +187,10 @@ export const setCases = (items) => {
   appState.cases = Array.isArray(items) ? [...items] : []
   appState.casesError = ''
   appState.recommendedCaseId = calcRecommendedCase()
+}
+
+export const setAvailableTags = (items) => {
+  appState.availableTags = Array.isArray(items) ? items.filter(item => item?.active !== false) : []
 }
 
 export const upsertCase = (item) => {
@@ -316,6 +321,10 @@ export const getRoleLabel = (val) => roleOptions.find(o => o.value === val)?.lab
 export const getDifficultyPreferenceOptions = () => [...difficultyPreferenceOptions]
 export const getPreferenceTagOptions = () => {
   const tags = new Map()
+  appState.availableTags.forEach((tag) => {
+    const id = Number(tag?.id)
+    if (tag?.name && Number.isFinite(id) && id > 0) tags.set(id, { id, name: tag.name })
+  })
   appState.cases.forEach((caseItem) => {
     (caseItem.tags || []).forEach((name, index) => {
       const id = Number(caseItem.tagIds?.[index])

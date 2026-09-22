@@ -31,6 +31,12 @@
       </div>
     </section>
 
+    <section class="card profile-refresh">
+      <button class="btn btn-secondary" type="button" :disabled="profileRefreshing" @click="refreshProfileOverview">{{ profileRefreshing ? 'Обновляем...' : 'Обновить данные' }}</button>
+      <p v-if="profileRefreshError" class="error-text" role="alert">{{ profileRefreshError }}</p>
+      <p>Завершено кейсов в текущем каталоге: {{ completedCases.length }}. Успешное решение — от 70 баллов; завершение фиксируется отдельно.</p>
+      <router-link class="btn btn-secondary" to="/solutions">Все мои попытки</router-link>
+    </section>
     <section v-if="isEditingProfile" class="card edit-card">
       <h3>Редактирование профиля</h3>
       <form class="profile-form" @submit.prevent="saveProfile">
@@ -145,7 +151,8 @@
 
     <section class="card rank-card">
       <h3>Место в рейтинге</h3>
-      <p class="stat-value">{{ appState.user.rank > 0 ? `#${appState.user.rank}` : '—' }}</p>
+      <p v-if="placement">Участников: {{ placement.total }}</p>
+      <p class="stat-value">{{ currentPlacement > 0 ? `#${currentPlacement}` : '—' }}</p>
     </section>
 
     <section class="card progress-overview-card" aria-labelledby="profile-progress-title">
@@ -165,7 +172,7 @@
             class="progress-donut"
             :style="{ background: `conic-gradient(var(--primary) ${caseProgressPercent}%, var(--surface-muted) 0)` }"
             role="progressbar"
-            aria-label="Пройденные кейсы"
+            aria-label="Успешно решённые кейсы"
             aria-valuemin="0"
             aria-valuemax="100"
             :aria-valuenow="caseProgressPercent"
@@ -177,7 +184,7 @@
           </div>
           <div>
             <strong class="progress-stat-title">{{ solvedCases.length }} из {{ availableCaseCount }}</strong>
-            <p>кейсов пройдено</p>
+            <p>кейсов с результатом от 70 баллов</p>
           </div>
         </article>
 
@@ -189,7 +196,7 @@
           <div class="progress-meter" role="progressbar" aria-label="Средний результат" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="averageSolvedScore">
             <span :style="{ width: `${averageSolvedScore}%` }"></span>
           </div>
-          <p>{{ solvedCases.length ? 'По лучшим результатам пройденных кейсов' : 'Появится после первого пройденного кейса' }}</p>
+          <p>{{ solvedCases.length ? 'По лучшим результатам от 70 баллов' : 'Появится после первого пройденного кейса' }}</p>
         </article>
 
         <article class="progress-metric-panel">
@@ -207,7 +214,7 @@
       <div class="profile-results-chart">
         <div class="profile-results-chart-heading">
           <div>
-            <p class="progress-kicker">Результаты по кейсам</p>
+            <p class="progress-kicker">Успешные результаты по кейсам</p>
             <h3>Сравнение лучших оценок</h3>
           </div>
           <span>Баллы из 100</span>
@@ -224,7 +231,7 @@
     <section class="card switchable-card">
       <div class="switch-tabs">
         <button class="switch-tab" :class="{ active: activeTab === 'solved' }" :style="activeTab === 'solved' ? activeTabStyle : null" type="button" @click="activeTab = 'solved'">
-          <span class="switch-tab-label" :style="activeTab === 'solved' ? activeTabLabelStyle : null">Решенные кейсы</span>
+          <span class="switch-tab-label" :style="activeTab === 'solved' ? activeTabLabelStyle : null">Успешные решения</span>
         </button>
         <button class="switch-tab" :class="{ active: activeTab === 'achievements' }" :style="activeTab === 'achievements' ? activeTabStyle : null" type="button" @click="activeTab = 'achievements'">
           <span class="switch-tab-label" :style="activeTab === 'achievements' ? activeTabLabelStyle : null">Достижения</span>
@@ -235,7 +242,7 @@
       </div>
 
       <div v-if="activeTab === 'solved'">
-        <h3 class="active-section-title">Решенные кейсы</h3>
+        <h3 class="active-section-title">Успешные решения</h3>
         <div v-if="solvedCases.length" class="solved-list">
           <button v-for="item in solvedCases" :key="item.caseId" class="solved-item" type="button" @click="openSolvedCase(item.caseId)">
             <span>{{ item.title }}</span>
@@ -313,6 +320,8 @@
 
 <script>
 import CitySelect from '@/components/CitySelect.vue'
+import { isPasswordValid } from '@/utils/accountValidation'
+import { refreshUserData } from '@/services/userData'
 import ProgressBarChart from '@/components/ProgressBarChart.vue'
 import {
   changeEmail,
@@ -321,6 +330,7 @@ import {
   getCaseAssetUrl,
   getCaseSolvingState,
   getCurrentUserProfile,
+  getMyPlacement,
   listCities,
   mapApiProfileToState,
   resetPassword,
@@ -366,6 +376,9 @@ export default {
       profileMessage: '',
       profileError: '',
       isSavingProfile: false,
+      profileRefreshError: '',
+      profileRefreshing: false,
+      placement: null,
       isSavingPassword: false,
       passwordError: '',
       passwordForm: { oldPassword: '', newPassword: '', confirmPassword: '' },
@@ -409,6 +422,12 @@ export default {
     },
     roleLabel() {
       return getRoleLabel(this.appState.user.role)
+    },
+    currentPlacement() {
+      return Number(this.placement?.placement ?? this.appState.user.rank) || 0
+    },
+    completedCases() {
+      return this.caseProgressStatuses.filter(item => item.completed)
     },
     solvedCases() {
       const casesById = new Map(this.appState.cases.map((item) => [Number(item.id), item]))
@@ -487,11 +506,13 @@ export default {
       else {
         this.caseProgressStatuses = []
         this.caseProgressRequestKey = ''
+        this.caseProgressLoading = false
       }
     },
   },
   created() {
     this.fillFormFromState()
+    this.refreshProfileOverview()
   },
   beforeUnmount() {
     if (this.objectUrl) {
@@ -499,6 +520,19 @@ export default {
     }
   },
   methods: {
+    async refreshProfileOverview() {
+      if (this.profileRefreshing) return
+      this.profileRefreshing = true
+      this.profileRefreshError = ''
+      const userId = this.appState.user.id
+      const results = await Promise.allSettled([refreshUserData(), getMyPlacement()])
+      if (userId !== this.appState.user.id) { this.profileRefreshing = false; return }
+      if (results[1].status === 'fulfilled') this.placement = results[1].value
+      if (results.some(result => result.status === 'rejected')) this.profileRefreshError = 'Часть данных не обновилась. Повторите загрузку.'
+      this.caseProgressRequestKey = ''
+      await this.loadCaseProgress()
+      this.profileRefreshing = false
+    },
     async loadCaseProgress() {
       if (!this.appState.isAuthenticated || !this.appState.cases.length) return
       const caseIds = this.appState.cases
@@ -510,13 +544,20 @@ export default {
       this.caseProgressRequestKey = requestKey
       this.caseProgressLoading = true
       this.caseProgressError = ''
-      const results = await Promise.allSettled(caseIds.map((caseId) => getCaseSolvingState(caseId)))
+      const results = []
+      for (let index = 0; index < caseIds.length; index += 4) {
+        results.push(...await Promise.allSettled(
+          caseIds.slice(index, index + 4).map((caseId) => getCaseSolvingState(caseId))
+        ))
+        if (this.caseProgressRequestKey !== requestKey) return
+      }
       if (this.caseProgressRequestKey !== requestKey) return
 
       this.caseProgressStatuses = results.flatMap((result, index) => {
         if (result.status !== 'fulfilled') return []
         return [{
           caseId: caseIds[index],
+          completed: Boolean(result.value?.completed),
           bestRating: Math.min(100, Math.max(0, Math.round(Number(result.value?.bestRating) || 0))),
         }]
       })
@@ -624,9 +665,7 @@ export default {
       if (this.isSavingPassword || this.isSavingProfile) return
       this.passwordError = ''
       const { oldPassword, newPassword, confirmPassword } = this.passwordForm
-      if (!oldPassword || newPassword.length < 8 || newPassword.length > 30 ||
-          !/\p{Nd}/u.test(newPassword) ||
-          ![...newPassword].some((char) => '!@#$%^&*()_-+=;:/?|\\<>{}[]'.includes(char))) {
+      if (!oldPassword || !isPasswordValid(newPassword)) {
         this.passwordError = 'Введите текущий пароль и новый пароль по указанным правилам.'
         return
       }
@@ -779,6 +818,7 @@ export default {
   padding: clamp(18px, 2.5vw, 28px);
 }
 
+.profile-refresh { grid-column: 1 / -1; padding: 20px; }
 .profile-header { min-height: 190px; }
 .rank-card { background: var(--primary); color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
 .rank-card h3 { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }

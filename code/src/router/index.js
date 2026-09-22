@@ -3,17 +3,20 @@
 // - включает базовую защиту приватных роутов
 // - перенаправляет неавторизованного пользователя на главную
 import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '@/views/HomePage.vue'
-import DashboardPage from '@/views/DashboardPage.vue'
-import CaseDetailPage from '@/views/CaseDetailPage.vue'
-import CaseChatPage from '@/views/CaseChatPage.vue'
-import TheoryPage from '@/views/TheoryPage.vue'
-import ProfilePage from '@/views/ProfilePage.vue'
-import AdminPage from '@/views/AdminPage.vue'
-import NotFoundPage from '@/views/NotFoundPage.vue'
 import { appState } from '@/store/appState'
 import { loginUser } from '@/store/appState'
 import { getCurrentUserProfile, mapApiProfileToState } from '@/api/authApi'
+
+const HomePage = () => import('@/views/HomePage.vue')
+const DashboardPage = () => import('@/views/DashboardPage.vue')
+const CaseDetailPage = () => import('@/views/CaseDetailPage.vue')
+const CaseChatPage = () => import('@/views/CaseChatPage.vue')
+const TheoryPage = () => import('@/views/TheoryPage.vue')
+const ProfilePage = () => import('@/views/ProfilePage.vue')
+const AdminPage = () => import('@/views/AdminPage.vue')
+const NotFoundPage = () => import('@/views/NotFoundPage.vue')
+const SolutionsPage = () => import('@/views/SolutionsPage.vue')
+const PublicProfilePage = () => import('@/views/PublicProfilePage.vue')
 
 const routes = [
   {
@@ -26,6 +29,17 @@ const routes = [
     name: 'profile',
     component: ProfilePage,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/solutions',
+    name: 'solutions',
+    component: SolutionsPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/user/:id',
+    name: 'public-profile',
+    component: PublicProfilePage,
   },
   {
     path: '/dashboard',

@@ -380,6 +380,27 @@ async def health():
     }
 
 
+async def check_solving_access(case_id: int, cookie: str):
+    """Recheck before expensive evaluation and before saving; Java must enforce atomically."""
+    try:
+        status, state, _ = await backend_request(
+            f"/api/text/v1/solvingState/{case_id}", method="GET", cookie=cookie
+        )
+    except RuntimeError:
+        return logged_response(error_payload("BACKEND_UNAVAILABLE", "Не удалось проверить состояние решения"), 502)
+    if status in (401, 403, 404):
+        return logged_response(error_payload("SOLVING_ACCESS_DENIED", backend_message(state) or "Решение недоступно"), status)
+    if status != 200 or not isinstance(state, dict):
+        return logged_response(error_payload("SOLVING_STATE_UNAVAILABLE", "Не удалось проверить состояние решения"), 502)
+    if state.get("completed") is True:
+        return logged_response(error_payload("CASE_COMPLETED", "Кейс уже завершён. Отправка новых решений недоступна."), 409)
+    if state.get("active") is False:
+        return logged_response(error_payload("CASE_NOT_STARTED", "Сначала начните решение кейса."), 409)
+    if state.get("active") is not True or state.get("completed") is not False:
+        return logged_response(error_payload("SOLVING_STATE_UNAVAILABLE", "Не удалось проверить состояние решения"), 502)
+    return None
+
+
 @router.post("/evaluate")
 async def evaluate(payload: EvaluateRequest, request: Request):
     text = payload.text.strip()
@@ -414,6 +435,8 @@ async def evaluate(payload: EvaluateRequest, request: Request):
             "evaluate_auth_backend_unavailable",
         )
 
+    if status in (401, 403):
+        return logged_response(error_payload("UNAUTHORIZED", backend_message(auth_data) or "Сессия недействительна"), status)
     if status != 200:
         return logged_response(
             error_payload("AUTH_FAILED", "Сессия не проверена"),
@@ -426,6 +449,10 @@ async def evaluate(payload: EvaluateRequest, request: Request):
             401,
             "evaluate_session_invalid",
         )
+
+    access_error = await check_solving_access(case_id, cookie)
+    if access_error is not None:
+        return access_error
 
     toxicity = await run_in_threadpool(analyze_text, text)
     if toxicity["status"] == "error":
@@ -576,6 +603,10 @@ async def evaluate(payload: EvaluateRequest, request: Request):
             502,
             "evaluate_llm_failed",
         )
+
+    access_error = await check_solving_access(case_id, cookie)
+    if access_error is not None:
+        return access_error
 
     save_body = {
         "caseId": case_id,

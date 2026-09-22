@@ -308,11 +308,13 @@ const loadAllPages = async ({ path, search = '', sort = '', normalizeItem = (ite
     withBaseUrl(API_URL, `${path}?${buildPageQuery({ page, size: 100, search, sort })}`)
   )
   const firstPage = normalizePageResponse(await loadPage(0))
-  const remainingPages = firstPage.totalPages > 1
-    ? await Promise.all(
-      Array.from({ length: firstPage.totalPages - 1 }, (_, index) => loadPage(index + 1))
-    )
-    : []
+  const remainingPages = []
+  // Bound concurrent requests even when the catalogue/history spans many pages.
+  for (let page = 1; page < firstPage.totalPages; page += 4) {
+    remainingPages.push(...await Promise.all(
+      Array.from({ length: Math.min(4, firstPage.totalPages - page) }, (_, index) => loadPage(page + index))
+    ))
+  }
 
   return [firstPage, ...remainingPages.map((page) => normalizePageResponse(page))]
     .flatMap((page) => page.items)
@@ -365,7 +367,7 @@ function normalizeCity(city) {
     return { cityId: city?.id ?? city?.cityId ?? null, cityName: '', regionName: '' }
   }
   return {
-    cityId: city?.id ?? city?.cityId ?? null,
+    cityId: Number(city?.id ?? city?.cityId) > 0 ? Number(city?.id ?? city?.cityId) : null,
     cityName: city?.cityName || '',
     regionName: city?.regionName || '',
   }
@@ -382,6 +384,8 @@ export const parseBirthdateFromApi = (date) => {
   const [day, month, year] = date.split('.')
   return `${year}-${month}-${day}`
 }
+
+export const normalizeLocation = (value) => value && value !== 'not_set' ? value : ''
 
 export const mapApiProfileToState = (profile, fallback = {}) => {
   const username = profile?.username || fallback.username || ''
@@ -400,8 +404,8 @@ export const mapApiProfileToState = (profile, fallback = {}) => {
     birthDate: parseBirthdateFromApi(profile?.birthdate || fallback.birthDate || ''),
     role: profile?.status ?? fallback.role ?? '',
     cityId: profile?.cityId ?? fallback.cityId ?? null,
-    city: profile?.cityName ?? profile?.city ?? fallback.city ?? '',
-    region: profile?.regionName ?? profile?.region ?? fallback.region ?? '',
+    city: normalizeLocation(profile?.cityName ?? profile?.city ?? fallback.city),
+    region: normalizeLocation(profile?.regionName ?? profile?.region ?? fallback.region),
     creationDate: profile?.creationDate ?? fallback.creationDate ?? '',
     rank: profile?.placement ?? fallback.rank ?? 0,
     points: profile?.score ?? fallback.points ?? 0,
@@ -429,7 +433,7 @@ export const resetPassword = ({ oldPassword, newPassword }) =>
     body: JSON.stringify({ oldPassword, newPassword }),
   })
 
-export const registerRequest = ({ username, email, password, birthdate, status, cityId, validationMethod }) =>
+export const registerRequest = ({ username, email, password, firstName, lastName, middleName, gender, birthdate, status, cityId, validationMethod }) =>
   USE_MOCK_API
     ? Promise.resolve({
         success: true,
@@ -440,7 +444,7 @@ export const registerRequest = ({ username, email, password, birthdate, status, 
       })
     : request(withBaseUrl(API_URL, `${AUTH_PREFIX}/register`), {
     method: 'POST',
-    body: JSON.stringify({ username, email, password, birthdate, status, cityId, validationMethod }),
+    body: JSON.stringify({ username, email, password, firstName, lastName, middleName, gender, birthdate, status, cityId, validationMethod }),
   })
 
 export const resendVerificationEmail = ({ username, email, password, validationMethod = 'EMAIL' }) =>
@@ -709,7 +713,7 @@ export const getAdminUserById = (id) =>
     ? Promise.resolve({ ...mockClone(mockData.profile), id: Number(id), username: mockData.profile.nickName, role: 'USER' })
     : request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/users/${encodeURIComponent(id)}`))
 
-export const listAdminUserSolutions = async (userId, { page = 0, size = 25 } = {}) => {
+export const listAdminUserSolutions = async (userId, { page = 0, size = 25, caseId = null } = {}) => {
   if (USE_MOCK_API) {
     requireMockSession()
     return normalizePageResponse({ items: [], page: 0, size, totalElements: 0, totalPages: 0 })
@@ -719,7 +723,7 @@ export const listAdminUserSolutions = async (userId, { page = 0, size = 25 } = {
     await request(
       withBaseUrl(
         API_URL,
-        `${ADMIN_PREFIX}/users/${encodeURIComponent(userId)}/solutions?${query}`
+        `${ADMIN_PREFIX}/users/${encodeURIComponent(userId)}/solutions${caseId ? `/case/${Number(caseId)}` : ''}?${query}`
       )
     )
   )
@@ -843,13 +847,7 @@ export const listCities = async (query = '') => {
       mockData.cities.filter((city) => city.cityName.toLowerCase().includes(q.toLowerCase()))
     )
   }
-  const cities = await request(
-    withBaseUrl(
-      API_URL,
-      `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}?${buildPageQuery({ size: 25 })}`
-    )
-  )
-  return normalizePageResponse(cities).items
+  return loadAllPages({ path: `${SITE_PREFIX}/searchLocation/${encodeURIComponent(q)}` })
 }
 
 export const listFavoriteCases = async () => {
@@ -969,6 +967,28 @@ export const getCurrentUserProfile = () => {
   return request(withBaseUrl(API_URL, `${AUTH_PREFIX}/me`))
 }
 
+export const getMyPlacement = (caseId = null) => USE_MOCK_API
+  ? Promise.resolve({ placement: mockData.profile.placement || 0, total: mockData.leaderboard.length })
+  : request(withBaseUrl(API_URL, caseId
+    ? `${SITE_PREFIX}/leaderboard/local/myPlace/${Number(caseId)}`
+    : `${SITE_PREFIX}/leaderboard/global/myPlace`))
+
+export const listMySolutions = async ({ page = 0, size = 25 } = {}) => {
+  if (USE_MOCK_API) {
+    return normalizePageResponse({ items: mockClone(mockData.chat), page: 0, totalPages: 1, totalElements: mockData.chat.length, size })
+  }
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${TEXT_PREFIX}/solutions?${buildPageQuery({ page, size })}`))
+  )
+}
+
+export const listAdminCaseSolutions = async (caseId, { page = 0, size = 25 } = {}) => {
+  if (USE_MOCK_API) return normalizePageResponse({ items: [], page: 0, totalPages: 0, totalElements: 0, size })
+  return normalizePageResponse(
+    await request(withBaseUrl(API_URL, `${ADMIN_PREFIX}/cases/${Number(caseId)}/solutions?${buildPageQuery({ page, size })}`))
+  )
+}
+
 export const listLeaderboard = async () => {
   if (USE_MOCK_API) return mockClone(mockData.leaderboard)
   const users = await request(withBaseUrl(API_URL, `${SITE_PREFIX}/leaderboard/top5`))
@@ -995,7 +1015,7 @@ export const getCaseChatSequence = async (caseId) => {
     return mockClone(mockData.chat).map((item) => ({ ...item, caseId: Number(caseId) }))
   }
   return loadAllPages({
-    path: `${TEXT_PREFIX}/getChatSequence/${encodeURIComponent(caseId)}`,
+    path: `${TEXT_PREFIX}/solutions/${encodeURIComponent(caseId)}`,
   })
 }
 

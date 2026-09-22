@@ -6,8 +6,8 @@
       </button>
 
       <template v-if="isLogin">
-        <h2>Вход</h2>
-        <form class="modal-form" @submit.prevent="handleLoginSubmit">
+        <h2>{{ recoveryTitle }}</h2>
+        <form v-if="!recoveryMode" class="modal-form" @submit.prevent="handleLoginSubmit">
           <label for="login-username">Логин</label>
           <input id="login-username" v-model.trim="loginForm.username" type="text" placeholder="Введите логин" />
           <p v-if="loginUsernameInvalid" class="error-text">{{ loginRuleText }}</p>
@@ -16,7 +16,7 @@
           <div class="password-field">
             <input
               id="login-password"
-              v-model.trim="loginForm.password"
+              v-model="loginForm.password"
               :type="showLoginPassword ? 'text' : 'password'"
               placeholder="Введите пароль"
               minlength="8"
@@ -35,6 +35,29 @@
           <button class="btn btn-primary" type="submit" :disabled="isLoginDisabled || loading">
             {{ loading ? 'Вход...' : 'Войти' }}
           </button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="recoveryMode = 'username'">Не помню логин</button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="recoveryMode = 'password-request'">Не помню пароль</button>
+        </form>
+        <form v-else-if="recoveryMode === 'username'" class="modal-form" @submit.prevent="handleForgotUsername">
+          <label for="forgot-username-email">Email аккаунта</label>
+          <input id="forgot-username-email" v-model.trim="recoveryForm.email" type="email" required autocomplete="email" />
+          <button class="btn btn-primary" type="submit" :disabled="loading">{{ loading ? 'Отправляем...' : 'Напомнить логин' }}</button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="resetRecovery">Вернуться ко входу</button>
+        </form>
+        <form v-else class="modal-form" @submit.prevent="recoveryMode === 'password-request' ? handleForgotPasswordRequest() : handleForgotPasswordConfirm()">
+          <label for="forgot-password-email">Email аккаунта</label>
+          <input id="forgot-password-email" v-model.trim="recoveryForm.email" type="email" required autocomplete="email" :disabled="recoveryMode === 'password-confirm'" />
+          <label for="forgot-password-login">Логин</label>
+          <input id="forgot-password-login" v-model.trim="recoveryForm.username" type="text" required :disabled="recoveryMode === 'password-confirm'" />
+          <template v-if="recoveryMode === 'password-confirm'">
+            <label for="forgot-password-code">Код из письма</label>
+            <input id="forgot-password-code" v-model.trim="recoveryForm.code" type="text" inputmode="numeric" required />
+            <label for="forgot-password-new">Новый пароль</label>
+            <input id="forgot-password-new" v-model="recoveryForm.newPassword" type="password" required autocomplete="new-password" />
+            <p class="verification-hint">{{ passwordRuleText }}</p>
+          </template>
+          <button class="btn btn-primary" type="submit" :disabled="loading">{{ loading ? 'Отправляем...' : recoveryMode === 'password-request' ? 'Получить код' : 'Сохранить новый пароль' }}</button>
+          <button class="btn btn-link" type="button" :disabled="loading" @click="resetRecovery">Вернуться ко входу</button>
         </form>
       </template>
 
@@ -111,6 +134,19 @@
           <label for="register-email">Email</label>
           <input id="register-email" v-model.trim="registerForm.email" type="email" placeholder="you@example.com" />
 
+          <label for="register-first-name">Имя</label>
+          <input id="register-first-name" v-model.trim="registerForm.firstName" type="text" />
+          <label for="register-last-name">Фамилия</label>
+          <input id="register-last-name" v-model.trim="registerForm.lastName" type="text" />
+          <label for="register-middle-name">Отчество</label>
+          <input id="register-middle-name" v-model.trim="registerForm.middleName" type="text" />
+          <label for="register-gender">Пол</label>
+          <select id="register-gender" v-model="registerForm.gender">
+            <option value="NOT_STATED">Не указан</option>
+            <option value="FEMALE">Женский</option>
+            <option value="MALE">Мужской</option>
+          </select>
+
           <label for="register-birthdate">Дата рождения</label>
           <input id="register-birthdate" v-model="registerForm.birthDate" type="date" />
 
@@ -138,7 +174,7 @@
           <div class="password-field">
             <input
               id="register-password"
-              v-model.trim="registerForm.password"
+              v-model="registerForm.password"
               :type="showRegisterPassword ? 'text' : 'password'"
               placeholder="Придумайте пароль"
               minlength="8"
@@ -177,6 +213,9 @@
 import CitySelect from '@/components/CitySelect.vue'
 import {
   formatBirthdateForApi,
+  forgotPasswordConfirm,
+  forgotPasswordInit,
+  forgotUsername,
   getCurrentUserProfile,
   listCities,
   isBannedError,
@@ -188,9 +227,8 @@ import {
   verifyEmail,
 } from '@/api/authApi'
 import { getRoleOptions } from '@/store/appState'
+import { isPasswordValid, isUsernameValid } from '@/utils/accountValidation'
 
-const USERNAME_REGEX = /^\S{3,20}$/
-const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_\-+=;:/?|\\<>{}[\]])[\S]{8,30}$/
 const TELEGRAM_VERIFICATION_URL_REGEX = /^https:\/\/t\.me\/[A-Za-z0-9_]+\?start=[A-Za-z0-9_-]+$/
 
 const normalizeTelegramVerificationUrl = (value) => {
@@ -219,6 +257,8 @@ export default {
       cityLoadError: '',
       showLoginPassword: false,
       showRegisterPassword: false,
+      recoveryMode: '',
+      recoveryForm: { email: '', username: '', code: '', newPassword: '' },
       roleOptions: getRoleOptions(),
       cities: [],
       pendingVerification: null,
@@ -230,6 +270,10 @@ export default {
       registerForm: {
         login: '',
         email: '',
+        firstName: '',
+        lastName: '',
+        middleName: '',
+        gender: 'NOT_STATED',
         birthDate: '',
         role: '',
         cityId: null,
@@ -241,6 +285,11 @@ export default {
   computed: {
     isOpen() {
       return this.mode === 'login' || this.mode === 'register'
+    },
+    recoveryTitle() {
+      if (this.recoveryMode === 'username') return 'Восстановление логина'
+      if (this.recoveryMode) return 'Восстановление пароля'
+      return 'Вход'
     },
     isLogin() {
       return this.mode === 'login'
@@ -295,9 +344,52 @@ export default {
     mode() {
       this.message = ''
       this.errorMessage = ''
+      this.resetRecovery()
     },
   },
   methods: {
+    resetRecovery() {
+      this.recoveryMode = ''
+      this.recoveryForm = { email: '', username: '', code: '', newPassword: '' }
+      this.resetMessages()
+    },
+    async handleForgotUsername() {
+      if (this.loading || !this.recoveryForm.email) return
+      this.loading = true
+      this.resetMessages()
+      try {
+        await forgotUsername({ email: this.recoveryForm.email })
+        this.message = 'Если аккаунт с таким email существует, письмо с логином отправлено.'
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось отправить письмо.'
+      } finally { this.loading = false }
+    },
+    async handleForgotPasswordRequest() {
+      if (this.loading || !this.recoveryForm.email || !isUsernameValid(this.recoveryForm.username)) return
+      this.loading = true
+      this.resetMessages()
+      try {
+        await forgotPasswordInit({ email: this.recoveryForm.email, username: this.recoveryForm.username })
+        this.recoveryMode = 'password-confirm'
+        this.message = 'Если данные совпадают, код отправлен на email.'
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось запросить код.'
+      } finally { this.loading = false }
+    },
+    async handleForgotPasswordConfirm() {
+      if (this.loading || !/^\d+$/.test(this.recoveryForm.code) || !isPasswordValid(this.recoveryForm.newPassword)) return
+      this.loading = true
+      this.resetMessages()
+      try {
+        await forgotPasswordConfirm({ ...this.recoveryForm, code: Number(this.recoveryForm.code) })
+        const username = this.recoveryForm.username
+        this.resetRecovery()
+        this.loginForm.username = username
+        this.message = 'Пароль изменён. Войдите с новым паролем.'
+      } catch (error) {
+        this.errorMessage = error?.message || 'Не удалось изменить пароль.'
+      } finally { this.loading = false }
+    },
     resetMessages() {
       this.message = ''
       this.errorMessage = ''
@@ -347,6 +439,10 @@ export default {
           login: this.registerForm.login,
           nickname: this.registerForm.login,
           email: this.registerForm.email,
+          firstName: this.registerForm.firstName,
+          lastName: this.registerForm.lastName,
+          middleName: this.registerForm.middleName,
+          gender: this.registerForm.gender,
           birthDate: this.registerForm.birthDate,
           role: this.registerForm.role,
           cityId: this.registerForm.cityId,
@@ -373,13 +469,13 @@ export default {
       }
     },
     isUsernameValid(username) {
-      return USERNAME_REGEX.test(username)
+      return isUsernameValid(username)
     },
     isLoginPasswordValid(password) {
       return Boolean(password && password.trim())
     },
     isRegisterPasswordValid(password) {
-      return PASSWORD_REGEX.test(password)
+      return isPasswordValid(password)
     },
     async handleLoginSubmit() {
       if (this.isLoginDisabled || this.loading) {
@@ -458,6 +554,10 @@ export default {
           username: this.registerForm.login,
           email: this.registerForm.email,
           password: this.registerForm.password,
+          firstName: this.registerForm.firstName || null,
+          lastName: this.registerForm.lastName || null,
+          middleName: this.registerForm.middleName || null,
+          gender: this.registerForm.gender,
           birthdate: formatBirthdateForApi(this.registerForm.birthDate),
           status: this.registerForm.role,
           cityId: this.registerForm.cityId,

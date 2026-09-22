@@ -140,13 +140,13 @@
           <div class="case-comparison-heading">
             <div>
               <span class="description-label">Сравнение результатов</span>
-              <h3>Вы и другие участники</h3>
+              <h3>Вы и лидеры кейса</h3>
             </div>
-            <span>Баллы из 100</span>
+            <span>Среднее только по топ-5 · Баллы из 100</span>
           </div>
           <progress-bar-chart
             :items="caseComparisonChartItems"
-            aria-label="Сравнение результата пользователя со средним и лучшим результатом по кейсу"
+            aria-label="Сравнение результата пользователя со средним среди топ-5 и лучшим результатом по кейсу"
           />
         </div>
       </template>
@@ -205,6 +205,9 @@
     </section>
 
     <p v-if="leaderboardError" class="leaderboard-error">{{ leaderboardError }}</p>
+    <p v-if="myPlacement" class="case-placement">
+      Ваше место по кейсу: <strong>{{ myPlacement.placement || '—' }}</strong> из {{ myPlacement.total || '—' }}
+    </p>
     <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
 
     <section v-if="!caseLoading && !caseItem" class="card detail-card">
@@ -226,6 +229,7 @@ import {
   getCaseByIdRequest,
   getCasePerfectSolution,
   getCaseSolvingState,
+  getMyPlacement,
   listCaseLeaderboard,
   listCaseTheory,
   rateCase,
@@ -251,6 +255,7 @@ export default {
       appState,
       leaderboardEntries: [],
       leaderboardError: '',
+      myPlacement: null,
       caseLoading: false,
       caseError: '',
       favoriteSaving: false,
@@ -313,17 +318,23 @@ export default {
         ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
         : 0
       const leader = Math.max(this.caseBestRating, ...scores, 0)
-      return [
+      const result = [
         { label: 'Ваш результат', value: this.caseBestRating },
-        { label: 'Средний', value: average, secondary: true },
         { label: 'Лучший', value: leader, secondary: true },
       ]
+      if (scores.length) result.splice(1, 0, { label: 'Средний топ-5', value: average, secondary: true })
+      return result
     },
   },
   watch: {
     'appState.isAuthenticated'(isAuthenticated) {
       this.resetPerfectSolutionState()
-      if (isAuthenticated && this.caseId) this.loadSolvingState(this.caseId)
+      if (isAuthenticated && this.caseId) {
+        this.loadSolvingState(this.caseId)
+        this.loadMyPlacement(this.caseId)
+      } else {
+        this.myPlacement = null
+      }
     },
     caseId: {
       immediate: true,
@@ -337,6 +348,7 @@ export default {
           await Promise.all([
             this.loadCase(value),
             this.loadLeaderboard(value),
+            this.loadMyPlacement(value),
             this.loadSolvingState(value),
             this.loadTheory(value),
           ])
@@ -414,6 +426,14 @@ export default {
         this.leaderboardError = error?.message || 'Не удалось загрузить рейтинг по кейсу.'
       }
     },
+    async loadMyPlacement(caseId) {
+      if (!appState.isAuthenticated) { this.myPlacement = null; return }
+      try {
+        this.myPlacement = await getMyPlacement(caseId)
+      } catch {
+        this.myPlacement = null
+      }
+    },
     async loadTheory(caseId) {
       try {
         const response = await listCaseTheory(caseId)
@@ -448,6 +468,7 @@ export default {
       try {
         await rateCase(this.caseId, rating)
         this.userCaseRating = rating
+        await this.loadCase(this.caseId)
         this.ratingMessage = 'Оценка сохранена'
       } catch (error) {
         this.ratingError = error?.message || 'Не удалось сохранить оценку.'
@@ -689,6 +710,13 @@ export default {
 .leaderboard-error {
   margin: 0;
   color: #b42318;
+}
+
+.case-placement {
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
 }
 
 .title-row {

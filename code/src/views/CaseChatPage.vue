@@ -40,7 +40,10 @@
         </button>
       </div>
 
-      <template v-else>
+      <template v-if="!isSolvingStateLoading">
+        <p v-if="historyError" class="error-text" role="alert">{{ historyError }}</p>
+        <button v-if="historyError" class="btn btn-secondary" type="button" :disabled="isHistoryLoading || isSending" @click="loadChatHistory">Повторить загрузку истории</button>
+        <p v-if="isHistoryLoading" role="status">Загружаем историю...</p>
         <div class="messages">
           <div v-for="message in messages" :key="message.id" class="message" :class="message.author">
             <p>{{ message.text }}</p>
@@ -62,7 +65,7 @@
 
         <p v-if="statusMessage" class="status-text">{{ statusMessage }}</p>
 
-        <form class="chat-form" @submit.prevent="sendMessage">
+        <form v-if="isSolvingActive && !isSolvingCompleted" class="chat-form" @submit.prevent="sendMessage">
           <textarea
             ref="messageInput"
             v-model="draft"
@@ -146,6 +149,7 @@
 
 <script>
 // CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
+import { refreshUserData } from '@/services/userData'
 import {
   evaluateCaseSolution,
   finishCaseSolving,
@@ -194,6 +198,7 @@ export default {
       timerIntervalId: null,
       isSending: false,
       isHistoryLoading: false,
+      historyError: '',
       errorMessage: '',
       statusMessage: '',
       theorySections: [],
@@ -238,7 +243,7 @@ export default {
   async created() {
     markCaseViewed(this.caseId)
     await Promise.all([this.loadCase(), this.loadSolvingState(), this.loadTheory()])
-    if (this.isSolvingActive) await this.loadChatHistory()
+    await this.loadChatHistory()
   },
   beforeUnmount() {
     this.stopTimer()
@@ -371,7 +376,10 @@ export default {
       })
     },
     async loadChatHistory() {
+      if (this.isHistoryLoading || this.isSending) return
+      this.historyError = ''
       this.isHistoryLoading = true
+      const nextIdAtStart = this.nextId
       try {
         const sequence = await getCaseChatSequence(this.caseId)
         const history = []
@@ -391,13 +399,11 @@ export default {
             })
           }
         })
-        const messagesAddedWhileLoading = this.messages.slice(1)
+        const messagesAddedWhileLoading = this.messages.filter(message => message.id >= nextIdAtStart)
         this.messages = [this.messages[0], ...history, ...messagesAddedWhileLoading]
         if (this.latestSubmittedRating === null) this.latestSubmittedRating = latestRating
       } catch (error) {
-        if (Number(error?.status) === 401 || Number(error?.status) === 403) {
-          this.errorMessage = 'Не удалось загрузить историю: сессия истекла.'
-        }
+        this.historyError = error?.message || 'Не удалось загрузить историю решений.'
       } finally {
         this.isHistoryLoading = false
       }
@@ -449,8 +455,11 @@ export default {
 
         if (typeof response.rating === 'number' && this.appState.isAuthenticated) {
           saveSolvedCaseResult(this.caseId, response.rating)
+          this.solvingBestRating = Math.max(this.solvingBestRating, response.rating)
+          try { await refreshUserData() } catch { this.statusMessage = 'Решение сохранено. Обновите профиль, чтобы увидеть актуальные достижения и рейтинг.' }
         }
       } catch (error) {
+        if (error?.status === 409) await this.loadSolvingState()
         const toxicResponse = error?.body
 
         if (toxicResponse?.status === 'toxic') {

@@ -18,6 +18,7 @@
         <div class="identity">
           <p class="name">{{ getDisplayName(user) }}</p>
           <p class="login">@{{ user.login }}</p>
+          <router-link v-if="Number(user.id) > 0" class="profile-link" :to="`/user/${user.id}`">Открыть профиль</router-link>
         </div>
         <p class="meta">{{ user.city || 'Город не указан' }}</p>
         <p class="points">{{ user.points }} <small>очков</small></p>
@@ -138,6 +139,7 @@ export default {
   color: var(--text-muted);
 }
 .login { font-family: var(--mono-font); font-size: .78rem; }
+.profile-link { display: inline-block; margin-top: 4px; color: var(--primary); font-size: .78rem; }
 .points { color: var(--text-main); font-family: var(--display-font); font-size: 1.5rem; text-align: right; }
 .points small { font-family: Arial, sans-serif; font-size: .7rem; text-transform: uppercase; }
 

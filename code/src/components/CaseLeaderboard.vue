@@ -22,7 +22,8 @@
         :class="{ current: entry.isCurrentUser }"
       >
         <span>#{{ entry.rank }}</span>
-        <span>{{ entry.fullName }}</span>
+        <router-link v-if="Number(entry.id) > 0" :to="`/user/${entry.id}`">{{ entry.fullName }}</router-link>
+        <span v-else>{{ entry.fullName }}</span>
         <span>{{ entry.city || 'Не указан' }}</span>
         <span>{{ entry.score }}/100</span>
       </div>

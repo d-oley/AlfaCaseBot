@@ -10,7 +10,7 @@
         <label for="admin-password">Пароль</label>
         <input
           id="admin-password"
-          v-model.trim="credentials.password"
+          v-model="credentials.password"
           type="password"
           placeholder="password"
         />
@@ -36,6 +36,9 @@
         </button>
         <button class="tab-btn" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
           Пользователи
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'solutions' }" @click="activeTab = 'solutions'">
+          Решения
         </button>
         <button class="tab-btn" :class="{ active: activeTab === 'tags' }" @click="activeTab = 'tags'">
           Теги
@@ -145,6 +148,48 @@
           <p v-if="caseSaveMessage" class="success-text case-save-message">
             {{ caseSaveMessage }}
           </p>
+        </article>
+      </div>
+
+      <div v-else-if="activeTab === 'solutions'" class="panel-grid">
+        <article class="card panel-card user-solutions-panel">
+          <div class="section-topbar solutions-topbar">
+            <div>
+              <h2>Решения по кейсу</h2>
+              <p class="meta">Всего: {{ caseSolutionsPage.totalElements }}</p>
+            </div>
+            <button class="btn btn-secondary" type="button" :disabled="caseSolutionsLoading || !caseSolutionsCaseId" @click="loadCaseSolutions(caseSolutionsPage.page)">Обновить</button>
+          </div>
+          <label for="admin-solutions-case">Кейс</label>
+          <select id="admin-solutions-case" v-model="caseSolutionsCaseId" @change="loadCaseSolutions(0)">
+            <option value="">Выберите кейс</option>
+            <option v-for="item in adminCases" :key="item.id" :value="item.id">{{ item.title }}</option>
+          </select>
+          <p v-if="caseSolutionsError" class="error-text" role="alert">{{ caseSolutionsError }}</p>
+          <p v-else-if="caseSolutionsLoading" class="hint">Загружаем решения...</p>
+          <p v-else-if="caseSolutionsCaseId && !caseSolutions.length" class="hint">По этому кейсу пока нет решений.</p>
+          <div v-else class="user-solutions-list">
+            <article v-for="solution in caseSolutions" :key="solution.solutionId" class="user-solution-item">
+              <header class="user-solution-header">
+                <router-link v-if="Number(solution.userId) > 0" :to="`/user/${solution.userId}`">Пользователь {{ solution.userId }}</router-link>
+                <strong v-else>Пользователь не указан</strong>
+                <span class="solution-rating">Оценка: {{ solution.rating ?? '—' }} / 100</span>
+              </header>
+              <div class="solution-message solution-message-user">
+                <span>Решение пользователя</span>
+                <p>{{ solution.solutionText || 'Текст решения отсутствует.' }}</p>
+              </div>
+              <div class="solution-message solution-message-bot">
+                <span>Ответ ИИ</span>
+                <p>{{ solution.solutionResponse || 'Ответ отсутствует.' }}</p>
+              </div>
+            </article>
+          </div>
+          <div v-if="caseSolutionsPage.totalPages > 1" class="pagination-actions">
+            <button class="btn btn-secondary" type="button" :disabled="caseSolutionsPage.page <= 0 || caseSolutionsLoading" @click="changeCaseSolutionsPage(-1)">←</button>
+            <span>{{ caseSolutionsPage.page + 1 }} / {{ caseSolutionsPage.totalPages }}</span>
+            <button class="btn btn-secondary" type="button" :disabled="caseSolutionsPage.page + 1 >= caseSolutionsPage.totalPages || caseSolutionsLoading" @click="changeCaseSolutionsPage(1)">→</button>
+          </div>
         </article>
       </div>
 
@@ -284,7 +329,7 @@
             />
 
             <label for="user-password">Пароль (только для нового)</label>
-            <input id="user-password" v-model.trim="userForm.password" type="password" :disabled="Boolean(userForm.id)" />
+            <input id="user-password" v-model="userForm.password" type="password" :disabled="Boolean(userForm.id)" />
 
             <p v-if="userError" class="error-text">{{ userError }}</p>
             <p v-if="userMessage" class="success-text">{{ userMessage }}</p>
@@ -324,6 +369,11 @@
           </button>
 
           <div v-if="isUserSolutionsExpanded" class="collapsible-content">
+            <label for="solution-case-filter">Фильтр по кейсу</label>
+            <select id="solution-case-filter" v-model="solutionCaseFilter" @change="loadUserSolutions(userForm.id, 0)">
+              <option value="">Все кейсы</option>
+              <option v-for="item in adminCases" :key="item.id" :value="item.id">{{ item.title }}</option>
+            </select>
             <div class="section-topbar solutions-topbar">
             <div>
               <p class="meta">
@@ -443,6 +493,7 @@ import {
   getAdminUserById,
   getCurrentUserProfile,
   loginRequest,
+  listAdminCaseSolutions,
   listAdminCases,
   listAdminTags,
   listAdminUserSolutions,
@@ -455,7 +506,7 @@ import {
   updateCaseTag,
   updateCaseRequest,
 } from '@/api/authApi'
-import { appState, getRoleOptions, loginUser, setAdminAccess, setCases } from '@/store/appState'
+import { appState, getRoleOptions, loginUser, logoutUser, setAdminAccess, setCases } from '@/store/appState'
 
 const toCaseForm = (item = null) => ({
   id: item?.id || null,
@@ -529,9 +580,15 @@ export default {
       adminUsers: [],
       usersPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
       userSolutions: [],
+      solutionCaseFilter: '',
       userSolutionsPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
       isUserSolutionsLoading: false,
       userSolutionsError: '',
+      caseSolutionsCaseId: '',
+      caseSolutions: [],
+      caseSolutionsPage: { page: 0, size: 25, totalElements: 0, totalPages: 0 },
+      caseSolutionsLoading: false,
+      caseSolutionsError: '',
       isUserEditorExpanded: false,
       isUserSolutionsExpanded: false,
       adminTags: tags.map((name, index) => ({ id: index + 1, name })),
@@ -583,6 +640,10 @@ export default {
       this.isAdminAuthLoading = true
       this.authError = ''
       try {
+        if (appState.isAuthenticated) {
+          await logoutRequest().catch(() => {})
+          logoutUser()
+        }
         await loginRequest({
           username: this.credentials.login,
           password: this.credentials.password,
@@ -608,18 +669,16 @@ export default {
       }
     },
     async syncAuthenticatedAdmin(fallbackLogin = '') {
-      if (!appState.isAuthenticated) {
-        try {
-          const profile = await getCurrentUserProfile()
-          loginUser(mapApiProfileToState(profile, {
-            username: fallbackLogin,
-            login: fallbackLogin,
-            nickname: fallbackLogin,
-          }))
-        } catch {
-          if (fallbackLogin) {
-            loginUser({ username: fallbackLogin, login: fallbackLogin, nickname: fallbackLogin })
-          }
+      try {
+        const profile = await getCurrentUserProfile()
+        loginUser(mapApiProfileToState(profile, {
+          username: fallbackLogin || appState.user.username,
+          login: fallbackLogin || appState.user.login,
+          nickname: appState.user.nickname || fallbackLogin,
+        }))
+      } catch {
+        if (!appState.isAuthenticated && fallbackLogin) {
+          loginUser({ username: fallbackLogin, login: fallbackLogin, nickname: fallbackLogin })
         }
       }
       setAdminAccess(true)
@@ -638,11 +697,14 @@ export default {
     async loadTagsFromApi() {
       try {
         const firstPage = await listAdminTags({ page: 0, size: 100, sort: 'name,asc' })
-        const remainingPages = await Promise.all(
-          Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
-            listAdminTags({ page: index + 1, size: 100, sort: 'name,asc' })
-          )
-        )
+        const remainingPages = []
+        for (let page = 1; page < firstPage.totalPages; page += 4) {
+          remainingPages.push(...await Promise.all(
+            Array.from({ length: Math.min(4, firstPage.totalPages - page) }, (_, index) =>
+              listAdminTags({ page: page + index, size: 100, sort: 'name,asc' })
+            )
+          ))
+        }
         const tags = [firstPage, ...remainingPages].flatMap((page) => page.items)
         this.adminTags = tags.map((tag, index) => ({ ...tag, id: tag.id ?? `tag-${index}` }))
       } catch (error) {
@@ -738,6 +800,7 @@ export default {
     },
     resetUserSolutions() {
       this.userSolutions = []
+      this.solutionCaseFilter = ''
       this.userSolutionsPage = { page: 0, size: 25, totalElements: 0, totalPages: 0 }
       this.userSolutionsError = ''
       this.isUserSolutionsLoading = false
@@ -761,6 +824,7 @@ export default {
         const result = await listAdminUserSolutions(normalizedUserId, {
           page,
           size: this.userSolutionsPage.size,
+          caseId: this.solutionCaseFilter || null,
         })
         this.userSolutions = result.items
         this.userSolutionsPage = {
@@ -778,6 +842,36 @@ export default {
     },
     changeUserSolutionsPage(offset) {
       this.loadUserSolutions(this.userForm.id, this.userSolutionsPage.page + offset)
+    },
+    async loadCaseSolutions(page = 0) {
+      const caseId = Number(this.caseSolutionsCaseId)
+      if (!caseId || this.caseSolutionsLoading) {
+        if (!caseId) {
+          this.caseSolutions = []
+          this.caseSolutionsPage = { page: 0, size: 25, totalElements: 0, totalPages: 0 }
+        }
+        return
+      }
+      this.caseSolutionsLoading = true
+      this.caseSolutionsError = ''
+      try {
+        const result = await listAdminCaseSolutions(caseId, { page, size: this.caseSolutionsPage.size })
+        this.caseSolutions = result.items
+        this.caseSolutionsPage = {
+          page: result.page,
+          size: result.size,
+          totalElements: result.totalElements,
+          totalPages: result.totalPages,
+        }
+      } catch (error) {
+        this.caseSolutions = []
+        this.caseSolutionsError = error?.message || 'Не удалось загрузить решения по кейсу.'
+      } finally {
+        this.caseSolutionsLoading = false
+      }
+    },
+    changeCaseSolutionsPage(offset) {
+      this.loadCaseSolutions(this.caseSolutionsPage.page + offset)
     },
     getSolutionCaseTitle(caseId) {
       const caseItem = this.adminCases.find((item) => Number(item.id) === Number(caseId))
@@ -801,10 +895,10 @@ export default {
         if (isEditing) {
           const payload = {
             email: this.userForm.email,
-            ...(this.userForm.firstName ? { firstName: this.userForm.firstName } : {}),
-            ...(this.userForm.lastName ? { lastName: this.userForm.lastName } : {}),
-            ...(this.userForm.middleName ? { middleName: this.userForm.middleName } : {}),
-            ...(this.userForm.nickName ? { nickName: this.userForm.nickName } : {}),
+            firstName: this.userForm.firstName,
+            lastName: this.userForm.lastName,
+            middleName: this.userForm.middleName,
+            nickName: this.userForm.nickName,
             ...(this.userForm.birthDate
               ? { birthdate: this.formatAdminBirthdate(this.userForm.birthDate) }
               : {}),
@@ -815,8 +909,9 @@ export default {
             ...(this.userForm.bannedUntil ? { bannedUntil: this.userForm.bannedUntil } : {}),
             ...(this.userForm.cityId ? { cityId: this.userForm.cityId } : {}),
           }
-        await updateAdminUser(this.userForm.id, payload)
+          await updateAdminUser(this.userForm.id, payload)
           await this.loadAdminUsers()
+          await this.loadUserById()
           this.userMessage = 'Изменения сохранены.'
         } else {
           const response = await createAdminUser({

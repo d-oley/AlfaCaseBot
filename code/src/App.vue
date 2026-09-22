@@ -64,6 +64,7 @@ import {
   getCurrentUserProfile,
   getUserPreferences,
   listCases,
+  listCaseTags,
   listFavoriteCases,
   listMyAchievements,
   logoutRequest,
@@ -85,6 +86,7 @@ import {
   getDifficultyPreferenceOptions,
   getPreferenceTagOptions,
   setCases,
+  setAvailableTags,
   setCasesError,
   setCasesLoading,
 } from './store/appState'
@@ -124,7 +126,10 @@ export default {
       setCasesLoading(true)
       setCasesError('')
       try {
-        setCases(await listCases())
+        const [casesResult, tagsResult] = await Promise.allSettled([listCases(), listCaseTags()])
+        if (casesResult.status === 'rejected') throw casesResult.reason
+        setCases(casesResult.value)
+        setAvailableTags(tagsResult.status === 'fulfilled' ? tagsResult.value : [])
       } catch (error) {
         setCases([])
         setCasesError(error?.message || 'Не удалось загрузить кейсы.')
