@@ -98,19 +98,24 @@ docker build -t alfacasebot-frontend .
 
 Запустить контейнер:
 ```bash
-docker run --rm -p 8080:80 alfacasebot-frontend
+docker run --rm --add-host host.docker.internal:host-gateway -p 8080:80 alfacasebot-frontend
 ```
+
+При таком отдельном запуске Java API, прокси к MinIO и ML должны быть доступны на хосте через порты `999`, `2479` и `5000` соответственно. При других адресах передайте контейнеру `BACKEND_UPSTREAM`, `ASSET_UPSTREAM` и `ML_UPSTREAM` через `-e`.
 
 Открыть в браузере:
 - `http://localhost:8080`
 
 ### Вариант 2: через Docker Compose
 
-Compose запускает frontend и ML. Java-backend должен быть доступен на хосте по `http://localhost:8080`; уже запущенный PostgreSQL-контейнер compose не изменяет.
+Compose запускает frontend и гибридный ML: RuBERT Tiny2 оценивает три критерия локально, а OpenRouter используется для остальных. Java-backend, PostgreSQL, Redis и MinIO запускаются отдельно. По умолчанию Java доступна на хосте через порт `999`, а её прокси к MinIO — через порт `2479` (как в `Alfa-case5-backend/main/docker-compose.yml`). Если адреса другие, задайте `BACKEND_UPSTREAM` и `ASSET_UPSTREAM` в формате `хост:порт`. Имя `host.docker.internal` добавлено для Linux через `host-gateway`.
+
+Перед сборкой проверьте наличие `../ml/artifacts/rubert_tiny2_multitask/rubert_tiny2_multitask.pt`, `config.json`, каталога `tokenizer` и `../ml/artifacts/best_censor_model.joblib`. Checkpoint Tiny2 локальный и не входит в Git: без него сборка образа не создаст работающий гибридный сервис. Секрет `ML_SERVICE_TOKEN` должен совпадать с Java; для LLM нужен `OPENROUTER_API_KEY`. `SERPER_API_KEY` нужен для поиска при фактчекинге.
 
 Запуск:
 ```bash
 $env:OPENROUTER_API_KEY="your-key"
+$env:ML_SERVICE_TOKEN="same-token-as-java"
 docker compose up --build -d
 ```
 
@@ -124,5 +129,7 @@ docker compose down
 - frontend: `http://localhost:8081`
 - FastAPI Swagger: `http://localhost:5000/docs`
 - FastAPI health-check: `http://localhost:5000/health`
+
+Compose ожидает успешной загрузки обеих локальных моделей и настройки OpenRouter, прежде чем запустить frontend. Порт ML опубликован только на `127.0.0.1`; браузер обращается к нему через frontend. При сборке на этом же сервере потребуется дополнительное место для Docker-кеша и образов.
 
 

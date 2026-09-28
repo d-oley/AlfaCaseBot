@@ -3,16 +3,28 @@ services:
     build:
       context: ../ml
       dockerfile: Dockerfile
-    image: alfacasebot-ml:latest
+      args:
+        ML_REQUIREMENTS: requirements-hybrid.txt
+    image: alfacasebot-ml-hybrid:latest
     container_name: alfacasebot-ml
+    command: ["uvicorn", "api.hybrid_app:app", "--host", "0.0.0.0", "--port", "5000"]
     environment:
-      BACKEND_BASE_URL: http://host.docker.internal:8080
+      BACKEND_BASE_URL: http://${BACKEND_UPSTREAM:-host.docker.internal:999}
       ML_SERVICE_TOKEN: ${ML_SERVICE_TOKEN:?Set ML_SERVICE_TOKEN for Java and ML}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY for hybrid evaluation}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       SERPER_API_KEY: ${SERPER_API_KEY:-}
+      TINY2_DEVICE: cpu
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; health=json.load(urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5)); assert health['model_loaded'] and health['llm_configured']"]
+      interval: 15s
+      timeout: 6s
+      retries: 3
+      start_period: 120s
     restart: unless-stopped
 
   frontend:
@@ -21,8 +33,15 @@ services:
       dockerfile: Dockerfile
     image: alfacasebot-frontend:latest
     container_name: alfacasebot-frontend
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-host.docker.internal:999}
+      ASSET_UPSTREAM: ${ASSET_UPSTREAM:-host.docker.internal:2479}
+      ML_UPSTREAM: ml:5000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8081:80"
     depends_on:
-      - ml
+      ml:
+        condition: service_healthy
     restart: unless-stopped

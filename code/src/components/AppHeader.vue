@@ -13,6 +13,7 @@
 
       <nav class="nav">
         <router-link class="nav-link" :to="homeRoute">Главная</router-link>
+        <router-link class="nav-link" to="/help">Помощь</router-link>
         <router-link v-if="isAuthenticated" class="nav-link" to="/profile">Личный кабинет</router-link>
         <router-link v-if="isAuthenticated && isAdmin" class="nav-link" to="/admin">Админ-панель</router-link>
       </nav>

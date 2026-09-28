@@ -3,6 +3,7 @@
     <div class="container footer-content">
       <p>AlfaCaseBot</p>
       <p>ИИ-тренажер для практики бизнес-кейсов</p>
+      <router-link class="footer-help" to="/help">Помощь</router-link>
       <p class="footer-disclaimer">
         AlfaCaseBot — учебный проект. Не является официальным продуктом Альфа-Банка.
       </p>
@@ -46,5 +47,13 @@ export default {
   line-height: 1.6;
   letter-spacing: normal;
   text-transform: none;
+}
+.footer-help {
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 </style>

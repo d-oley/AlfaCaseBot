@@ -17,12 +17,18 @@ const AdminPage = () => import('@/views/AdminPage.vue')
 const NotFoundPage = () => import('@/views/NotFoundPage.vue')
 const SolutionsPage = () => import('@/views/SolutionsPage.vue')
 const PublicProfilePage = () => import('@/views/PublicProfilePage.vue')
+const HelpPage = () => import('@/views/HelpPage.vue')
 
 const routes = [
   {
     path: '/',
     name: 'home',
     component: HomePage,
+  },
+  {
+    path: '/help',
+    name: 'help',
+    component: HelpPage,
   },
   {
     path: '/profile',
