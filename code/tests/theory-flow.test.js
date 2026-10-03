@@ -81,6 +81,21 @@ test('a question without a correct answer cannot create a material', async () =>
   assert.ok(instance.error)
 })
 
+test('a theory block can be saved without creating a quiz', async () => {
+  const calls = []
+  const instance = editor({
+    createAdminTheory: async (_caseId, payload) => { calls.push(['create', payload]); return { id: 42 } },
+    saveAdminTheoryQuiz: async () => calls.push(['quiz']),
+    updateAdminTheory: async (_id, payload) => calls.push(['update', payload]),
+    listAdminTheory: async () => ({ materials: [] }),
+  })
+  instance.hasQuiz = false
+  await instance.save()
+  assert.deepEqual(calls.map(call => call[0]), ['create', 'update'])
+  assert.equal(calls[0][1].isActive, false)
+  assert.equal(calls[1][1].isActive, true)
+})
+
 test('an active theory block can be deactivated without deleting it', async () => {
   const calls = []
   const instance = editor({
