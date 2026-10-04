@@ -530,7 +530,7 @@ export default {
         this.message = 'Успешный вход.'
       } catch (error) {
         if (isBannedError(error)) {
-          this.$emit('account-banned', error?.body?.errorText || error?.message)
+          this.$emit('account-banned', 'Аккаунт заблокирован за нарушение правил общения.')
           return
         }
         const message = error?.message || 'Не удалось выполнить вход.'
@@ -598,7 +598,7 @@ export default {
               ? normalizeTelegramVerificationUrl(result?.verification)
               : ''
             if (pendingVerification.validationMethod === 'TELEGRAM' && !verificationUrl) {
-              throw new Error('Сервер не вернул ссылку для Telegram.')
+              throw new Error('Не удалось открыть подтверждение в Telegram. Попробуйте ещё раз.')
             }
             this.pendingVerification = {
               ...pendingVerification,
@@ -696,7 +696,7 @@ export default {
           ? normalizeTelegramVerificationUrl(result?.verification)
           : ''
         if (this.isTelegramVerification && !verificationUrl) {
-          throw new Error('Сервер не вернул ссылку для Telegram.')
+          throw new Error('Не удалось открыть подтверждение в Telegram. Попробуйте ещё раз.')
         }
         this.pendingVerification = {
           ...this.pendingVerification,

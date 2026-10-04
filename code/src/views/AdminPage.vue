@@ -1026,7 +1026,7 @@ export default {
           const result = await createCaseRequest(casePayload, files)
           caseId = Number(result?.id)
           if (!Number.isFinite(caseId) || caseId <= 0) {
-            throw new Error('Кейс создан, но сервер не вернул его идентификатор для привязки тегов.')
+            throw new Error('Кейс создан, но теги пока не удалось добавить. Обновите список и попробуйте ещё раз.')
           }
         }
         await this.syncCaseTags(caseId, previousTagIds, this.caseForm.selectedTagIds)
@@ -1102,7 +1102,7 @@ export default {
       this.adminActionError = ''
       this.adminActionMessage = ''
       if (!Number.isFinite(Number(tagId))) {
-        this.adminActionError = 'Тег нельзя деактивировать: не получен его идентификатор.'
+        this.adminActionError = 'Не удалось скрыть тег. Обновите список и попробуйте ещё раз.'
         return
       }
       try {

@@ -219,7 +219,7 @@ export default {
         if (!this.materialId) {
           const result = await createAdminTheory(this.caseId, { ...material, isActive: false })
           this.materialId = result.id
-          if (!this.materialId) throw new Error('Сервер не вернул ID созданного блока. Обновите список перед повторным сохранением.')
+          if (!this.materialId) throw new Error('Не удалось открыть созданный раздел. Обновите список перед повторным сохранением.')
           this.materialCreatedAsDraft = true
         }
         if (!this.materialCreatedAsDraft) await updateAdminTheory(this.materialId, material)

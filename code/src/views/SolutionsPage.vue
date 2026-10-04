@@ -3,7 +3,7 @@
     <header>
       <router-link class="back-link" to="/profile">← В профиль</router-link>
       <h1>Все мои попытки</h1>
-      <p>Здесь показаны сохранённые Java результаты, включая попытки ниже проходного балла.</p>
+      <p>Здесь собраны все ваши отправленные решения, в том числе попытки с баллом ниже проходного.</p>
     </header>
     <section class="card solutions-card">
       <p v-if="loading" role="status">Загружаем попытки...</p>
@@ -16,7 +16,7 @@
           <strong>{{ item.rating ?? '—' }} / 100</strong>
         </header>
         <p><span>Ваш ответ:</span> {{ item.solutionText }}</p>
-        <p><span>Ответ системы:</span> {{ item.solutionResponse }}</p>
+        <p><span>Отзыв помощника:</span> {{ item.solutionResponse }}</p>
       </article>
       <nav v-if="totalPages > 1" class="pagination" aria-label="Страницы попыток">
         <button class="btn btn-secondary" :disabled="page <= 0 || loading" @click="load(page - 1)">Назад</button>

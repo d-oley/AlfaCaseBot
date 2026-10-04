@@ -158,6 +158,7 @@ import {
   getCaseSolvingState,
   listCaseTheory,
   startCaseSolving,
+  toUserMessage,
 } from '@/api/authApi'
 import {
   appState,
@@ -317,7 +318,7 @@ export default {
       try {
         const state = await startCaseSolving(this.caseId)
         this.applySolvingState(state)
-        if (!this.isSolvingActive) throw new Error('Сервер не вернул время начала решения.')
+        if (!this.isSolvingActive) throw new Error('Не удалось начать решение. Попробуйте ещё раз.')
         this.isStartModalOpen = false
         await this.loadChatHistory()
       } catch (error) {
@@ -333,7 +334,7 @@ export default {
       try {
         const state = await finishCaseSolving(this.caseId)
         this.applySolvingState(state)
-        if (!this.isSolvingCompleted) throw new Error('Сервер не подтвердил завершение решения.')
+        if (!this.isSolvingCompleted) throw new Error('Не удалось завершить решение. Попробуйте ещё раз.')
         this.isFinishModalOpen = false
         this.draft = ''
         this.statusMessage = ''
@@ -466,12 +467,12 @@ export default {
           this.messages.push({
             id: this.nextId,
             author: 'bot',
-            text: toxicResponse.message,
+            text: toUserMessage(toxicResponse.message, 'Ответ не принят: нарушены правила общения.'),
           })
           this.nextId += 1
           this.statusMessage = 'Ответ не принят из-за токсичности.'
           if (toxicResponse.user_banned) {
-            showBanNotice(toxicResponse.message)
+            showBanNotice(toUserMessage(toxicResponse.message, 'Аккаунт заблокирован за нарушение правил общения.'))
             logoutUser()
             this.$router.replace('/')
           }

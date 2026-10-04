@@ -46,7 +46,8 @@ const errors = {
   'Material not found': 'Раздел теории не найден',
   'Quiz not found': 'Тест для этого раздела не найден',
   'Material with this position already exists': 'В этом кейсе уже есть блок с таким номером.',
-  'Quiz has attempts and cannot be updated': 'Этот тест уже проходили. Сервер запрещает изменять его вопросы.',
+  'Quiz has attempts and cannot be updated': 'Этот тест уже проходили, поэтому его вопросы нельзя изменить.',
+  'Case is not solved yet': 'Сначала завершите решение кейса.',
   'One or more tags are invalid or inactive': 'Один или несколько выбранных тегов недоступны',
   'Password cannot be empty': 'Введите пароль',
   'Password cannot be longer than 30 characters': 'Пароль слишком длинный',
@@ -79,7 +80,7 @@ const errors = {
 const httpErrors = {
   401: 'Сначала войдите в аккаунт',
   403: 'Недостаточно прав для этого действия',
-  404: 'Ресурс не найден',
+  404: 'Ничего не найдено',
   500: 'Сервис временно недоступен',
   502: 'Сервис временно недоступен',
   503: 'Сервис временно недоступен',
@@ -87,23 +88,26 @@ const httpErrors = {
   530: 'Сервис временно недоступен',
 }
 
-const translateError = (message, fallback = 'Не удалось выполнить действие') => {
+export const toUserMessage = (message, fallback = 'Не удалось выполнить действие') => {
   const normalized = String(message || '').trim()
   if (!normalized) {
     return fallback
   }
 
-  if (/^\s*(?:<!doctype\s+html|<html[\s>])/i.test(normalized)) {
+  if (errors[normalized]) return errors[normalized]
+
+  // Show useful Russian messages, but do not expose raw service errors or HTML.
+  if (normalized.length > 200 || !/[А-Яа-яЁё]/.test(normalized) ||
+      /<[^>]*>|\b(?:java|api|sql|http|backend|frontend|exception|stack|trace|id)\b|(?:сервер|бэкенд|фронтенд|эндпоинт|идентификатор)/i.test(normalized)) {
     return fallback
   }
-
-  return errors[normalized] || normalized
+  return normalized
 }
 
 const buildRequestError = ({ message, status = 0, body = null, fallback }) => {
   const statusFallback =
     httpErrors[status] || (status >= 500 ? 'Сервис временно недоступен' : 'Не удалось выполнить действие')
-  const error = new Error(translateError(message, fallback || statusFallback))
+  const error = new Error(toUserMessage(message, fallback || statusFallback))
   error.status = status
   error.body = body
   return error
@@ -122,8 +126,16 @@ async function parseResponse(res) {
   }
 }
 
+async function fetchForUser(url, opts) {
+  try {
+    return await fetch(url, opts)
+  } catch {
+    throw new Error('Не удалось подключиться. Проверьте соединение и попробуйте ещё раз.')
+  }
+}
+
 async function request(url, opts = {}) {
-  const res = await fetch(url, {
+  const res = await fetchForUser(url, {
     ...opts,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
@@ -144,7 +156,7 @@ async function request(url, opts = {}) {
       message: data.errorText || data.message,
       status: data.errorText === 'Please login first' || data.errorText === 'Session expired' ? 401 : res.status,
       body: data,
-      fallback: 'Ошибка запроса',
+      fallback: 'Не удалось выполнить действие',
     })
   }
 
@@ -152,7 +164,7 @@ async function request(url, opts = {}) {
 }
 
 async function mlRequest(url, opts = {}) {
-  const res = await fetch(url, {
+  const res = await fetchForUser(url, {
     ...opts,
     credentials: 'include',
     headers: {
@@ -176,7 +188,7 @@ async function mlRequest(url, opts = {}) {
 }
 
 async function multipartRequest(url, formData, method = 'POST') {
-  const res = await fetch(url, {
+  const res = await fetchForUser(url, {
     method,
     credentials: 'include',
     body: formData,
