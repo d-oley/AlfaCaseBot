@@ -16,7 +16,7 @@
           <h1>{{ displayName }}</h1>
           <p v-if="profile.nickname">@{{ profile.nickname }}</p>
           <p>{{ profile.city || 'Город не указан' }}</p>
-          <p>Место: {{ profile.rank || '—' }} · Баллы: {{ profile.points || 0 }}</p>
+          <p>Место: {{ profile.rank || '-' }} · Баллы: {{ profile.points || 0 }}</p>
         </div>
       </section>
       <section class="card achievements-card">

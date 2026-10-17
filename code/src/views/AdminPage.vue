@@ -173,7 +173,7 @@
               <header class="user-solution-header">
                 <router-link v-if="Number(solution.userId) > 0" :to="`/user/${solution.userId}`">Пользователь {{ solution.userId }}</router-link>
                 <strong v-else>Пользователь не указан</strong>
-                <span class="solution-rating">Оценка: {{ solution.rating ?? '—' }} / 100</span>
+                <span class="solution-rating">Оценка: {{ solution.rating ?? '-' }} / 100</span>
               </header>
               <div class="solution-message solution-message-user">
                 <span>Решение пользователя</span>
@@ -217,7 +217,7 @@
                 <strong>{{ user.nickName || user.username || `ID ${user.id}` }}</strong>
                 <small>{{ user.email || 'Email не указан' }}</small>
               </span>
-              <span class="user-list-meta">{{ user.role || 'USER' }} · {{ user.status || '—' }}</span>
+              <span class="user-list-meta">{{ user.role || 'USER' }} · {{ user.status || '-' }}</span>
             </button>
           </div>
           <p v-if="!isUsersListLoading && !adminUsers.length" class="hint">Пользователи не найдены.</p>
@@ -407,7 +407,7 @@
             >
               <header class="user-solution-header">
                 <strong>{{ getSolutionCaseTitle(solution.caseId) }}</strong>
-                <span class="solution-rating">Оценка: {{ solution.rating ?? '—' }} / 100</span>
+                <span class="solution-rating">Оценка: {{ solution.rating ?? '-' }} / 100</span>
               </header>
               <div class="solution-message solution-message-user">
                 <span>Решение пользователя</span>
@@ -653,7 +653,7 @@ export default {
           try {
             await logoutRequest()
           } catch {
-            // Сессию мог уже отклонить backend.
+            // Сессию мог уже отклонить backend
           }
           throw new Error('У аккаунта нет прав администратора.')
         }
@@ -1449,7 +1449,6 @@ h2 {
   text-align: center;
 }
 
-/* Editorial admin workspace */
 .admin-page { gap: 24px; }
 .admin-login, .admin-console { padding: clamp(18px, 2.5vw, 28px); }
 h1 { font-size: clamp(2rem, 4vw, 4rem); line-height: 0.9; text-transform: uppercase; }

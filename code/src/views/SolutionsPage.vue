@@ -13,7 +13,7 @@
       <article v-for="item in items" :key="item.solutionId" class="solution-item">
         <header>
           <router-link :to="`/case/${item.caseId}`">{{ caseTitle(item.caseId) }}</router-link>
-          <strong>{{ item.rating ?? '—' }} / 100</strong>
+          <strong>{{ item.rating ?? '-' }} / 100</strong>
         </header>
         <p><span>Ваш ответ:</span> {{ item.solutionText }}</p>
         <p><span>Отзыв помощника:</span> {{ item.solutionResponse }}</p>

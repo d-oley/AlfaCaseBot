@@ -13,7 +13,6 @@
 </template>
 
 <script>
-// DashboardPage.vue: главная страница авторизованного пользователя (топ-3 + каталог кейсов).
 import CaseCatalog from '@/components/CaseCatalog.vue'
 import UserPodium from '@/components/UserPodium.vue'
 import { getCaseAssetUrl, listLeaderboard } from '@/api/authApi'

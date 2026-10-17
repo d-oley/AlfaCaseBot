@@ -4,7 +4,7 @@ from functools import partial
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-# Reuse the import with model loading disabled for HTTP unit tests.
+# Reuse the import with model loading disabled for HTTP unit tests
 from test_reference_evaluation import app as llm_app
 from api import hybrid_app, llm_service
 

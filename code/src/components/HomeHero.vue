@@ -5,15 +5,15 @@
       <span>ALFA CASE BOT</span>
     </div>
     <div class="hero-content">
-      <p class="badge">Практика / Аналитика / Решения</p>
-      <h1>Решай реальные задачи.<br /><em>Доказывай</em> свою идею.</h1>
+      <p class="badge">Бизнес-кейсы</p>
+      <h1>Разбирайте кейсы.<br /><em>Проверяйте</em> свои решения.</h1>
       <p class="hero-text">
-        Тренажёр бизнес-кейсов для тех, кто хочет мыслить структурно, проверять гипотезы и видеть
-        прогресс без готовых ответов.
+        Выберите задачу, предложите решение и получите оценку по пяти критериям.
+        Свои попытки и результаты можно посмотреть в личном кабинете.
       </p>
       <div class="hero-actions">
         <button class="btn btn-primary" type="button" @click="$emit('open-register')">
-          Начать практику ↗
+          Зарегистрироваться ↗
         </button>
         <button class="btn btn-ghost" type="button" @click="$emit('open-login')">
           Войти
@@ -24,7 +24,6 @@
 </template>
 
 <script>
-// HomeHero.vue: главный промо-блок публичной страницы с CTA-кнопками.
 export default {
   name: 'HomeHero',
   emits: ['open-login', 'open-register'],

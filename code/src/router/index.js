@@ -1,7 +1,3 @@
-﻿// Маршруты приложения:
-// - описывает доступные страницы
-// - включает базовую защиту приватных роутов
-// - перенаправляет неавторизованного пользователя на главную
 import { createRouter, createWebHistory } from 'vue-router'
 import { appState } from '@/store/appState'
 import { loginUser } from '@/store/appState'
@@ -88,7 +84,6 @@ const router = createRouter({
   routes,
 })
 
-// блокируем приватные страницы для гостей
 router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !appState.isAuthenticated) {
     try {

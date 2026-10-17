@@ -16,13 +16,12 @@ LOGGER = logging.getLogger("ml.llm")
 TRUST_ENV_PROXIES = os.getenv("ML_TRUST_ENV_PROXIES", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
-# Веса для расчета финальной оценки
 WEIGHTS = {
-    "fact_check": 0.2,      # w1: вес факт-чекинга
-    "originality": 0.25,    # w2: вес оригинальности
-    "effectiveness": 0.25,  # w3: вес эффективности
-    "logic": 0.15,          # w4: вес логичности
-    "completeness": 0.15    # w5: вес завершенности
+    "fact_check": 0.2,
+    "originality": 0.25,
+    "effectiveness": 0.25,
+    "logic": 0.15,
+    "completeness": 0.15
 }
 
 
@@ -234,10 +233,9 @@ def search_internet(query: str) -> str:
         
         data = response.json()
         
-        # Собираем информацию из разных источников
         snippets = []
         
-        # Knowledge Graph (если есть)
+        # Данные Knowledge Graph, если они пришли в ответе
         if data.get("knowledgeGraph"):
             kg = data["knowledgeGraph"]
             title = kg.get("title", "")
@@ -245,7 +243,6 @@ def search_internet(query: str) -> str:
             if title or desc:
                 snippets.append(f"{title}: {desc}")
         
-        # обычные результаты
         for result in data.get("organic", [])[:3]:
             title = result.get("title", "")
             snippet = result.get("snippet", "")
@@ -253,7 +250,6 @@ def search_internet(query: str) -> str:
             date_str = f" ({date})" if date else ""
             snippets.append(f"{title}{date_str}: {snippet}")
         
-        # избранный ответ
         if data.get("answerBox"):
             ab = data["answerBox"]
             if ab.get("snippet"):
@@ -280,7 +276,6 @@ def search_internet(query: str) -> str:
 def evaluate_fact_checking(user_solution: str, case_context: str) -> Tuple[float, str]:
     """ Проверка фактов с поиском через Serper.dev"""
     
-    # извлекаем проверяемые утверждения
     extraction_prompt = f"""Extract verifiable claims to fact-check via Google. Focus on numbers, stats, company data, dates, laws, market figures.
 
 Case: {case_context}
@@ -294,7 +289,6 @@ Return JSON: {{"queries": ["query1"]}}. Empty list if nothing to check."""
         operation_name="fact_check_query_extraction",
     )
     
-    # поиск
     internet_context = ""
     try:
         queries = parse_json_payload(extraction_response).get("queries", [])
@@ -307,7 +301,6 @@ Return JSON: {{"queries": ["query1"]}}. Empty list if nothing to check."""
         LOGGER.warning("fact_check_query_parsing_failed, using fallback search")
         internet_context = search_internet(user_solution[:200]) or ""
     
-    # Проверка фактов
     evaluation_prompt = f"""You are an expert evaluator. Check the user's solution for factual accuracy.
 
 Case Context:
@@ -653,7 +646,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
         if not isinstance(perfect_solution, str) or not perfect_solution.strip():
             raise ValueError("Reference solution is required")
 
-        # Stage 1: Fact-checking
         fact_score, fact_feedback = evaluate_fact_checking(user_solution, case_context)
         results["stages"]["fact_check"] = {
             "score": fact_score,
@@ -665,7 +657,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
             truncate_log(fact_feedback, 1000),
         )
         
-        # Stage 2: Originality against the case reference from Java
         orig_score, orig_feedback = evaluate_originality(user_solution, case_context, perfect_solution)
         results["stages"]["originality"] = {
             "score": orig_score,
@@ -677,7 +668,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
             truncate_log(orig_feedback, 1000),
         )
         
-        # Stage 3: Effectiveness
         eff_score, eff_feedback = evaluate_effectiveness(user_solution, case_context)
         results["stages"]["effectiveness"] = {
             "score": eff_score,
@@ -689,7 +679,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
             truncate_log(eff_feedback, 1000),
         )
         
-        # Stage 4: Logic
         logic_score, logic_feedback = evaluate_logic(user_solution, case_context)
         results["stages"]["logic"] = {
             "score": logic_score,
@@ -701,7 +690,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
             truncate_log(logic_feedback, 1000),
         )
         
-        # Stage 5: Completeness
         compl_score, compl_feedback = evaluate_completeness(user_solution, case_context)
         results["stages"]["completeness"] = {
             "score": compl_score,
@@ -713,7 +701,6 @@ def evaluate_solution(user_solution: str, case_context: str, perfect_solution: s
             truncate_log(compl_feedback, 1000),
         )
         
-        # Calculate final weighted score: w1*x1 + w2*x2 + w3*x3 + w4*x4 + w5*x5
         final_score = (
             WEIGHTS["fact_check"] * fact_score +
             WEIGHTS["originality"] * orig_score +

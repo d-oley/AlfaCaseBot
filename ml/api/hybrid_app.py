@@ -25,7 +25,7 @@ async def load_case_text(case_id, cookie):
 
 
 def evaluate_hybrid(user_solution, case_context, perfect_solution, *, case_text, predictor):
-    # Validate local inference before making paid LLM requests.
+    # Сначала проверяем локальную модель, затем отправляем платные запросы
     predicted = predictor.predict(case_text, user_solution)
     fact_score, fact_feedback = llm_service.evaluate_fact_checking(user_solution, case_context)
     originality_score, originality_feedback = llm_service.evaluate_originality(
@@ -48,7 +48,7 @@ async def lifespan(application):
     from functools import partial
     from .tiny2_service import Tiny2Predictor
 
-    # A missing or incompatible checkpoint prevents startup; no silent LLM fallback.
+    # Без совместимых весов сервис не запускается
     predictor = Tiny2Predictor(ARTIFACT_DIR, os.getenv("TINY2_DEVICE", "cpu"))
     application.state.evaluator = partial(evaluate_hybrid, predictor=predictor)
     yield

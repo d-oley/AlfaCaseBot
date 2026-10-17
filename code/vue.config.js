@@ -1,7 +1,7 @@
 const { defineConfig } = require('@vue/cli-service')
 
-// These values are intentionally not prefixed with VUE_APP_: they are used only
-// by the Node dev server and must not be embedded into the browser bundle.
+// Адреса внутренних сервисов нужны только серверу разработки
+// Префикс VUE_APP_ добавил бы их в код для браузера
 const backendProxyTarget = process.env.BACKEND_PROXY_TARGET || 'http://localhost:8080'
 const mlProxyTarget = process.env.ML_PROXY_TARGET || 'http://localhost:5000'
 const caseAssetProxyTarget = process.env.CASE_ASSET_PROXY_TARGET || 'http://localhost:333'
@@ -20,8 +20,7 @@ module.exports = defineConfig({
       Pragma: 'no-cache',
       Expires: '0',
     },
-    // HMR through a public tunnel may reconnect as a page reload loop. It is
-    // disabled for the public demo and remains available for localhost work.
+    // Через публичный туннель HMR иногда вызывает бесконечную перезагрузку
     hot: hmrEnabled,
     liveReload: hmrEnabled,
     client: {

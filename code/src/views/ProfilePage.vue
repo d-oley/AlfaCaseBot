@@ -34,7 +34,7 @@
     <section class="card profile-refresh">
       <button class="btn btn-secondary" type="button" :disabled="profileRefreshing" @click="refreshProfileOverview">{{ profileRefreshing ? 'Обновляем...' : 'Обновить данные' }}</button>
       <p v-if="profileRefreshError" class="error-text" role="alert">{{ profileRefreshError }}</p>
-      <p>Завершено кейсов в текущем каталоге: {{ completedCases.length }}. Успешное решение — от 70 баллов; завершение фиксируется отдельно.</p>
+      <p>Завершено кейсов в текущем каталоге: {{ completedCases.length }}. Успешное решение - от 70 баллов</p>
       <router-link class="btn btn-secondary" to="/solutions">Все мои попытки</router-link>
     </section>
     <section v-if="isEditingProfile" class="card edit-card">
@@ -152,7 +152,7 @@
     <section class="card rank-card">
       <h3>Место в рейтинге</h3>
       <p v-if="placement">Участников: {{ placement.total }}</p>
-      <p class="stat-value">{{ currentPlacement > 0 ? `#${currentPlacement}` : '—' }}</p>
+      <p class="stat-value">{{ currentPlacement > 0 ? `#${currentPlacement}` : '-' }}</p>
     </section>
 
     <section class="card progress-overview-card" aria-labelledby="profile-progress-title">
@@ -277,7 +277,7 @@
           >
             <span class="achievement-visual">
               <img v-if="item.iconUrl" class="achievement-icon" :src="item.iconUrl" alt="" />
-              <span v-else class="achievement-code">A—{{ String(index + 1).padStart(2, '0') }}</span>
+              <span v-else class="achievement-code">A-{{ String(index + 1).padStart(2, '0') }}</span>
               <span v-if="!item.active" class="achievement-lock" aria-hidden="true">🔒</span>
             </span>
             <p class="achievement-title">{{ item.title }}</p>
@@ -302,7 +302,7 @@
         <button class="achievement-modal-close" type="button" aria-label="Закрыть" @click="closeAchievement">×</button>
         <div class="achievement-modal-visual" :class="{ inactive: !selectedAchievement.active }">
           <img v-if="selectedAchievement.iconUrl" :src="selectedAchievement.iconUrl" alt="" />
-          <span v-else class="achievement-modal-placeholder">A—{{ selectedAchievement.id }}</span>
+          <span v-else class="achievement-modal-placeholder">A-{{ selectedAchievement.id }}</span>
           <span v-if="!selectedAchievement.active" class="achievement-modal-lock" aria-hidden="true">🔒</span>
         </div>
         <p class="achievement-modal-label">
@@ -741,7 +741,7 @@ export default {
         if (Object.keys(params).length) {
           await changeUserParams(params)
           changesSaved = true
-          // Java returns city names but does not include cityId in UserProfile.
+          // Java возвращает название города, но не его cityId
           if (params.cityId != null) updateUserProfile({ cityId: Number(params.cityId), city: selectedCity?.cityName || '', region: selectedCity?.regionName || '' })
         }
 

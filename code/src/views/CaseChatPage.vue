@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="container chat-page">
     <section class="card chat-card">
       <router-link class="back-link" :to="`/case/${caseId}`">
@@ -148,7 +148,6 @@
 </template>
 
 <script>
-// CaseChatPage.vue: страница чата по кейсу с вводом сообщений и просмотром условия.
 import { refreshUserData } from '@/services/userData'
 import {
   evaluateCaseSolution,

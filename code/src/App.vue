@@ -17,7 +17,7 @@
         <strong>Аккаунт заблокирован</strong>
         <p>{{ appState.banNotice.message }}</p>
         <p>
-          Если вы считаете, что вас несправедливо забанили — пишите на почту
+          Если вы считаете, что вас несправедливо забанили - пишите на почту
           <a href="mailto:spring_app@mail.ru">spring_app@mail.ru</a>.
         </p>
       </div>
@@ -237,7 +237,7 @@ export default {
       try {
         await logoutRequest()
       } catch {
-        // OK if session already ended
+        // Сессия уже могла завершиться
       }
       logoutUser()
       this.$router.push('/')

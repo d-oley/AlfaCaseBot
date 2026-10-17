@@ -1,4 +1,4 @@
-// Match the ordinary Java account validators without changing password text.
+// Правила совпадают с проверками Java; пароль при этом не изменяем
 export const isPasswordValid = (value) => typeof value === 'string' &&
   value.length >= 8 && value.length <= 30 && /\p{Nd}/u.test(value) &&
   [...value].some(char => '!@#$%^&*()_-+=;:/?|\\<>{}[]'.includes(char))

@@ -68,7 +68,7 @@ Evaluation focus: strategic rationale, research depth, product coherence, analyt
     },
     5: {
         "title": "Industry Solution: Go-to-Market Additional Task",
-        "context": """Case Context: Industry Solution — Go-to-Market Additional Task
+        "context": """Case Context: Industry Solution - Go-to-Market Additional Task
 
 Challenge: Refine the industry solution using received feedback and prepare customer-facing materials. Demonstrate its value, competitive advantages, and promotion strategy.
 
@@ -100,7 +100,7 @@ Evaluation focus: candidate insight, product clarity, UX quality, research rigor
     },
     7: {
         "title": "Alfa People: MVP and User Testing Final",
-        "context": """Case Context: Alfa People — MVP and User Testing Final
+        "context": """Case Context: Alfa People - MVP and User Testing Final
 
 Challenge: Refine the Alfa People MVP and validate its effectiveness through user testing. Prepare the solution for a final defense.
 

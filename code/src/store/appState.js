@@ -48,8 +48,7 @@ function safeParse(val, fallback) {
 const readSessionStorage = (key, fallback) => safeParse(sessionStorage.getItem(key), fallback)
 const initialBanNotice = readSessionStorage(BAN_NOTICE_STORAGE_KEY, null)
 
-// These keys belonged to the old client-side session/profile cache. Server APIs
-// and the authentication cookie are now the only persistent source of user data.
+// Удаляем старые данные профиля из localStorage: актуальные данные приходят с сервера
 localStorage.removeItem('alfacasebot-session-v2')
 localStorage.removeItem('alfacasebot-user-data-v2')
 

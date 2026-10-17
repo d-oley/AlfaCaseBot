@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 
-// Exercise component logic without a browser or requests to the real backend.
+// Exercise component logic without a browser or requests to the real backend
 function component(file, api = {}) {
   const source = fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')
   const script = source.match(/<script>([\s\S]*?)<\/script>/)[1]

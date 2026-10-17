@@ -6,7 +6,6 @@
 </template>
 
 <script>
-// HomePage.vue: публичная главная страница для неавторизованных пользователей.
 import BenefitsSection from '@/components/BenefitsSection.vue'
 import HomeHero from '@/components/HomeHero.vue'
 import { appState } from '@/store/appState'

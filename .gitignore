@@ -40,7 +40,8 @@ ml/__pycache__
 ml/api/__pycache__/
 ml/training/**/__pycache__/
 ml/.venv/
-ml/*.pyc
+__pycache__/
+*.pyc
 ml/training/.ipynb_checkpoints/
 ml/api/config.py
 ml/.env

@@ -78,7 +78,7 @@
         </span>
         <span class="case-meta">
           <span>{{ item.difficulty || 'Не указана' }}</span>
-          <span>{{ item.averageSolveMinutes || '—' }} мин</span>
+          <span>{{ item.averageSolveMinutes || '-' }} мин</span>
           <span>★ {{ formatRating(item.caseRating) }}</span>
         </span>
         <span class="case-arrow" aria-hidden="true">↗</span>

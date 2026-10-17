@@ -405,7 +405,7 @@ export default {
       try {
         await logoutRequest()
       } catch {
-        // The cookie can already be expired; local flow may continue.
+        // Если cookie уже истекла, форму всё равно можно закрыть
       }
     },
     async switchToLogin() {

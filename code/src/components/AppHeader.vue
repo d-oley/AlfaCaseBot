@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <header class="header">
     <div class="container header-inner">
       <router-link class="brand" :to="homeRoute">
@@ -67,7 +67,7 @@
         </div>
         <div v-else class="header-actions header-actions-auth">
           <span class="user-login">{{ login || 'Пользователь' }}</span>
-          <span class="user-rank">Место: {{ userRank > 0 ? `#${userRank}` : '—' }}</span>
+          <span class="user-rank">Место: {{ userRank > 0 ? `#${userRank}` : '-' }}</span>
           <button class="btn btn-secondary" type="button" @click="$emit('logout')">Выйти</button>
         </div>
       </div>
@@ -76,7 +76,6 @@
 </template>
 
 <script>
-// AppHeader.vue: шапка приложения с навигацией и действиями входа/выхода.
 import logoSrc from '@/assets/logo.png'
 
 export default {

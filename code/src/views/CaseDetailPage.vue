@@ -206,7 +206,7 @@
 
     <p v-if="leaderboardError" class="leaderboard-error">{{ leaderboardError }}</p>
     <p v-if="myPlacement" class="case-placement">
-      Ваше место по кейсу: <strong>{{ myPlacement.placement || '—' }}</strong> из {{ myPlacement.total || '—' }}
+      Ваше место по кейсу: <strong>{{ myPlacement.placement || '-' }}</strong> из {{ myPlacement.total || '-' }}
     </p>
     <case-leaderboard v-if="caseItem" :entries="leaderboardEntries" />
 

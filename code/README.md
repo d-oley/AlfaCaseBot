@@ -1,135 +1,40 @@
-﻿# AlfaCaseBot Frontend
+# Сайт AlfaCaseBot
 
-Фронтенд проекта **AlfaCaseBot** на Vue 3.
+Сайт написан на Vue 3. Команды ниже выполняются из каталога `code`.
 
-## Что нужно для запуска
+## Запуск на компьютере
 
-- `Node.js` 18+ (рекомендуется 20)
-- `npm`
-- `Docker` и `Docker Compose`
+Нужны Node.js 18 или новее и npm.
 
----
-
-## Быстрый старт (локально)
-
-### 1) Установить зависимости
-```bash
-npm install
-```
-
-### 2) Запустить dev-сервер (в папке code)
-```bash
-npm run serve
-```
-
-После запуска открыть:
-- `http://localhost:8081`
-
----
-
-## Основные команды
-
-### Запуск в режиме разработки
-```bash
-npm run serve
-```
-
-### Сборка production-версии
-```bash
-npm run build
-```
-
-### Публичный запуск через Cloudflare Tunnel
-
-```bash
-npm run serve:public
-```
-
-Команда собирает production-версию и запускает её на порту `8081` без HMR,
-WebSocket и автоматических перезагрузок. `/api`, `/evaluate` и `/storage`
-проксируются так же, как при локальной разработке.
-
-### Проверка линтером
-```bash
-npm run lint
-```
-
----
-
-## Настройка URL backend API
-
-По умолчанию dev-сервер фронта:
-- запускается на `http://localhost:8081`
-- проксирует запросы `/api/*` на backend `http://localhost:8080`
-- проксирует запросы `/evaluate` на FastAPI service `http://localhost:5000`
-
-Если сервисы запущены на других адресах, задайте:
-- `BACKEND_PROXY_TARGET` (адрес Java для Node-прокси)
-- `ML_PROXY_TARGET` (адрес FastAPI для Node-прокси)
-- `CASE_ASSET_PROXY_TARGET` (адрес файлового сервиса для Node-прокси)
-- `VUE_APP_CASE_ASSET_BASE_URL` (same-origin путь файлов, обычно `/storage/alfa-cases`)
-- `PUBLIC_HOSTNAME` (публичный hostname, разрешённый dev-сервером)
-- `DEV_SERVER_HMR` (`false` для публичного туннеля, чтобы исключить циклы reload)
-
-Переменные адресов прокси не имеют префикса `VUE_APP_`, чтобы внутренние адреса
-сервисов не попадали в JavaScript браузера.
-
-Пример для **Windows PowerShell**:
 ```powershell
-$env:BACKEND_PROXY_TARGET="http://77.75.8.78:999"
-$env:ML_PROXY_TARGET="http://127.0.0.1:8000"
-$env:CASE_ASSET_PROXY_TARGET="http://77.75.8.78:2479"
-$env:VUE_APP_CASE_ASSET_BASE_URL="/storage/alfa-cases"
-$env:PUBLIC_HOSTNAME="alfacasebot.it-networking.ru"
-$env:DEV_SERVER_HMR="false"
+npm install
 npm run serve
 ```
 
----
+Откройте `http://localhost:8081`. По умолчанию сайт отправляет запросы к Java на `http://localhost:8080`, к сервису оценки на `http://localhost:5000`, а за файлами кейсов - на `http://localhost:333`. Если они работают на других адресах, задайте `BACKEND_PROXY_TARGET`, `ML_PROXY_TARGET` и `CASE_ASSET_PROXY_TARGET` до запуска. Пример переменных есть в `.env.example`.
 
-## Запуск через Docker
+Чтобы посмотреть сайт без этих сервисов, запустите `npm run serve:mock`. Используются примерные кейсы и профиль из `src/mocks/mockData.json`.
 
-### Вариант 1: через `docker build` + `docker run`
+Другие команды:
 
-Собрать образ:
-```bash
-docker build -t alfacasebot-frontend .
-```
+- `npm run lint` - проверить исходники;
+- `npm run build` - собрать сайт в `dist`;
+- `npm run serve:public` - собрать сайт и запустить сервер на порту 8081 для публичного туннеля, без автоматической перезагрузки страницы.
 
-Запустить контейнер:
-```bash
-docker run --rm --add-host host.docker.internal:host-gateway -p 8080:80 alfacasebot-frontend
-```
+Для публичного адреса укажите `PUBLIC_HOSTNAME`. Если нужен ручной контроль перезагрузки, задайте `DEV_SERVER_HMR=false`. Эти параметры используются сервером разработки. Они не попадают в браузерный код.
 
-При таком отдельном запуске Java API, прокси к MinIO и ML должны быть доступны на хосте через порты `999`, `2479` и `5000` соответственно. При других адресах передайте контейнеру `BACKEND_UPSTREAM`, `ASSET_UPSTREAM` и `ML_UPSTREAM` через `-e`.
+## Запуск в Docker
 
-Открыть в браузере:
-- `http://localhost:8080`
+`docker-compose.yml` запускает сайт и смешанную оценку: RuBERT Tiny2 выставляет баллы за эффективность, логику и полноту; OpenRouter оценивает остальные критерии и формирует отзыв. Java и хранилище файлов запускаются отдельно.
 
-### Вариант 2: через Docker Compose
+Перед запуском положите веса `rubert_tiny2_multitask.pt`, `config.json` и каталог `tokenizer` в `../ml/artifacts/rubert_tiny2_multitask/`. Также нужен `../ml/artifacts/best_censor_model.joblib`. Веса Tiny2 в Git не хранятся. Задайте `ML_SERVICE_TOKEN` (тот же, что у Java) и `OPENROUTER_API_KEY`. Для поиска при проверке фактов задайте `SERPER_API_KEY`.
 
-Compose запускает frontend и гибридный ML: RuBERT Tiny2 оценивает три критерия локально, а OpenRouter используется для остальных. Java-backend, PostgreSQL, Redis и MinIO запускаются отдельно. По умолчанию Java доступна на хосте через порт `999`, а её прокси к MinIO — через порт `2479` (как в `Alfa-case5-backend/main/docker-compose.yml`). Если адреса другие, задайте `BACKEND_UPSTREAM` и `ASSET_UPSTREAM` в формате `хост:порт`. Имя `host.docker.internal` добавлено для Linux через `host-gateway`.
-
-Перед сборкой проверьте наличие `../ml/artifacts/rubert_tiny2_multitask/rubert_tiny2_multitask.pt`, `config.json`, каталога `tokenizer` и `../ml/artifacts/best_censor_model.joblib`. Checkpoint Tiny2 локальный и не входит в Git: без него сборка образа не создаст работающий гибридный сервис. Секрет `ML_SERVICE_TOKEN` должен совпадать с Java; для LLM нужен `OPENROUTER_API_KEY`. `SERPER_API_KEY` нужен для поиска при фактчекинге.
-
-Запуск:
-```bash
-$env:OPENROUTER_API_KEY="your-key"
-$env:ML_SERVICE_TOKEN="same-token-as-java"
+```powershell
+$env:ML_SERVICE_TOKEN="значение-как-в-Java"
+$env:OPENROUTER_API_KEY="ваш-ключ"
 docker compose up --build -d
 ```
 
-Остановка:
-```bash
-docker compose down
-```
+Сайт будет доступен на `http://localhost:8081`, проверка сервиса оценки - на `http://localhost:5000/health`. По умолчанию контейнеры обращаются к Java по `host.docker.internal:999`, а к её файловому прокси - по `host.docker.internal:2479`. Для других адресов задайте `BACKEND_UPSTREAM` и `ASSET_UPSTREAM` в формате `хост:порт`.
 
-Проверка:
-
-- frontend: `http://localhost:8081`
-- FastAPI Swagger: `http://localhost:5000/docs`
-- FastAPI health-check: `http://localhost:5000/health`
-
-Compose ожидает успешной загрузки обеих локальных моделей и настройки OpenRouter, прежде чем запустить frontend. Порт ML опубликован только на `127.0.0.1`; браузер обращается к нему через frontend. При сборке на этом же сервере потребуется дополнительное место для Docker-кеша и образов.
-
-
+Остановка: `docker compose down`.

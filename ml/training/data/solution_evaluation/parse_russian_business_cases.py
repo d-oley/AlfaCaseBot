@@ -45,7 +45,7 @@ SPACE_RE = re.compile(r"\s+")
 CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 LETTER_RE = re.compile(r"[A-Za-zА-Яа-яЁё]")
 
-# Точные служебные хвосты: такие блоки можно безопасно выкидывать в любом месте.
+# Точные служебные хвосты: такие блоки можно безопасно выкидывать в любом месте
 HARD_SKIP_BLOCK_RE = re.compile(
     r"^(?:"
     r"фото\s*:|источник\s+изображения\s*:|"
@@ -57,7 +57,7 @@ HARD_SKIP_BLOCK_RE = re.compile(
 )
 
 # Административный текст конкурса. Важный момент: мы УДАЛЯЕМ такие блоки, а не
-# прекращаем парсинг. На старых страницах правила конкурса часто стоят ДО кейса.
+# прекращаем парсинг. На старых страницах правила конкурса часто стоят ДО кейса
 EDITORIAL_BLOCK_PATTERNS = [
     re.compile(r"\b(?:решения|ответы|предложения)\s+(?:кейса\s+)?принимаются\b", re.I),
     re.compile(r"\bчтобы\s+(?:отправить|прислать).{0,80}\b(?:решение|ответ)\b", re.I),
@@ -109,8 +109,8 @@ GENERIC_SOLUTION_SECTION_RE = re.compile(
 )
 
 # ФИО в начале блока. Используется только внутри явно распознанной секции
-# решений, поэтому риск принять случайное упоминание человека за границу низок.
-NAME_TOKEN = r"[А-ЯЁ][а-яё]+(?:[-‐‑–—][А-ЯЁ]?[а-яё]+)?"
+# решений, поэтому риск принять случайное упоминание человека за границу низок
+NAME_TOKEN = r"[А-ЯЁ][а-яё]+(?:[-‐‑–\u2014][А-ЯЁ]?[а-яё]+)?"
 PERSON_ONLY_RE = re.compile(rf"^(?P<name>{NAME_TOKEN}(?:\s+{NAME_TOKEN}){{1,2}})\s*:?$")
 PERSON_PREFIX_RE = re.compile(
     rf"^(?P<name>{NAME_TOKEN}(?:\s+{NAME_TOKEN}){{1,2}})"
@@ -430,7 +430,7 @@ def find_article_content(document):
     )
     if not candidates:
         # Небольшой запас на будущую смену верстки: ищем <article>, но только если
-        # это один содержательный контейнер.
+        # это один содержательный контейнер
         candidates = document.xpath("//article")
     if not candidates:
         raise ValueError("Не найден контейнер статьи")
@@ -465,7 +465,7 @@ def semantic_blocks(container) -> list:
 
     Старые версии CMS иногда кладут текст прямо в div/section без <p>. Такие
     leaf-контейнеры тоже считаем блоками, но только если внутри них уже нет
-    нормальных p/h*/ul/table — иначе получили бы дубликаты.
+    нормальных p/h*/ul/table - иначе получили бы дубликаты.
     """
     tags = {"p", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "table"}
     wrapper_tags = {"div", "section"}
@@ -523,17 +523,17 @@ def trim_case_block(raw: str) -> str:
         return ""
 
     # Если служебная инструкция приклеена к концу содержательного абзаца,
-    # сохраняем содержательную часть. Если служебный текст занимает весь блок —
+    # сохраняем содержательную часть. Если служебный текст занимает весь блок -
     # выбрасываем его. Это устраняет потерю вопроса + «решения принимаются...»
-    # внутри одного <p>.
+    # внутри одного <p>
     earliest: int | None = None
     for pattern in EDITORIAL_BLOCK_PATTERNS:
         match = pattern.search(value)
         if match and (earliest is None or match.start() < earliest):
             earliest = match.start()
     if earliest is not None:
-        prefix = value[:earliest].strip(" \t\n.;:–—-")
-        prefix = value[:earliest].strip(" \t\n.;:–—-")
+        prefix = value[:earliest].strip(" \t\n.;:–\u2014-")
+        prefix = value[:earliest].strip(" \t\n.;:–\u2014-")
         if len(prefix) >= 40 and len(CYRILLIC_RE.findall(prefix)) >= 20:
             value = prefix
         else:
@@ -549,7 +549,7 @@ def clean_case_blocks(blocks: Sequence[str]) -> list[str]:
         value = trim_case_block(raw)
         if not value:
             continue
-        # Снимаем точные повторы соседних блоков, встречающиеся после миграций CMS.
+        # Снимаем точные повторы соседних блоков, встречающиеся после миграций CMS
         if cleaned and normalize_space(cleaned[-1]).casefold() == normalize_space(value).casefold():
             continue
         cleaned.append(value)
@@ -558,7 +558,7 @@ def clean_case_blocks(blocks: Sequence[str]) -> list[str]:
 
 def validate_case_text(title: str, text: str) -> None:
     # 300 символов были слишком жёстким порогом: на сайте есть полноценные
-    # короткие кейсы. Отсекаем только очевидно пустые/битые страницы.
+    # короткие кейсы. Отсекаем только очевидно пустые/битые страницы
     if len(text) < 120:
         raise ValueError(f"Слишком короткое условие кейса: {len(text)} символов")
     if not looks_russian(f"{title}\n{text}", min_cyrillic=60):
@@ -584,7 +584,7 @@ def strip_solution_suffix_from_title(title: str) -> str:
         "",
         title,
         flags=re.IGNORECASE,
-    ).strip(" .:-–—")
+    ).strip(" .:-–\u2014")
 
 
 def explicit_original_case_urls(solution_url: str, solution_document) -> list[str]:
@@ -611,10 +611,10 @@ def marker_from_text(text: str) -> Marker | None:
     if GENERIC_SOLUTION_SECTION_RE.match(compact.rstrip(": ")):
         return Marker(title=compact, author="", winner="побед" in compact.casefold(), generic=True)
 
-    # «Решения победителей» намеренно НЕ попадает сюда: только единственное число.
+    # «Решения победителей» намеренно НЕ попадает сюда: только единственное число
     patterns = [
         re.compile(
-            r"^Решение\s*[-–—]?\s*победител(?:ь|я)(?:\s+кейса)?\s*[,;:–—-]*\s*(?P<author>.*)$",
+            r"^Решение\s*[-–\u2014]?\s*победител(?:ь|я)(?:\s+кейса)?\s*[,;:–\u2014-]*\s*(?P<author>.*)$",
             re.I,
         ),
         re.compile(r"^Решение(?:\s+кейса)?\s+предлагает\s+(?P<author>.+)$", re.I),
@@ -624,14 +624,14 @@ def marker_from_text(text: str) -> Marker | None:
         match = pattern.match(compact.rstrip())
         if not match:
             continue
-        author = match.group("author").strip(" .:;–—-")
-        # Очевидные секционные подписи не являются авторами.
+        author = match.group("author").strip(" .:;–\u2014-")
+        # Очевидные секционные подписи не являются авторами
         if author.casefold() in {
             "победитель", "победителя", "победителей", "кейса", "бизнес-кейса",
             "участников", "читателей",
         }:
             author = ""
-        # Длинная законченная фраза после «Решение ...» скорее обычный абзац.
+        # Длинная законченная фраза после «Решение ...» скорее обычный абзац
         if author and len(author) > 180:
             return None
         winner = index == 0 or "побед" in compact.casefold()
@@ -683,8 +683,8 @@ def make_solution(
         return None
 
     author = marker.author
-    # Для «Решение победителя» без имени пытаемся снять ФИО с первого блока.
-    # Саму подпись автора из solution_text удаляем.
+    # Для «Решение победителя» без имени пытаемся снять ФИО с первого блока
+    # Саму подпись автора из solution_text удаляем
     if not author:
         inferred = secondary_author(cleaned[0])
         if inferred:
@@ -721,7 +721,7 @@ def split_generic_region(marker: Marker, region: Sequence[str], mode: str) -> li
             name, label = found
             points.append((idx, name, label))
 
-    # Без двух явных авторских границ безопаснее считать секцию одним ответом.
+    # Без двух явных авторских границ безопаснее считать секцию одним ответом
     if len(points) < 2:
         solution = make_solution(marker, region, parser_mode=mode, force_review=True)
         return [solution] if solution else []
@@ -730,8 +730,8 @@ def split_generic_region(marker: Marker, region: Sequence[str], mode: str) -> li
     for point_index, (start, author, label) in enumerate(points):
         end = points[point_index + 1][0] if point_index + 1 < len(points) else len(region)
         body = list(region[start:end])
-        # Первый блок — подпись автора. Оставляем содержательную часть после
-        # двоеточия, если она есть; иначе убираем подпись целиком.
+        # Первый блок - подпись автора. Оставляем содержательную часть после
+        # двоеточия, если она есть; иначе убираем подпись целиком
         first = normalize_space(body[0])
         colon = first.find(":")
         if colon >= 0 and len(first[colon + 1 :].strip()) >= 20:
@@ -845,7 +845,7 @@ def docx_paragraphs(payload: bytes) -> list[str]:
 def name_signature(value: str) -> tuple[str, ...]:
     """Грубая сигнатура ФИО, устойчивая к русским падежным окончаниям."""
     tokens = re.findall(r"[А-ЯЁа-яё]{3,}", value.casefold())
-    # Первых 4 букв обычно достаточно: Ринат/Рината, Иванов/Иванова и т.п.
+    # Первых 4 букв обычно достаточно: Ринат/Рината, Иванов/Иванова и т.п
     return tuple(token[:4] for token in tokens[:3])
 
 
@@ -876,7 +876,7 @@ def declared_winner_names(blocks: Sequence[str]) -> list[str]:
         if capture_following > 0:
             capture_following -= 1
             for line in block.splitlines():
-                line = normalize_space(line).lstrip("-•–— ")
+                line = normalize_space(line).lstrip("-•–\u2014 ")
                 m = re.match(rf"^(?P<name>{NAME_TOKEN}(?:\s+{NAME_TOKEN}){{1,2}})", line)
                 if m and len(line) <= 180:
                     names.append(m.group("name"))
@@ -939,7 +939,7 @@ def parse_solutions(
     apply_declared_winners(solutions, declared_winner_names(blocks))
     recoveries: list[dict] = []
 
-    # Если HTML не дал решений, пробуем официальный DOCX-вложение.
+    # Если HTML не дал решений, пробуем официальный DOCX-вложение
     if not solutions:
         for attachment_url in find_solution_attachments(solution_url, document):
             try:
@@ -996,7 +996,7 @@ def embedded_case_from_solution_page(solution_url: str, document) -> ParsedCase:
         prefix.append(block)
     cleaned = clean_case_blocks(prefix)
 
-    # Убираем секционные/поздравительные строки, если они пережили общую очистку.
+    # Убираем секционные/поздравительные строки, если они пережили общую очистку
     filtered = []
     for block in cleaned:
         compact = normalize_space(block)
@@ -1040,7 +1040,7 @@ def discover_article_catalog(client: RespectfulHttpClient) -> ArticleCatalog:
 
     # Ищем непрерывный хвост sitemap-ов с /education/cases/. В отличие от старой
     # версии сохраняем ВСЕ article URL из этих сегментов, чтобы потом сопоставлять
-    # solution -> исходный кейс даже без HTML-ссылки.
+    # solution -> исходный кейс даже без HTML-ссылки
     for sitemap_url in reversed(sitemap_urls):
         _, urls = sitemap_locations(client.fetch_bytes(sitemap_url))
         articles: list[str] = []
@@ -1059,7 +1059,7 @@ def discover_article_catalog(client: RespectfulHttpClient) -> ArticleCatalog:
         elif found_case_segment:
             empty_after_case_segments += 1
             # Два пустых соседних sitemap-а вместо одного делают поиск устойчивее
-            # к одиночному разрыву сегмента и почти не увеличивают трафик.
+            # к одиночному разрыву сегмента и почти не увеличивают трафик
             if empty_after_case_segments >= 2:
                 break
 
@@ -1120,7 +1120,7 @@ def resolve_case(
 
     # Если ссылка отсутствовала, устарела или вела на 404, сохраняем хотя бы
     # явно изложенную постановку задачи со страницы решений. Это лучше потери
-    # всей публикации, но provenance делает такой fallback видимым.
+    # всей публикации, но provenance делает такой fallback видимым
     try:
         embedded = embedded_case_from_solution_page(solution_url, solution_document)
         recoveries.append(
@@ -1307,7 +1307,7 @@ def self_test() -> None:
     assert robots_can_fetch(robots_fixture, f"{BASE_URL}/private/public", USER_AGENT)
 
     # Регрессия: редакционный блок стоит ДО основного условия. Старая версия
-    # прекращала чтение и ошибочно получала «слишком короткий кейс».
+    # прекращала чтение и ошибочно получала «слишком короткий кейс»
     case_html = """
     <html lang="ru"><body><h1>Тестовый кейс</h1>
     <div class="b-article-content">
@@ -1331,7 +1331,7 @@ def self_test() -> None:
     ])
     assert mixed == ["Как компании увеличить продажи и не потерять ключевых клиентов?"]
 
-    # Современная разметка.
+    # Современная разметка
     solution_html = """
     <html lang="ru"><body><h1>Тестовый кейс. Решение кейса</h1>
     <div class="b-article-content">
@@ -1356,7 +1356,7 @@ def self_test() -> None:
     ]
 
     # Старая разметка: «Решения победителей» не должна превращаться в автора
-    # «победителей»; два ФИО внутри секции должны стать двумя решениями.
+    # «победителей»; два ФИО внутри секции должны стать двумя решениями
     old_blocks = [
         "Решения победителей",
         "Наталья Чечулина: Правила будут работать только на тех, кто в них верит",
@@ -1395,7 +1395,7 @@ def self_test() -> None:
     ], parser_mode="docx_author_boundaries")
     assert len(docx_style) == 2 and all(x.needs_review for x in docx_style)
 
-    # Сопоставление исходного кейса по slug из sitemap.
+    # Сопоставление исходного кейса по slug из sitemap
     catalog = ArticleCatalog(
         solution_urls=[f"{BASE_URL}/education/cases/200-kak-prodavat-reshenie-keisa"],
         case_urls_by_slug={"kak-prodavat": [f"{BASE_URL}/education/cases/190-kak-prodavat"]},

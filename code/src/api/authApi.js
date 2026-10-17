@@ -96,7 +96,7 @@ export const toUserMessage = (message, fallback = 'Не удалось выпо�
 
   if (errors[normalized]) return errors[normalized]
 
-  // Show useful Russian messages, but do not expose raw service errors or HTML.
+  // Не показываем пользователю HTML и сообщения сервера с техническими подробностями
   if (normalized.length > 200 || !/[А-Яа-яЁё]/.test(normalized) ||
       /<[^>]*>|\b(?:java|api|sql|http|backend|frontend|exception|stack|trace|id)\b|(?:сервер|бэкенд|фронтенд|эндпоинт|идентификатор)/i.test(normalized)) {
     return fallback
@@ -225,8 +225,8 @@ export const getCaseAssetUrl = (key) => {
       const assetPrefix = '/alfa-cases/'
       const assetPrefixIndex = absoluteUrl.pathname.indexOf(assetPrefix)
 
-      // An absolute storage URL from Java would be blocked as mixed content on
-      // the HTTPS site. Route known storage objects through our same-origin URL.
+      // На HTTPS-сайте браузер блокирует файловые ссылки по HTTP
+      // Для известных файлов используем адрес этого же сайта
       if (CASE_ASSET_URL && assetPrefixIndex !== -1) {
         const assetKey = absoluteUrl.pathname.slice(assetPrefixIndex + assetPrefix.length)
         return `${CASE_ASSET_URL.replace(/\/$/, '')}/${assetKey}${absoluteUrl.search}`
@@ -321,7 +321,7 @@ const loadAllPages = async ({ path, search = '', sort = '', normalizeItem = (ite
   )
   const firstPage = normalizePageResponse(await loadPage(0))
   const remainingPages = []
-  // Bound concurrent requests even when the catalogue/history spans many pages.
+  // Ограничиваем число одновременных запросов при загрузке страниц каталога
   for (let page = 1; page < firstPage.totalPages; page += 4) {
     remainingPages.push(...await Promise.all(
       Array.from({ length: Math.min(4, firstPage.totalPages - page) }, (_, index) => loadPage(page + index))
