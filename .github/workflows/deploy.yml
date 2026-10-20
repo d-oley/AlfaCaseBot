@@ -3,49 +3,164 @@ name: Deploy
 on:
   workflow_run:
     workflows: ["CI"]
-    types:
-      - completed
-    branches: [main, master]
+    types: [completed]
+    branches: [master]
 
 permissions:
   contents: read
 
+concurrency:
+  group: alfacasebot-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    name: Build containers and deploy
-    runs-on: ubuntu-latest
+    name: Build and deploy production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      }}
 
     steps:
       - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
-          mkdir -p ~/.ssh
+          set -euo pipefail
 
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          : "${SSH_PRIVATE_KEY:?DEPLOY_SSH_KEY is missing}"
+          : "${DEPLOY_HOST:?DEPLOY_HOST is missing}"
+          : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS is missing}"
 
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" \
+            | tr -d '\r' \
+            | sed '1s/^\xEF\xBB\xBF//' \
+            > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" > /dev/null
 
-      - name: Deploy to production server
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" \
+            | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -F "$DEPLOY_HOST" \
+            -f "$HOME/.ssh/known_hosts" > /dev/null
+
+          echo "SSH credentials and host key verified"
+
+      - name: Build and deploy on VM
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?DEPLOY_HOST is missing}"
+          : "${DEPLOY_USER:?DEPLOY_USER is missing}"
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+
           ssh \
-            -i ~/.ssh/id_ed25519 \
-            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" << 'EOF'
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=12 \
+            -i "$HOME/.ssh/id_ed25519" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash -se -- $DEPLOY_SHA" <<'REMOTE'
+          set -euo pipefail
 
-          set -e
+          TARGET_SHA="$1"
+          cd "$HOME/alfacasebot/frontend-ml"
 
-          cd ~/alfacasebot/frontend-ml
+          test "$(git branch --show-current)" = master
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "ERROR: tracked files were modified on the VM" >&2
+            exit 1
+          fi
 
-          git pull --ff-only
+          git fetch origin master
+          LATEST_SHA="$(git rev-parse FETCH_HEAD)"
+          if [ "$LATEST_SHA" != "$TARGET_SHA" ]; then
+            echo "SKIPPED: CI passed for an outdated commit"
+            echo "Verified commit: $TARGET_SHA"
+            echo "Current master:  $LATEST_SHA"
+            exit 0
+          fi
+
+          git merge --ff-only "$TARGET_SHA"
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+
+          # These files live on the VM, not in Git.
+          test -f code/.env
+          test -s ml/artifacts/best_censor_model.joblib
+          test -s ml/artifacts/rubert_tiny2_multitask/rubert_tiny2_multitask.pt
+          test -s ml/artifacts/rubert_tiny2_multitask/config.json
+          test -s ml/artifacts/rubert_tiny2_multitask/tokenizer/tokenizer.json
 
           cd code
+          docker compose config --quiet
+          df -h .
 
-          docker compose up -d --build frontend ml
+          # Preserve the currently working images for rollback.
+          docker image tag alfacasebot-frontend:latest alfacasebot-frontend:rollback
+          docker image tag alfacasebot-ml-hybrid:latest alfacasebot-ml-hybrid:rollback
 
+          DEPLOY_STARTED=false
+          on_failure() {
+            code="$1"
+            trap - ERR
+            if [ "$DEPLOY_STARTED" = true ]; then
+              echo "Deployment failed. Attempting Docker image rollback..." >&2
+              docker image tag alfacasebot-frontend:rollback alfacasebot-frontend:latest || true
+              docker image tag alfacasebot-ml-hybrid:rollback alfacasebot-ml-hybrid:latest || true
+              docker compose up -d --no-build --force-recreate ml frontend || true
+              docker compose ps || true
+            else
+              echo "Build failed: the running containers were not replaced" >&2
+            fi
+            exit "$code"
+          }
+          trap 'on_failure $?' ERR
+
+          # Keep old containers running during the build.
+          BUILDKIT_PROGRESS=plain docker compose build frontend
+          BUILDKIT_PROGRESS=plain docker compose build ml
+
+          DEPLOY_STARTED=true
+          docker compose up -d --no-build ml frontend
+
+          healthy=false
+          for attempt in $(seq 1 90); do
+            ML_HEALTH="$(docker inspect -f '{{.State.Health.Status}}' alfacasebot-ml 2>/dev/null || true)"
+            if [ "$ML_HEALTH" = healthy ] && \
+               curl -fsS --max-time 5 http://127.0.0.1:5000/health > /dev/null && \
+               curl -fsS --max-time 5 http://127.0.0.1:8081/ > /dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 5
+          done
+
+          if [ "$healthy" != true ]; then
+            echo "ERROR: frontend or ML did not become healthy" >&2
+            docker compose ps
+            false
+          fi
+
+          trap - ERR
           docker compose ps
-
-          curl --fail http://127.0.0.1:8081/ > /dev/null
-          curl --fail http://127.0.0.1:5000/health
-
-          EOF
+          echo "DEPLOY SUCCESS: $TARGET_SHA"
+          REMOTE
+          

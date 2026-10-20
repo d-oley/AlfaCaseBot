@@ -1,10 +1,21 @@
+
 FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY requirements.txt requirements-hybrid.txt ./
-ARG ML_REQUIREMENTS=requirements.txt
-RUN pip install --no-cache-dir -r ${ML_REQUIREMENTS}
+
+ARG ML_REQUIREMENTS=requirements-hybrid.txt
+
+RUN if [ "$ML_REQUIREMENTS" = "requirements-hybrid.txt" ]; then \
+      pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        "torch>=2.6,<3.0"; \
+    fi && \
+    pip install --no-cache-dir -r "${ML_REQUIREMENTS}" && \
+    if [ "$ML_REQUIREMENTS" = "requirements-hybrid.txt" ]; then \
+      python -c "import torch; assert torch.version.cuda is None, 'CUDA PyTorch installed unexpectedly'"; \
+    fi
 
 COPY . .
 
@@ -18,5 +29,4 @@ RUN if [ "$ML_REQUIREMENTS" = "requirements-hybrid.txt" ]; then \
 
 EXPOSE 5000
 
-CMD ["uvicorn", "api.llm_only_app:app", "--host", "0.0.0.0", "--port", "5000"]
-
+CMD ["uvicorn", "api.hybrid_app:app", "--host", "0.0.0.0", "--port", "5000"]
