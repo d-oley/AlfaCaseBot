@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="hero">
     <div class="hero-index" aria-hidden="true">
       <span class="hero-wordmark">CASE</span>
@@ -77,7 +77,7 @@ h1 {
   margin: 0 0 28px;
   max-width: 950px;
   font-size: clamp(2.7rem, 5.8vw, 5.9rem);
-  line-height: 0.86;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
@@ -117,7 +117,7 @@ h1 em { color: var(--primary); font-style: normal; }
   }
   h1 {
     font-size: clamp(2.35rem, 11.5vw, 3.7rem);
-    line-height: 0.9;
+    line-height: 1.1;
   }
 }
 
