@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+
 :root {
   --bg-main: #e9e6df;
   --bg-accent: #d7d2c8;
@@ -26,7 +28,7 @@
   --overlay-bg: rgba(17, 17, 15, 0.78);
   --tab-active-border: #11110f;
   --container-inline: clamp(16px, 2.5vw, 32px);
-  --display-font: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --display-font: 'Ubuntu', sans-serif;
   --mono-font: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   color-scheme: light;
 }
@@ -71,7 +73,7 @@ body {
     linear-gradient(to right, color-mix(in srgb, var(--text-main) 7%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, var(--text-main) 7%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
-  font-family: Arial, "Segoe UI", sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   font-size: clamp(14px, 1.15vw, 15px);
   line-height: 1.45;
 }
