@@ -653,7 +653,7 @@ export default {
           try {
             await logoutRequest()
           } catch {
-            // Сессию мог уже отклонить backend
+            // сессию мог уже отклонить backend
           }
           throw new Error('У аккаунта нет прав администратора.')
         }
@@ -976,12 +976,20 @@ export default {
     },
     getCaseTagIds(item) {
       const directIds = Array.isArray(item?.tagIds) ? item.tagIds : []
-      const idsByName = (item?.tags || []).map(
-        (name) => this.adminTags.find((tag) => tag.name === name)?.id
-      )
-      return [...new Set([...directIds, ...idsByName].map(Number))].filter(
-        (id) => Number.isFinite(id) && id > 0
-      )
+      const allIds = [...directIds]
+      for (const name of item?.tags || []) {
+        const tag = this.adminTags.find((tag) => tag.name === name)
+        allIds.push(tag?.id)
+      }
+
+      const ids = []
+      for (const value of allIds) {
+        const id = Number(value)
+        if (Number.isFinite(id) && id > 0 && !ids.includes(id)) {
+          ids.push(id)
+        }
+      }
+      return ids
     },
     resetCaseForm() {
       this.caseForm = toCaseForm()
@@ -1040,13 +1048,18 @@ export default {
     async syncCaseTags(caseId, previousTagIds, selectedTagIds) {
       const previous = new Set((previousTagIds || []).map(Number).filter(Number.isFinite))
       const selected = new Set((selectedTagIds || []).map(Number).filter(Number.isFinite))
-      const toAttach = [...selected].filter((tagId) => !previous.has(tagId))
-      const toDetach = [...previous].filter((tagId) => !selected.has(tagId))
-
-      await Promise.all([
-        ...toAttach.map((tagId) => attachCaseTag(caseId, tagId)),
-        ...toDetach.map((tagId) => detachCaseTag(caseId, tagId)),
-      ])
+      const requests = []
+      for (const tagId of selected) {
+        if (!previous.has(tagId)) {
+          requests.push(attachCaseTag(caseId, tagId))
+        }
+      }
+      for (const tagId of previous) {
+        if (!selected.has(tagId)) {
+          requests.push(detachCaseTag(caseId, tagId))
+        }
+      }
+      await Promise.all(requests)
     },
     async deactivateCase(caseId) {
       this.adminActionError = ''

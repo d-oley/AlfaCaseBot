@@ -381,7 +381,7 @@ async def health():
 
 
 async def check_solving_access(case_id: int, cookie: str):
-    """Recheck before expensive evaluation and before saving; Java must enforce atomically."""
+    """повторно проверяем состояние перед оценкой и сохранением"""
     try:
         status, state, _ = await backend_request(
             f"/api/text/v1/solvingState/{case_id}", method="GET", cookie=cookie
@@ -400,7 +400,7 @@ async def check_solving_access(case_id: int, cookie: str):
         return logged_response(error_payload("SOLVING_STATE_UNAVAILABLE", "Не удалось проверить состояние решения"), 502)
     return None
 
-
+# доработать функцию помог chatgpt sol
 @router.post("/evaluate")
 async def evaluate(payload: EvaluateRequest, request: Request):
     text = payload.text.strip()

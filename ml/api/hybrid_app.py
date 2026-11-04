@@ -1,4 +1,4 @@
-"""LLM fact-checking/originality plus local Tiny2 criterion scoring."""
+"""оценка через локальную модель и языковую модель"""
 
 import os
 from contextlib import asynccontextmanager
@@ -25,7 +25,7 @@ async def load_case_text(case_id, cookie):
 
 
 def evaluate_hybrid(user_solution, case_context, perfect_solution, *, case_text, predictor):
-    # Сначала проверяем локальную модель, затем отправляем платные запросы
+    # сначала проверяем локальную модель, затем отправляем платные запросы
     predicted = predictor.predict(case_text, user_solution)
     fact_score, fact_feedback = llm_service.evaluate_fact_checking(user_solution, case_context)
     originality_score, originality_feedback = llm_service.evaluate_originality(
@@ -34,13 +34,22 @@ def evaluate_hybrid(user_solution, case_context, perfect_solution, *, case_text,
     stages = {
         "fact_check": {"score": fact_score, "feedback": fact_feedback},
         "originality": {"score": originality_score, "feedback": originality_feedback},
-        **{name: {"score": predicted[name], "feedback": ""}
-           for name in ("effectiveness", "logic", "completeness")},
     }
-    total = round(sum(llm_service.WEIGHTS[name] * item["score"]
-                      for name, item in stages.items()), 1)
-    return {"status": "evaluated", "stages": stages, "final_score": total,
-            "message": llm_service.generate_feedback_message(total, stages)}
+    for name in ("effectiveness", "logic", "completeness"):
+        stages[name] = {"score": predicted[name], "feedback": ""}
+
+    weighted_scores = []
+    for name, result in stages.items():
+        weighted_scores.append(llm_service.WEIGHTS[name] * result["score"])
+    total = round(sum(weighted_scores), 1)
+
+    message = llm_service.generate_feedback_message(total, stages)
+    return {
+        "status": "evaluated",
+        "stages": stages,
+        "final_score": total,
+        "message": message,
+    }
 
 
 @asynccontextmanager
@@ -48,7 +57,7 @@ async def lifespan(application):
     from functools import partial
     from .tiny2_service import Tiny2Predictor
 
-    # Без совместимых весов сервис не запускается
+    # без совместимых весов сервис не запускается
     predictor = Tiny2Predictor(ARTIFACT_DIR, os.getenv("TINY2_DEVICE", "cpu"))
     application.state.evaluator = partial(evaluate_hybrid, predictor=predictor)
     yield

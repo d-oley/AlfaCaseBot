@@ -20,18 +20,25 @@ const difficultyPreferenceOptions = [
 
 const getDefaultPreferences = () => ({ tagIds: [], tags: [], difficulty: '' })
 
-const normalizePreferences = (value = {}) => ({
-  tagIds: [...new Set(
-    (Array.isArray(value.tagIds) ? value.tagIds : [])
-      .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id) && id > 0)
-  )],
-  tags: [...new Set([
-    ...(Array.isArray(value.tags) ? value.tags : []),
-    ...(value.tag ? [value.tag] : []),
-  ].filter(Boolean))],
-  difficulty: value.difficulty || '',
-})
+const normalizePreferences = (value = {}) => {
+  const tagIds = []
+  const savedIds = Array.isArray(value.tagIds) ? value.tagIds : []
+  for (const savedId of savedIds) {
+    const id = Number(savedId)
+    if (Number.isFinite(id) && id > 0 && !tagIds.includes(id)) {
+      tagIds.push(id)
+    }
+  }
+
+  const tags = []
+  const savedTags = Array.isArray(value.tags) ? [...value.tags] : []
+  if (value.tag) savedTags.push(value.tag)
+  for (const tag of savedTags) {
+    if (tag && !tags.includes(tag)) tags.push(tag)
+  }
+
+  return { tagIds, tags, difficulty: value.difficulty || '' }
+}
 
 const getDefaultUser = () => ({
   id: null, username: '', email: '', login: '', nickname: '',
@@ -41,14 +48,17 @@ const getDefaultUser = () => ({
 })
 
 function safeParse(val, fallback) {
-  try { return val ? JSON.parse(val) : fallback }
-  catch { return fallback }
+  try {
+    return val ? JSON.parse(val) : fallback
+  } catch {
+    return fallback
+  }
 }
 
 const readSessionStorage = (key, fallback) => safeParse(sessionStorage.getItem(key), fallback)
 const initialBanNotice = readSessionStorage(BAN_NOTICE_STORAGE_KEY, null)
 
-// Удаляем старые данные профиля из localStorage: актуальные данные приходят с сервера
+// удаляем старые данные профиля из localStorage: актуальные данные приходят с сервера
 localStorage.removeItem('alfacasebot-session-v2')
 localStorage.removeItem('alfacasebot-user-data-v2')
 
@@ -74,32 +84,47 @@ export const appState = reactive({
 const diffDiffMap = { easy: 'Легко', medium: 'Средне', hard: 'Сложно' }
 const normalizeTagName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU')
 
+// эту функцию помог доработать chatgpt sol
 const calcRecommendedCase = () => {
   const tagIds = new Set((appState.user.preferences?.tagIds || []).map(Number))
   const tags = new Set((appState.user.preferences?.tags || []).map(normalizeTagName).filter(Boolean))
   const diff = diffDiffMap[appState.user.preferences?.difficulty] || ''
   if (!tagIds.size && !tags.size && !diff) return null
 
-  const solved = new Set(
-    appState.userSolvedCases
-      .filter(e => Number(e.scorePercent) >= SOLVE_SCORE_THRESHOLD)
-      .map(e => Number(e.caseId))
-  )
-  const ranked = appState.cases
-    .map(c => {
-      let score = 0
-      const matchingTags = (c.tags || [])
-        .map(normalizeTagName)
-        .filter((tag) => tags.has(tag)).length
-      const matchingTagIds = (c.tagIds || []).filter((id) => tagIds.has(Number(id))).length
-      score += Math.max(matchingTags, matchingTagIds) * 3
-      if (diff && c.difficulty === diff) score += 2
-      return { id: c.id, score, solved: solved.has(Number(c.id)) }
-    })
-    .filter(c => c.score > 0)
-    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.score - a.score || a.id - b.id)
-  
-  return ranked[0]?.id || null
+  const solved = new Set()
+  for (const result of appState.userSolvedCases) {
+    if (Number(result.scorePercent) >= SOLVE_SCORE_THRESHOLD) {
+      solved.add(Number(result.caseId))
+    }
+  }
+
+  const variants = []
+  for (const item of appState.cases) {
+   let matchingTags = 0
+    for (const tag of item.tags || []) {
+      if (tags.has(normalizeTagName(tag))) matchingTags++
+    }
+
+    let matchingTagIds = 0
+    for (const id of item.tagIds || []) {
+      if (tagIds.has(Number(id))) matchingTagIds++
+    }
+
+    let score = Math.max(matchingTags, matchingTagIds) * 3
+    if (diff && item.difficulty === diff) score += 2
+    if (score > 0) {
+      variants.push({ id: item.id, score, solved: solved.has(Number(item.id)) })
+    }
+  }
+
+  // сначала предлагаем нерешенные кейсы, потом сравниваем совпадения
+  variants.sort((a, b) => {
+   const solvedDifference = Number(a.solved) - Number(b.solved)
+    if (solvedDifference) return solvedDifference
+    if (a.score !== b.score) return b.score - a.score
+    return a.id - b.id
+  })
+  return variants[0]?.id || null
 }
 
 export const hydrateUser = (payload, opts = {}) => {
@@ -250,9 +275,14 @@ export const markCaseViewed = (id) => {
 export const isCaseFavorite = (id) => appState.userFavoriteCaseIds.includes(Number(id))
 
 export const setUserFavoriteCases = (cases = []) => {
-  appState.userFavoriteCaseIds = [...new Set(
-    cases.map((item) => Number(item?.id ?? item)).filter((id) => Number.isFinite(id) && id > 0)
-  )]
+  const ids = []
+  for (const item of cases) {
+    const id = Number(item?.id ?? item)
+    if (Number.isFinite(id) && id > 0 && !ids.includes(id)) {
+      ids.push(id)
+    }
+  }
+  appState.userFavoriteCaseIds = ids
 }
 
 export const setUserAchievements = (achievements = []) => {

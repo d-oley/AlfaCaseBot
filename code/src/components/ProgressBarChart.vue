@@ -66,11 +66,15 @@ export default {
   },
   computed: {
     normalizedItems() {
-      return this.items.map((item) => ({
-        label: String(item?.label || 'Без названия'),
-        value: Math.min(100, Math.max(0, Math.round(Number(item?.value) || 0))),
-        secondary: Boolean(item?.secondary),
-      }))
+      return this.items.map((item) => {
+        const roundedValue = Math.round(Number(item?.value) || 0)
+        const value = Math.min(100, Math.max(0, roundedValue))
+        return {
+          label: String(item?.label || 'Без названия'),
+          value,
+          secondary: Boolean(item?.secondary),
+        }
+      })
     },
     chartWidth() {
       return Math.max(520, this.plotLeft + this.plotRight + this.normalizedItems.length * this.itemSlotWidth)

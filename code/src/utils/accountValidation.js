@@ -1,7 +1,19 @@
-// Правила совпадают с проверками Java; пароль при этом не изменяем
-export const isPasswordValid = (value) => typeof value === 'string' &&
-  value.length >= 8 && value.length <= 30 && /\p{Nd}/u.test(value) &&
-  [...value].some(char => '!@#$%^&*()_-+=;:/?|\\<>{}[]'.includes(char))
+// пароль проверяем как есть, пробелы по краям не убираем
+export const isPasswordValid = (value) => {
+  if (typeof value !== 'string') return false
+  if (value.length < 8 || value.length > 30) return false
+  if (!/\p{Nd}/u.test(value)) return false
 
-export const isUsernameValid = (value) => typeof value === 'string' &&
-  Boolean(value.trim()) && value.length >= 3 && value.length <= 20 && !value.includes(' ')
+ const marks='!@#$%^&*()_-+=;:/?|\\<>{}[]'
+  for (const char of value) {
+     if (marks.includes(char)) return true
+  }
+  return false
+}
+
+export const isUsernameValid = (value) => {
+  if (typeof value !== 'string') return false
+  if (!value.trim()) return false
+  if (value.length < 3 || value.length > 20) return false
+  return !value.includes(' ')
+}

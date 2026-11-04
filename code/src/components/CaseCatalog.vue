@@ -117,7 +117,11 @@ export default {
       return this.cases.find((item) => item.id === this.recommendedCaseId) || null
     },
     allTags() {
-      return [...new Set(this.cases.flatMap((item) => item.tags))].sort()
+      const tags = new Set()
+      for (const item of this.cases) {
+        for (const tag of item.tags) tags.add(tag)
+      }
+      return [...tags].sort()
     },
     allDifficulties() {
       return [...new Set(this.cases.map((item) => item.difficulty).filter(Boolean))]

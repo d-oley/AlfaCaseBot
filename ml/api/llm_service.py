@@ -105,16 +105,7 @@ def call_llm(
     temperature: float = 0.7,
     operation_name: str = "unknown",
 ) -> Optional[str]:
-    """
-    Вызов OpenRouter LLM API с заданными сообщениями
-    
-    Args:
-        messages: Список словарей сообщений с 'role' и 'content'
-        temperature: Температура сэмплирования (0.0 до 1.0)
-    
-    Returns:
-        Текст ответа LLM или None при ошибке
-    """
+    """отправляем сообщения модели и забираем текст ответа"""
     if not OPENROUTER_API_KEY:
         LOGGER.warning("openrouter_request_skipped operation=%s reason=missing_api_key", operation_name)
         return None
@@ -193,10 +184,7 @@ def call_llm(
 
 
 def search_internet(query: str) -> str:
-    """
-    Поиск информации через Serper.dev (Google Search API)
-    Бесплатно 2500 запросов/мес
-    """
+    """ищем данные для проверки фактов"""
     if not SERPER_API_KEY:
         LOGGER.info("serper_request_skipped reason=missing_api_key")
         return ""
@@ -215,9 +203,9 @@ def search_internet(query: str) -> str:
             },
             json={
                 "q": query,
-                "gl": "ru",  # Россия
-                "hl": "ru",  # Русский язык
-                "num": 3      # Количество результатов
+                "gl": "ru",  # россия
+                "hl": "ru",  # русский язык
+                "num": 3      # количество результатов
             },
             timeout=10
         )
@@ -235,7 +223,7 @@ def search_internet(query: str) -> str:
         
         snippets = []
         
-        # Данные Knowledge Graph, если они пришли в ответе
+        # данные Knowledge Graph, если они пришли в ответе
         if data.get("knowledgeGraph"):
             kg = data["knowledgeGraph"]
             title = kg.get("title", "")
@@ -274,7 +262,7 @@ def search_internet(query: str) -> str:
 
 
 def evaluate_fact_checking(user_solution: str, case_context: str) -> Tuple[float, str]:
-    """ Проверка фактов с поиском через Serper.dev"""
+    """проверяем факты с поиском в интернете"""
     
     extraction_prompt = f"""Extract verifiable claims to fact-check via Google. Focus on numbers, stats, company data, dates, laws, market figures.
 
@@ -359,13 +347,7 @@ Be strict but fair. Only penalize clear factual errors."""
 
 
 def evaluate_originality(user_solution: str, case_context: str, perfect_solution: str) -> Tuple[float, str]:
-    """
-    Этап 2: Оценка оригинальности/нетипичности
-    Сравнивает подход пользователя с эталонным решением кейса
-    
-    Returns:
-        (оценка 0-100, отзыв на русском)
-    """
+    """сравниваем идеи решения с эталоном"""
     prompt = f"""You are an expert evaluator. Assess the originality of the user's solution.
 
 Case Context:
@@ -425,13 +407,7 @@ Keep this score specific to originality; effectiveness is assessed separately.""
 
 
 def evaluate_effectiveness(user_solution: str, case_context: str) -> Tuple[float, str]:
-    """
-    Этап 3: Оценка эффективности решения
-    Оценивает насколько хорошо решение достигает бизнес-целей
-    
-    Returns:
-        (оценка 0-100, отзыв на русском)
-    """
+    """оцениваем пользу и выполнимость решения"""
     prompt = f"""You are an expert evaluator. Assess the effectiveness of the user's solution.
 
 Case Context:
@@ -476,13 +452,7 @@ Respond in JSON format:
 
 
 def evaluate_logic(user_solution: str, case_context: str) -> Tuple[float, str]:
-    """
-    Этап 4: Оценка логичности и причинно-следственных связей
-    Проверяет логическую последовательность и связи причин-эффектов
-    
-    Returns:
-        (оценка 0-100, отзыв на русском)
-    """
+    """проверяем логику и связи между выводами"""
     prompt = f"""You are an expert evaluator. Assess the logical consistency of the user's solution.
 
 Case Context:
@@ -526,13 +496,7 @@ Respond in JSON format:
 
 
 def evaluate_completeness(user_solution: str, case_context: str) -> Tuple[float, str]:
-    """
-    Stage 5: Completeness evaluation
-    Checks if the solution covers all required aspects and has tangible results
-    
-    Returns:
-        (score 0-100, feedback_ru)
-    """
+    """проверяем, все ли части задания раскрыты"""
     prompt = f"""You are an expert evaluator. Assess the completeness of the user's solution.
 
 Case Context:
@@ -577,8 +541,10 @@ Respond in JSON format:
 
 
 def generate_feedback_message(final_score: float, stage_results: Dict) -> str:
-    """Generate feedback from scores without access to either solution text."""
-    scores = {name: result["score"] for name, result in stage_results.items()}
+    """составляем общий отзыв по оценкам критериев"""
+    scores = {}
+    for name, result in stage_results.items():
+        scores[name] = result["score"]
     ordered = sorted(scores, key=scores.get)
     weakest = ordered[:2]
     strongest = ordered[-2:]
@@ -617,17 +583,7 @@ Do not change or recalculate scores. Return JSON with one string field: message_
 
 
 def evaluate_solution(user_solution: str, case_context: str, perfect_solution: str) -> Dict:
-    """
-    Main evaluation function that runs all stages and calculates final score
-    
-    Args:
-        user_solution: User's solution text
-        case_context: Case context description
-        perfect_solution: Confidential reference solution for originality comparison
-    
-    Returns:
-        Dict with evaluation results including score, stage details, and feedback
-    """
+    """собираем оценки всех этапов и общий результат"""
     results = {
         "status": "evaluated",
         "stages": {},

@@ -237,7 +237,7 @@ export default {
       try {
         await logoutRequest()
       } catch {
-        // Сессия уже могла завершиться
+        // сессия уже могла завершиться
       }
       logoutUser()
       this.$router.push('/')

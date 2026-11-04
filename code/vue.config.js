@@ -1,7 +1,7 @@
 const { defineConfig } = require('@vue/cli-service')
 
-// Адреса внутренних сервисов нужны только серверу разработки
-// Префикс VUE_APP_ добавил бы их в код для браузера
+// адреса внутренних сервисов нужны только серверу разработки
+// префикс VUE_APP_ добавил бы их в код для браузера
 const backendProxyTarget = process.env.BACKEND_PROXY_TARGET || 'http://localhost:8080'
 const mlProxyTarget = process.env.ML_PROXY_TARGET || 'http://localhost:5000'
 const caseAssetProxyTarget = process.env.CASE_ASSET_PROXY_TARGET || 'http://localhost:333'
@@ -20,7 +20,7 @@ module.exports = defineConfig({
       Pragma: 'no-cache',
       Expires: '0',
     },
-    // Через публичный туннель HMR иногда вызывает бесконечную перезагрузку
+    // через публичный туннель HMR иногда вызывает бесконечную перезагрузку
     hot: hmrEnabled,
     liveReload: hmrEnabled,
     client: {

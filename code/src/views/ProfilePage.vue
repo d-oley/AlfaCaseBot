@@ -430,23 +430,30 @@ export default {
       return this.caseProgressStatuses.filter(item => item.completed)
     },
     solvedCases() {
-      const casesById = new Map(this.appState.cases.map((item) => [Number(item.id), item]))
-      const merged = new Map(
-        getSolvedCasesForUser().map((item) => [Number(item.caseId), item])
-      )
-      this.caseProgressStatuses
-        .filter((item) => item.bestRating >= SOLVE_SCORE_THRESHOLD)
-        .forEach((item) => {
-          const caseItem = casesById.get(item.caseId)
-          if (!caseItem) return
-          const previous = merged.get(item.caseId)
-          merged.set(item.caseId, {
-            ...caseItem,
-            ...previous,
-            caseId: item.caseId,
-            scorePercent: Math.max(Number(previous?.scorePercent || 0), item.bestRating),
-          })
+      const casesById = new Map()
+      for (const item of this.appState.cases) {
+        casesById.set(Number(item.id), item)
+      }
+
+      const merged = new Map()
+      for (const item of getSolvedCasesForUser()) {
+        merged.set(Number(item.caseId), item)
+      }
+
+      for (const item of this.caseProgressStatuses) {
+        if (!(item.bestRating >= SOLVE_SCORE_THRESHOLD)) continue
+        const caseItem = casesById.get(item.caseId)
+        if (!caseItem) continue
+
+        const previous = merged.get(item.caseId)
+        const previousScore = Number(previous?.scorePercent || 0)
+        merged.set(item.caseId, {
+          ...caseItem,
+          ...previous,
+          caseId: item.caseId,
+          scorePercent: Math.max(previousScore, item.bestRating),
         })
+      }
       return [...merged.values()].sort((a, b) => Number(b.scorePercent) - Number(a.scorePercent))
     },
     favoriteCases() {
@@ -464,7 +471,10 @@ export default {
     },
     averageSolvedScore() {
       if (!this.solvedCases.length) return 0
-      const total = this.solvedCases.reduce((sum, item) => sum + Number(item.scorePercent || 0), 0)
+      let total = 0
+      for (const item of this.solvedCases) {
+        total += Number(item.scorePercent || 0)
+      }
       return Math.min(100, Math.max(0, Math.round(total / this.solvedCases.length)))
     },
     profileChartItems() {
@@ -741,7 +751,7 @@ export default {
         if (Object.keys(params).length) {
           await changeUserParams(params)
           changesSaved = true
-          // Java возвращает название города, но не его cityId
+          // java возвращает название города, но не его cityId
           if (params.cityId != null) updateUserProfile({ cityId: Number(params.cityId), city: selectedCity?.cityName || '', region: selectedCity?.regionName || '' })
         }
 

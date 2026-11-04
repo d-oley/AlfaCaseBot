@@ -18,6 +18,7 @@
           :aria-label="isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'"
           @click="toggleFavorite"
         >
+        <!-- составить svg помог chat gpt 5 6 sol -->
           <svg class="favorite-heart" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 21C9.3 19.3 3 15.1 3 9.5A4.5 4.5 0 0 1 11.1 6.8L12 8l.9-1.2A4.5 4.5 0 0 1 21 9.5c0 5.6-6.3 9.8-9 11.5Z" />
           </svg>
@@ -47,6 +48,7 @@
           <span class="description-label">Оценка кейса</span>
           <div class="average-rating" :aria-label="formattedCaseRating">
             <span class="average-stars" aria-hidden="true">
+              <!-- составить svg помог chat gpt 5 6 sol -->
               <svg
                 v-for="rating in 5"
                 :key="rating"
@@ -311,12 +313,17 @@ export default {
       ]
     },
     caseComparisonChartItems() {
-      const scores = this.leaderboardEntries
-        .map((item) => Number(item.score))
-        .filter((score) => Number.isFinite(score) && score >= 0)
-      const average = scores.length
-        ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-        : 0
+      const scores = []
+     let amount=0
+      for (const item of this.leaderboardEntries) {
+        const score = Number(item.score)
+        if (Number.isFinite(score) && score >= 0) {
+          scores.push(score)
+          amount += score
+        }
+      }
+      let average = 0
+      if (scores.length) average = Math.round(amount / scores.length)
       const leader = Math.max(this.caseBestRating, ...scores, 0)
       const result = [
         { label: 'Ваш результат', value: this.caseBestRating },

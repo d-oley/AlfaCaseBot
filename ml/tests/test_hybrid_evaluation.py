@@ -4,7 +4,7 @@ from functools import partial
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-# Reuse the import with model loading disabled for HTTP unit tests
+# берем модуль с отключенной загрузкой модели для тестов запросов
 from test_reference_evaluation import app as llm_app
 from api import hybrid_app, llm_service
 
@@ -41,7 +41,7 @@ class HybridScoringTests(unittest.TestCase):
         self.assertIs(llm_app.app.state.evaluator, llm_service.evaluate_solution)
         self.assertIs(hybrid_app.app.state.evaluator, hybrid_app.not_started)
 
-
+# Этот класс помог доработать ChatGPT sol
 class HybridCaseTests(unittest.IsolatedAsyncioTestCase):
     async def test_http_flow_saves_hybrid_score(self):
         predictor = Mock()

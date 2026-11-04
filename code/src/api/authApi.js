@@ -96,7 +96,7 @@ export const toUserMessage = (message, fallback = 'Не удалось выпо�
 
   if (errors[normalized]) return errors[normalized]
 
-  // Не показываем пользователю HTML и сообщения сервера с техническими подробностями
+  // не показываем пользователю HTML и сообщения сервера с техническими подробностями
   if (normalized.length > 200 || !/[А-Яа-яЁё]/.test(normalized) ||
       /<[^>]*>|\b(?:java|api|sql|http|backend|frontend|exception|stack|trace|id)\b|(?:сервер|бэкенд|фронтенд|эндпоинт|идентификатор)/i.test(normalized)) {
     return fallback
@@ -211,9 +211,11 @@ const difficultyLabels = {
   HARD: 'Сложно',
 }
 
-const difficultyCodes = Object.fromEntries(
-  Object.entries(difficultyLabels).map(([code, label]) => [label, code])
-)
+const difficultyCodes = {
+  'Легко': 'EASY',
+  'Средне': 'MEDIUM',
+  'Сложно': 'HARD',
+}
 
 export const getCaseAssetUrl = (key) => {
   const value = String(key || '').trim()
@@ -225,8 +227,8 @@ export const getCaseAssetUrl = (key) => {
       const assetPrefix = '/alfa-cases/'
       const assetPrefixIndex = absoluteUrl.pathname.indexOf(assetPrefix)
 
-      // На HTTPS-сайте браузер блокирует файловые ссылки по HTTP
-      // Для известных файлов используем адрес этого же сайта
+      // на HTTPS-сайте браузер блокирует файловые ссылки по HTTP
+      // для известных файлов используем адрес этого же сайта
       if (CASE_ASSET_URL && assetPrefixIndex !== -1) {
         const assetKey = absoluteUrl.pathname.slice(assetPrefixIndex + assetPrefix.length)
         return `${CASE_ASSET_URL.replace(/\/$/, '')}/${assetKey}${absoluteUrl.search}`
@@ -249,11 +251,13 @@ const getCaseTagName = (caseTag) => {
 }
 
 const getCaseTagId = (caseTag) => {
-  const value =
-    caseTag?.tagId ??
-    caseTag?.tag?.id ??
-    caseTag?.id?.tagId ??
-    (typeof caseTag?.id === 'number' || typeof caseTag?.id === 'string' ? caseTag.id : null)
+  let value = caseTag?.tagId
+  if (value == null) value = caseTag?.tag?.id
+  if (value == null) value = caseTag?.id?.tagId
+  if (value == null) {
+    const isSimpleId = typeof caseTag?.id === 'number' || typeof caseTag?.id === 'string'
+    value = isSimpleId ? caseTag.id : null
+  }
   const id = Number(value)
   return Number.isFinite(id) && id > 0 ? id : null
 }
@@ -315,29 +319,51 @@ const buildPageQuery = ({ page = 0, size = 100, search = '', sort = '' } = {}) =
   return params.toString()
 }
 
+// эту функцию помог доработать chatgpt 5 6 sol
 const loadAllPages = async ({ path, search = '', sort = '', normalizeItem = (item) => item }) => {
-  const loadPage = (page) => request(
-    withBaseUrl(API_URL, `${path}?${buildPageQuery({ page, size: 100, search, sort })}`)
-  )
+  const loadPage = (page) => {
+    const query = buildPageQuery({ page, size: 100, search, sort })
+    const url = withBaseUrl(API_URL, `${path}?${query}`)
+    return request(url)
+  }
   const firstPage = normalizePageResponse(await loadPage(0))
-  const remainingPages = []
-  // Ограничиваем число одновременных запросов при загрузке страниц каталога
+  const nextRows = []
+  // ограничиваем число одновременных запросов при загрузке страниц каталога
   for (let page = 1; page < firstPage.totalPages; page += 4) {
-    remainingPages.push(...await Promise.all(
-      Array.from({ length: Math.min(4, firstPage.totalPages - page) }, (_, index) => loadPage(page + index))
-    ))
+    const requests = []
+   const batchSize = Math.min(4, firstPage.totalPages - page)
+    for (let index = 0; index < batchSize; index++) {
+      requests.push(loadPage(page + index))
+    }
+    const pages = await Promise.all(requests)
+    nextRows.push(...pages)
   }
 
-  return [firstPage, ...remainingPages.map((page) => normalizePageResponse(page))]
-    .flatMap((page) => page.items)
-    .map(normalizeItem)
+  const pages = [firstPage]
+  for (const page of nextRows) {
+    pages.push(normalizePageResponse(page))
+  }
+
+  const items = []
+  for (const page of pages) {
+    items.push(...page.items)
+  }
+  return items.map(normalizeItem)
 }
 
 export const normalizeUserPreferences = (payload = {}) => {
   const preferredTags = Array.isArray(payload.preferredTags) ? payload.preferredTags : []
+  const tagIds = []
+  const tags = []
+  for (const tag of preferredTags) {
+    const id = Number(tag?.id)
+    if (Number.isFinite(id) && id > 0) tagIds.push(id)
+    if (tag?.name) tags.push(tag.name)
+  }
+
   return {
-    tagIds: preferredTags.map((tag) => Number(tag?.id)).filter((id) => Number.isFinite(id) && id > 0),
-    tags: preferredTags.map((tag) => tag?.name || '').filter(Boolean),
+    tagIds,
+    tags,
     difficulty: String(payload.preferredDifficulty || '').toLowerCase(),
   }
 }
@@ -899,9 +925,13 @@ export const getUserPreferences = async () => {
 }
 
 export const saveUserPreferences = async ({ tagIds = [], difficulty = '' } = {}) => {
-  const normalizedTagIds = [...new Set(
-    tagIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
-  )]
+  const normalizedTagIds = []
+  for (const tagId of tagIds) {
+    const id = Number(tagId)
+    if (Number.isFinite(id) && id > 0 && !normalizedTagIds.includes(id)) {
+      normalizedTagIds.push(id)
+    }
+  }
   const normalizedDifficulty = String(difficulty || '').trim().toUpperCase()
 
   if (USE_MOCK_API) {

@@ -102,7 +102,7 @@ jobs:
           git merge --ff-only "$TARGET_SHA"
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
 
-          # These files live on the VM, not in Git.
+          # эти файлы хранятся на сервере отдельно от репозитория
           test -f code/.env
           test -s ml/artifacts/best_censor_model.joblib
           test -s ml/artifacts/rubert_tiny2_multitask/rubert_tiny2_multitask.pt
@@ -113,7 +113,7 @@ jobs:
           docker compose config --quiet
           df -h .
 
-          # Preserve the currently working images for rollback.
+          # сохраняем текущие образы на случай отката
           docker image tag alfacasebot-frontend:latest alfacasebot-frontend:rollback
           docker image tag alfacasebot-ml-hybrid:latest alfacasebot-ml-hybrid:rollback
 
@@ -134,7 +134,7 @@ jobs:
           }
           trap 'on_failure $?' ERR
 
-          # Keep old containers running during the build.
+          # старые контейнеры продолжают работать во время сборки
           BUILDKIT_PROGRESS=plain docker compose build frontend
           BUILDKIT_PROGRESS=plain docker compose build ml
 

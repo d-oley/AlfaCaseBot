@@ -5,14 +5,13 @@
       <p>ИИ-тренажер для практики бизнес-кейсов</p>
       <router-link class="footer-help" to="/help">Помощь</router-link>
       <p class="footer-disclaimer">
-        AlfaCaseBot — учебный проект. Не является официальным продуктом Альфа-Банка.
+        AlfaCaseBot - учебный проект. Не является официальным продуктом Альфа-Банка.
       </p>
     </div>
   </footer>
 </template>
 
 <script>
-// AppFooter.vue: компонент подвала сайта с краткой информацией о продукте.
 export default {
   name: 'AppFooter',
 }

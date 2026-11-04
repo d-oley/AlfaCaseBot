@@ -196,7 +196,7 @@ export default {
       try {
         upsertCase(await getCaseByIdRequest(this.caseId))
       } catch {
-        // Название кейса не блокирует загрузку самой теории
+        // название кейса не блокирует загрузку самой теории
       }
     },
     async loadSections() {

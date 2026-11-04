@@ -1,7 +1,7 @@
-# OS files
+# файлы операционной системы
 .DS_Store
 
-# IDE
+# настройки редакторов
 .idea
 .vscode
 *.suo
@@ -10,13 +10,13 @@
 *.sln
 *.sw?
 
-# Frontend (code folder)
+# клиентская часть
 code/node_modules
 code/dist
 code/.env.local
 code/.env.*.local
 
-# Log files
+# файлы с логами
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -24,14 +24,14 @@ pnpm-debug.log*
 code/*.log
 code/*.err.log
 
-# Backend (back folder)
+# серверная часть
 back/build
 back/.gradle
 back/.classpath
 back/.project
 back/.settings/
 
-# ML (ml folder)
+# модели и данные для обучения
 ml/training/data/censorship/**/*.csv
 ml/**/.cache_alfacase_parser/
 ml/data1.csv
@@ -49,6 +49,6 @@ ml/.env.local
 ml/logs/
 ml/local_ml_runner*.log
 
-# Generated files
+# временные файлы
 *.jar
 *.class

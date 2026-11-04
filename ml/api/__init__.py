@@ -1,1 +1,1 @@
-"""AlfaCaseBot ML API package."""
+"""сервисы оценки решений"""

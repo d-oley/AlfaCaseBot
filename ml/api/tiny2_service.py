@@ -1,4 +1,4 @@
-"""Offline inference matching training_rubert_tiny2.ipynb."""
+"""загрузка обученной модели и оценка решения"""
 
 from pathlib import Path
 from threading import Lock
@@ -18,7 +18,10 @@ class RuBertMultiTaskRegressor(nn.Module):
     def forward(self, input_ids, attention_mask, token_type_ids=None):
         output = self.encoder(input_ids=input_ids, attention_mask=attention_mask,
                               token_type_ids=token_type_ids)
-        return torch.sigmoid(self.regression_head(self.dropout(output.last_hidden_state[:, 0])))
+        first_token = output.last_hidden_state[:, 0]
+        hidden = self.dropout(first_token)
+        scores = self.regression_head(hidden)
+        return torch.sigmoid(scores)
 
 
 class Tiny2Predictor:
@@ -43,15 +46,22 @@ class Tiny2Predictor:
         self.model.load_state_dict(checkpoint["state_dict"], strict=True)
         self.model.to(self.device).eval()
 
+    # эту функцию помог доработать chatgpt sol
     def predict(self, case_text: str, solution: str) -> dict[str, float]:
         if not case_text.strip() or not solution.strip():
             raise ValueError("Case text and solution must be nonempty")
         with self.lock, torch.inference_mode():
             inputs = self.tokenizer(case_text, solution, truncation="longest_first",
                                     max_length=self.max_length, padding=True, return_tensors="pt")
-            outputs = self.model(**{key: value.to(self.device) for key, value in inputs.items()})[0]
+            model_data = {}
+            for key, value in inputs.items():
+                model_data[key] = value.to(self.device)
+            outputs = self.model(**model_data)[0]
             if not torch.isfinite(outputs).all():
                 raise ValueError("Tiny2 returned nonfinite scores")
             scores = (outputs.cpu() * 100).tolist()
-        return {name: float(scores[self.targets.index(target)])
-                for name, target in self.REQUIRED_TARGETS.items()}
+        result = {}
+        for name, target in self.REQUIRED_TARGETS.items():
+            index = self.targets.index(target)
+            result[name] = float(scores[index])
+        return result

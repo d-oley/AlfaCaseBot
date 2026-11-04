@@ -1,4 +1,4 @@
-"""English case contexts used by the LLM evaluation prompt."""
+"""описания кейсов для оценки решений"""
 
 
 CASE_CONTEXTS = {
@@ -118,7 +118,7 @@ Evaluation focus: MVP discipline, UX quality, research design, evidence-based de
 
 
 def get_case_context(case_id):
-    """Return the evaluation context for a case ID."""
+    """берем описание выбранного кейса"""
     case_id = int(case_id)
     if case_id not in CASE_CONTEXTS:
         return {
@@ -132,10 +132,10 @@ def get_case_context(case_id):
 
 
 def get_all_case_ids():
-    """Return all configured case IDs."""
+    """возвращаем номера доступных кейсов"""
     return list(CASE_CONTEXTS.keys())
 
 
 def add_case_context(case_id, title, context):
-    """Add or replace a case context."""
+    """добавляем или заменяем описание кейса"""
     CASE_CONTEXTS[int(case_id)] = {"title": title, "context": context}
