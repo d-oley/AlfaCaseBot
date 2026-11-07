@@ -12,6 +12,7 @@ services:
       BACKEND_BASE_URL: http://${BACKEND_UPSTREAM:-host.docker.internal:999}
       ML_SERVICE_TOKEN: ${ML_SERVICE_TOKEN:?Set ML_SERVICE_TOKEN for Java and ML}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY for hybrid evaluation}
+      OPENROUTER_URL: ${OPENROUTER_URL:-https://openrouter.ai/api/v1/chat/completions}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       SERPER_API_KEY: ${SERPER_API_KEY:-}
       TINY2_DEVICE: cpu
